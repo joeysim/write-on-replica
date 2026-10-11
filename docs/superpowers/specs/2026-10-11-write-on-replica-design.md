@@ -166,8 +166,10 @@ Rules that keep the model sound:
 - **A group needs at least two variants.** A group left with one variant dissolves back to
   plain text once it is no longer the panel's target. This is why the underline disappears
   when the last alternative is undone.
-- **Ghost may wrap a group, never the reverse.** A ghost boundary that would cut through a
-  group expands to include it.
+- **Ghost and groups never straddle.** A ghost run may sit inside a group or around one,
+  but a run that would cross a group's edge is split at the edge, so ghosting dims exactly
+  what was selected. Because variants are plain strings, ghost marking inside a group
+  belongs to the variant that was showing; switching variants drops it.
 - After every edit the document is normalised: duplicate ids produced by splitting a
   paragraph are resolved (the first keeps the group), orphaned groups are dropped, the
   active variant is re-read from the text.
