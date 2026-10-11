@@ -139,7 +139,8 @@ export function htmlToBlocks(html) {
   return blocks;
 }
 
-function runsToHtml(runs) {
+/** The inline html for a block's runs, with ghost and group spans nested canonically. */
+export function runsToHtml(runs) {
   // Consecutive runs of one group form a unit; other runs stand alone.
   const units = [];
   for (const run of runs) {
@@ -220,8 +221,8 @@ export function blocksToMarkdown(blocks) {
 export function markdownToBlocks(markdown) {
   return markdown.split('\n').map((line) => {
     if (line === '') return { kind: 'blank', runs: [] };
-    const heading = /^(#{1,6}) (.+)$/.exec(line);
-    if (heading) return { kind: 'h', level: heading[1].length, runs: [{ text: heading[2] }] };
+    const heading = /^(#{1,6}) (.*)$/.exec(line);
+    if (heading) return { kind: 'h', level: heading[1].length, runs: heading[2] ? [{ text: heading[2] }] : [] };
     return { kind: 'p', runs: [{ text: line }] };
   });
 }
