@@ -92,9 +92,9 @@ It opens as a bare editor. Clicking the word count turns the rest on.
 | `tip` | `#5a5b6a` | Shortcut tooltips |
 | `lab-label`, `lab-dash` | `#847c83`, `#605f69` | The LAB button's letters and dashed outline |
 | `selection` | `accent` at 28% | Text selection |
-| `hover` | `accent` at 11% | Hover highlight on a group |
-| `word-line` | `#474c74` | Word-scope underline |
-| `sentence-line` | `#5b4d68` | Sentence-scope underline |
+| `hover` | `rgb(152, 168, 226)` at 10% | Hover highlight on a group |
+| `word-line` | `accent` at 50% | Word-scope underline |
+| `sentence-line` | `sentence-dot` at 45% | Sentence-scope underline |
 | `sentence-dot` | `#c29abe` | Sentence-scope active dot |
 | `paragraph-bar` | `#805448` | Paragraph-scope margin bar |
 | `paragraph-dot` | `#c88d6c` | Paragraph-scope active dot |
@@ -258,7 +258,11 @@ Each scope has its own mark, so the three can sit near each other without confus
 
 ### 6.3 Cycling in place
 
-- Hovering a group tints it with `hover`. For a paragraph group the whole block tints.
+- Hovering a group tints it with `hover`. A word or sentence is tinted from the top of its
+  line of text to just under its underline (9.3 px below the baseline for a word, 13 px
+  for a sentence), and the two ends of the tint fade out over 8 px (word) or about 13 px
+  (sentence). For a paragraph group the whole block tints, with 4 px corners. The
+  underlines are translucent, so they brighten over the tint.
 - While hovering, **→ or ↓** shows the next variant and **← or ↑** the previous, wrapping
   at the ends. The new text arrives with a ~150 ms blur-and-fade, the line reflows, and
   the caret lands at the end of the swapped text. The mouse pointer may hide; cycling
@@ -496,8 +500,8 @@ All sound is synthesised; there are no audio files.
 | --- | --- |
 | High tick | Triangle wave, 1900 Hz. Gain 0 → 0.3 in 3 ms, then exponential decay, τ ≈ 4.7 ms. About 14 ms audible. |
 | Low tick | The same at 1500 Hz. |
-| Boom | Sine at a random 83–98 Hz, starting from ~230 Hz and dropping within 10 ms; peak 0.9, τ ≈ 70 ms. Plus a noise burst centred on 1–6 kHz that peaks at ~35 ms, τ ≈ 60 ms, gone by 300 ms. |
-| Undo of a delete | Noise rising for 140 ms and cut off, then a 98 Hz thump, τ ≈ 55 ms. |
+| Boom | Sine at a random 83–98 Hz, starting from ~230 Hz and dropping within 10 ms; peak 0.9, τ ≈ 70 ms. Plus a noise burst, mostly 1–3.5 kHz, that peaks at ~40 ms, τ ≈ 75 ms, gone by 300 ms. |
+| Undo of a delete | Noise (1–3 kHz) rising for 140 ms and cut off, then a 98 Hz thump, peak 0.93, τ ≈ 55 ms. |
 
 Explosion, drawn on a canvas over the page:
 
@@ -658,9 +662,15 @@ go another way.
    prompt building and response parsing, including hostile responses.
 2. **Scripted UI runs in the real web view.** A debug-only harness launches the app,
    drives a scenario and writes PNG snapshots of the page. Clicks, drags, typing and
-   shortcuts are native events sent through the app's window. A Mac may be locked or
-   unattended, and in that state WebKit discards pointer moves that have no button held,
-   so scenarios hover by dispatching the DOM events a move would produce. Scenarios follow the clips:
+   shortcuts are native events handed straight to the app's web view. A scripted run is
+   a background process and must not disturb whoever is using the Mac: it has no Dock
+   icon, is never the active app, and its window is invisible, click-through and unable
+   to take the keyboard; it leaves the clipboard, saved settings, speakers, file panels
+   and default browser alone. The first scenario checks this on every run. Inside, WebKit
+   is told to treat the page as visible and focused, so runs behave the same whether the
+   Mac is in use, locked or unattended. For a window that is not really in front, WebKit
+   discards pointer moves that have no button held, so scenarios hover by dispatching the
+   DOM events a move would produce. Scenarios follow the clips:
    read mode, each scope's marks, hover-cycling, the panel, `??`, ghost, overflow, the
    context menu, the Lab popover, a trim, the source view. Snapshots are compared with
    the corresponding frames for position, size and colour. The reference frames stay out

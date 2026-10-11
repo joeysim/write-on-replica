@@ -16,14 +16,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let test = UITestOptions.parse(CommandLine.arguments)
         if let test {
-            // A scripted run starts from the settings it names and saves nothing.
-            settings = AppSettings(defaults: nil, initial: test.settings)
+            // A scripted run starts from the settings it names and saves nothing. It is
+            // silent unless it asks for sound.
+            var initial = test.settings
+            if initial["sound"] == nil { initial["sound"] = false }
+            settings = AppSettings(defaults: nil, initial: initial)
         }
         let controller = openWindow(pageSize: test?.pageSize, scripted: test != nil)
-        NSApp.activate(ignoringOtherApps: true)
         if let test {
+            // Never activated: the keyboard and pointer stay with whoever is at the Mac.
             harness = UITestHarness(options: test, controller: controller)
             harness?.start()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)
         }
     }
 

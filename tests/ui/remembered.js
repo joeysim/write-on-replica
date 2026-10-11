@@ -14,4 +14,5 @@ t.assert(!$('#toggle-alternates').classList.contains('is-on'), 'and is not lit')
 
 // Nothing is written back just for having started.
 const saved = await t.call('settings.get', {});
-t.equal([saved.read, saved.alternates, Object.keys(saved).length], [false, false, 2], 'the stored settings are as they were');
+t.equal([saved.read, saved.alternates], [false, false], 'the stored settings are as they were');
+t.equal(Object.keys(saved).sort(), ['alternates', 'read', 'sound'], 'with nothing added (a scripted run is given sound: false)');

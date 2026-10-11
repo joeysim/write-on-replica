@@ -13,6 +13,11 @@ final class EditorWindow: NSWindow {
     override var isKeyWindow: Bool { simulatesKeyState || super.isKeyWindow }
     override var isMainWindow: Bool { simulatesKeyState || super.isMainWindow }
 
+    /// A scripted run's window never really takes the keyboard, so nothing typed by the
+    /// person at the Mac can land in it and nothing is taken from them.
+    override var canBecomeKey: Bool { !simulatesKeyState && super.canBecomeKey }
+    override var canBecomeMain: Bool { !simulatesKeyState && super.canBecomeMain }
+
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
         allowsFrameBeyondScreen ? frameRect : super.constrainFrameRect(frameRect, to: screen)
     }
@@ -105,6 +110,16 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         window.contentMinSize = Self.minimumPageSize
         window.allowsFrameBeyondScreen = exactSize
         window.simulatesKeyState = scripted
+        if scripted {
+            // Out of the way of whoever is using the Mac: not visible, not clickable, not
+            // in Mission Control or the window cycle. The page still lays out and paints,
+            // because WebKit has been told above not to wait for the window to be seen.
+            window.alphaValue = 0
+            window.ignoresMouseEvents = true
+            window.hasShadow = false
+            window.isExcludedFromWindowsMenu = true
+            window.collectionBehavior = [.transient, .ignoresCycle, .stationary]
+        }
         window.contentView = webView
         window.delegate = self
         window.setContentSize(exactSize ? size : Self.fit(size, to: NSScreen.main))
@@ -123,7 +138,7 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
 
     func show() {
         if scripted {
-            window.orderFrontRegardless()
+            window.orderBack(nil)
             window.makeFirstResponder(webView)
             NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
             NotificationCenter.default.post(name: NSWindow.didBecomeMainNotification, object: window)

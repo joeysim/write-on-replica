@@ -54,6 +54,7 @@ final class UITestHarness {
     private var eventNumber = 0
     private var finished = false
     private var rendersAtZoom = false
+    private var activations = 0
 
     init(options: UITestOptions, controller: DocumentWindowController) {
         self.options = options
@@ -62,6 +63,13 @@ final class UITestHarness {
 
     func start() {
         try? FileManager.default.createDirectory(at: options.output, withIntermediateDirectories: true)
+        // The run is set up never to come to the front. If it is brought there anyway, it
+        // steps back at once, so the keyboard returns to whatever had it.
+        NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.activations += 1
+            NSApp.hide(nil)
+            DispatchQueue.main.async { NSApp.unhideWithoutActivation() }
+        }
         controller.onPageLog = { [weak self] level, message in
             if level == "error" { self?.pageErrors.append(message) }
         }
@@ -135,6 +143,21 @@ final class UITestHarness {
         bridge.on("test.options", sync: { [weak self] _ in
             guard let self else { return nil }
             return ["zoom": self.options.zoom, "rendersAtZoom": self.rendersAtZoom, "aiMock": self.options.aiMock] as [String: Any]
+        })
+        // What the run looks like from outside, for the scenario that checks it stays out
+        // of the way. These are the real states, not the ones simulated for the page.
+        bridge.on("test.environment", sync: { [weak self] _ in
+            guard let self else { return nil }
+            let window = self.controller.window
+            return [
+                "active": NSApp.isActive,
+                "activations": self.activations,
+                "accessory": NSApp.activationPolicy() == .accessory,
+                "key": NSApp.keyWindow === window,
+                "canBecomeKey": window.canBecomeKey,
+                "alpha": Double(window.alphaValue),
+                "ignoresMouse": window.ignoresMouseEvents,
+            ] as [String: Any]
         })
         bridge.on("test.done", sync: { [weak self] params in
             let failures = params["failures"] as? [String] ?? []
