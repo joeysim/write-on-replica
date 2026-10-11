@@ -238,7 +238,8 @@ t.equal(editor.groups.k33ps01, undefined, 'it is no longer a group');
 t.assert(textOf(PARA).includes('This one remembers the others'), 'its text stays, as plain text');
 t.equal(editor.elementFor('k33ps01'), null, 'with no mark on it');
 await t.key('z', { meta: true });
-t.equal(editor.groups.k33ps01?.variants, ['remembers'], 'undo brings the group back');
+t.equal(editor.groups.k33ps01?.variants, ['keeps', 'remembers'], 'undo takes back the removal that left it alone, and it is a group again');
+t.assert(editor.elementFor('k33ps01') !== null, 'marked in the text');
 
 // What a command would act on.
 editor.select({ block: 5, offset: 8 });

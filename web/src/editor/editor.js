@@ -79,16 +79,18 @@ export function createEditor(root) {
    * Makes one change to the document. `fn` receives a draft { blocks, groups, overflow,
    * selection } to modify with the functions in doc/blocks.js; set `draft.selection` to
    * { start, end? } to place the selection afterwards.
+   * @param record false for a change that is not the writer's edit and so not a step to
+   *   undo (the panel marking the word it is looking at)
    * @returns {boolean} whether anything changed
    */
-  function change(label, fn, { coalesceKey = null, meta = null } = {}) {
+  function change(label, fn, { coalesceKey = null, meta = null, record = true } = {}) {
     const before = snapshot();
     const draft = { blocks, groups: cloneGroups(groups), overflow, selection: null };
     fn(draft);
     const tidy = doc.normaliseBlocks(draft.blocks, draft.groups);
     const same = draft.overflow === overflow && sameKeys(tidy.blocks.map(blockKey), keys) && JSON.stringify(tidy.groups) === JSON.stringify(groups);
     if (!same) {
-      history.record(before, { coalesceKey, meta: meta ?? { label } });
+      if (record) history.record(before, { coalesceKey, meta: meta ?? { label } });
       blocks = tidy.blocks;
       groups = tidy.groups;
       overflow = draft.overflow;

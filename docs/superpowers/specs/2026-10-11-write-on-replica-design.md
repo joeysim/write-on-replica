@@ -86,7 +86,8 @@ It opens as a bare editor. Clicking the word count turns the rest on.
 | `popover` | `#131623` | Context menu, Lab popover, trim card, source view |
 | `dim-icon` | `#635b62` | Inactive icons |
 | `lit-icon` | `text` at 56% | An icon under the pointer |
-| `dim-text` | `text` at 53% | Inactive tabs, inactive rows, shortcut labels, hints |
+| `dim-text` | `#857b82` | Inactive tabs, inactive rows, shortcut labels, hints |
+| `edge` | `#1f2334` | The hairline at the edge of a panel |
 | `faint` | `#26293c` | Word count |
 | `faint-lit` | `#575763` | Word count under the pointer |
 | `tip` | `#5a5b6a` | Shortcut tooltips |
@@ -119,10 +120,9 @@ Opacity states: ghost text 11%; paragraphs other than the panel's target 35%.
   with 0.045 em; "LAB" 10 px with 1.74 px; "XYZ" 10 px bold, unspaced. (Cap height and
   character pitch were measured separately in the clips; these are the sizes that satisfy
   both.)
-- **Labels:** a handwriting face, believed to be Caveat, ~22 px, for the panel tabs
-  ("Word", "Sentence", "Paragraph"), "Overflow", "As saved", "Readable" and "Copy". To be
-  confirmed against frames during implementation; if it does not match, the closest
-  open-licensed face is substituted and the choice recorded.
+- **Labels:** Caveat, 19.7 px, for the panel tabs ("Word", "Sentence", "Paragraph"),
+  "Overflow", "As saved", "Readable" and "Copy". Compared glyph for glyph with the clip's
+  tabs at 2x: the shapes, widths and heights match.
 - Both families are OFL-licensed and bundled with their licence files.
 
 ### 4.3 Page layout
@@ -297,7 +297,9 @@ Both rules were checked against every tick in the three clips.
 
 ### 6.5 The alternatives panel
 
-A 268 px panel that slides in from the left over the margin.
+A 280 px panel (279 px and a hairline) that slides in from the left over the margin in
+180 ms. The text column does not move; the word count and the bottom-left icons stay in
+view over it.
 
 - **Opening.** Right-click ▸ "Alternatives for selection" / "Alternatives for “word”", or
   Ctrl+Shift+A. With no selection the target is the word at the caret.
@@ -307,12 +309,14 @@ A 268 px panel that slides in from the left over the margin.
   cannot become a group; the menu item is dimmed.
 - **Tabs** "Word · Sentence · Paragraph" show the target's scope. Clicking another tab
   retargets to the word, sentence or paragraph around the same spot.
-- **While open,** the target's paragraph stays at full strength and every other paragraph
-  drops to 35%. The target shows its scope's underline even before it has alternatives.
-  Clicking a word in the page retargets the panel to it, silently.
-- **Rows.** One per variant: a marker and editable text. The active row is full-strength
-  text with an accent marker; the rest are `dim-text`. Markers: a small square for the
-  user's variants (a filled dot when active), a robot head for AI variants.
+- **While open,** the target itself stays at full strength, the rest of its paragraph
+  drops to 66% and every other paragraph to 36%. Only the text dims; underlines, dots and
+  bars keep their strength. The target shows its scope's underline even before it has
+  alternatives. Clicking a word in the page retargets the panel to it, silently.
+- **Rows.** One per variant: a marker and editable text, 15 px, 31.8 px apart, the first
+  on the line of the page's first text. The active row is full-strength text with an
+  accent marker; the rest are `dim-text`. Markers: a 3 px square for the user's variants
+  (a 6 px dot when active), a robot head for AI variants. A long variant wraps.
 - **Keys and clicks.**
   - Clicking a row makes it active: tick, and the page text swaps.
   - ↑ / ↓ move the active row, no wrap.
@@ -652,6 +656,10 @@ go another way.
 | 33 | Line pitch | 36 px instead of the measured 36.4 px; see §4.2. |
 | 34 | Other tooltips | The source icon shows "Ctrl+U". An icon in the top row has no room above it, so its label goes below. The alternates toggle, keyboard icon, LAB and LinkedIn show none. |
 | 35 | Alternates toggle when off | Drawn in the inactive icon colour. The clips only show it on. |
+| 36 | A target with no alternatives | While the panel looks at a word that has none, the word is a group of one. Making and unmaking that group is not an undo step, and it is never left behind: closing the panel, moving it on, undo, redo or opening a file turns a group of one back into plain text. |
+| 37 | Rows | The empty row is always the last. Emptying a row in the middle removes its variant and puts the caret in the empty row at the end. A row typed into the same words as another row does not become a second copy; the row it repeats shows instead. The only variant of a group cannot be emptied away. |
+| 38 | Typing an alternative and undo | The letters of an alternative typed in one go are one undo step. Undo and redo in the panel are the document's. |
+| 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
 
 ## 10. Verification
 

@@ -31,7 +31,8 @@
   --popover: #131623;
   --dim-icon: #635b62;
   --lit-icon: rgba(var(--text-rgb), 0.56);
-  --dim-text: rgba(var(--text-rgb), 0.53);
+  --dim-text: #857b82;
+  --edge: #1f2334;
   --faint: #26293c;
   --faint-lit: #575763;
   --tip: #5a5b6a;

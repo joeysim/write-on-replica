@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="styles/base.css" />
     <link rel="stylesheet" href="styles/editor.css" />
     <link rel="stylesheet" href="styles/chrome.css" />
+    <link rel="stylesheet" href="styles/panels.css" />
   </head>
   <body class="is-booting">
     <div id="scroll">
@@ -16,6 +17,16 @@
         <div id="editor" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off"></div>
       </div>
     </div>
+
+    <aside id="panel" aria-label="Alternatives">
+      <div class="tabs">
+        <button class="tab" type="button" data-scope="word">Word</button>
+        <button class="tab" type="button" data-scope="sentence">Sentence</button>
+        <button class="tab" type="button" data-scope="paragraph">Paragraph</button>
+      </div>
+      <ol class="rows"></ol>
+      <p class="hint">return adds · esc closes</p>
+    </aside>
 
     <!-- The chrome. Icons are drawn to the measurements in the design spec, section 4.3;
          each viewBox has its origin at the middle of the drawing. WebKit paints an inline
