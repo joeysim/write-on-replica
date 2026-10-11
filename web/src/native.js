@@ -1,0 +1,51 @@
+// The page's only door to the shell. Inside the app every call goes over the bridge;
+// in an ordinary browser a small shim answers instead, so the page can be developed
+// without the app.
+
+const handler = globalThis.webkit?.messageHandlers?.writeon;
+const listeners = new Map();
+
+const shim = {
+  'app.info': () => ({ inApp: false, version: 'browser' }),
+  'app.ready': () => null,
+  log: ({ level, message }) => {
+    (level === 'error' ? console.error : console.log)(message);
+    return null;
+  },
+};
+
+export const native = {
+  inApp: Boolean(handler),
+
+  /** Ask the shell to do something. Rejects with an Error carrying the shell's message. */
+  async call(method, params = {}) {
+    if (handler) {
+      try {
+        return await handler.postMessage({ method, params });
+      } catch (reason) {
+        throw reason instanceof Error ? reason : new Error(String(reason));
+      }
+    }
+    const answer = shim[method];
+    if (!answer) throw new Error(`unknown bridge method: ${method}`);
+    return answer(params);
+  },
+
+  /** Listen for an event pushed by the shell. Returns a function that stops listening. */
+  on(event, listener) {
+    if (!listeners.has(event)) listeners.set(event, new Set());
+    listeners.get(event).add(listener);
+    return () => listeners.get(event)?.delete(listener);
+  },
+
+  /** Lets the browser shim answer more methods (used by features as they arrive). */
+  provide(method, answer) {
+    shim[method] = answer;
+  },
+};
+
+globalThis.__writeon = {
+  emit(event, payload) {
+    for (const listener of listeners.get(event) ?? []) listener(payload);
+  },
+};

@@ -33,7 +33,8 @@
   position: relative;
   width: var(--column);
   margin: 0 auto;
-  padding: 18vh 0 45vh;
+  /* 18vh, plus the fraction that puts the first text baseline where the clips have it. */
+  padding: calc(18vh + 0.85px) 0 45vh;
 }
 
 #decor {
@@ -59,7 +60,7 @@
 
 #editor p {
   margin: 0;
-  min-height: calc(1em * var(--line));
+  min-height: var(--line);
 }
 
 #editor p[data-h] {

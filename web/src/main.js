@@ -1,3 +1,4 @@
+import { native } from './native.js';
 import { sampleState } from './sample.js';
 
 // Until the editing surface exists (plan task 8) the page only displays the sample:
@@ -14,3 +15,5 @@ function showStatic(root, html) {
 }
 
 showStatic(document.getElementById('editor'), sampleState().html);
+
+document.fonts.ready.then(() => native.call('app.ready'));

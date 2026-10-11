@@ -99,8 +99,14 @@ Opacity states: ghost text 11%; paragraphs other than the panel's target 35%.
 
 ### 4.2 Type
 
-- **Editor:** IBM Plex Mono, 20 px, weight 400; headings weight 700 at the same size.
-  Character advance 12.00 px. Line pitch 36.40 px (line-height 1.82).
+- **Editor:** IBM Plex Mono, 20 px, weight 400; headings weight 700 at the same size,
+  with antialiased smoothing (measured stroke weights match the clips to within 6%).
+  Character advance 12.00 px.
+- **Line pitch:** the clips average 36.40 px, with lines landing on alternate half
+  pixels, which is how a Chromium-based app lays out a fractional line height. WebKit
+  places line boxes on whole pixels, so the app uses 36 px. The first line sits exactly
+  where the clips have it; each line after it is 0.4 px higher than in the clips. The
+  alternative, scaling the whole page by 1.011, would soften the text on a 1× display.
 - **Panels and menus:** IBM Plex Mono at 15 px (panel rows, overflow text), 13 px (menus,
   Lab), 12 px (trim card), 10 px (word count, hints, tooltips).
 - **Labels:** a handwriting face, believed to be Caveat, ~22 px, for the panel tabs
@@ -112,7 +118,8 @@ Opacity states: ghost text 11%; paragraphs other than the panel's target 35%.
 ### 4.3 Page layout
 
 - Text column: 780 px wide (65 characters), centred. It does not move when panels open.
-- Top padding 18vh (175.7 px at 976), bottom padding 45vh.
+- Top padding 18vh (175.7 px at 976) plus the 0.85 px that puts the first text baseline
+  at 237.5 px, as measured; bottom padding 45vh.
 - The text is masked near the top and bottom edges of the page so lines dissolve rather
   than collide with the chrome: invisible within 53 px of either edge, rising linearly to
   full strength at 96 px.
@@ -624,7 +631,10 @@ go another way.
    tone rule replayed against the tick sequences recorded from the clips; history;
    prompt building and response parsing, including hostile responses.
 2. **Scripted UI runs in the real web view.** A debug-only harness launches the app,
-   drives a scenario and writes PNG snapshots of the page. Scenarios follow the clips:
+   drives a scenario and writes PNG snapshots of the page. Clicks, drags, typing and
+   shortcuts are native events sent through the app's window. A Mac may be locked or
+   unattended, and in that state WebKit discards pointer moves that have no button held,
+   so scenarios hover by dispatching the DOM events a move would produce. Scenarios follow the clips:
    read mode, each scope's marks, hover-cycling, the panel, `??`, ghost, overflow, the
    context menu, the Lab popover, a trim, the source view. Snapshots are compared with
    the corresponding frames for position, size and colour. The reference frames stay out
@@ -649,3 +659,4 @@ go another way.
 | `glm-5.3-flash` at low reasoning may choose poor cuts or miss the target length | Raise reasoning for Lab passes only; the card always reports the real numbers. |
 | The handwriting face may not be Caveat | Compare glyphs early; substitute and record. |
 | The original may differ wherever §9 guesses | All guesses are in one table and cheap to change. |
+| Real pointer hover cannot be automated on a locked Mac | Hover behaviour is driven by the page's own event handlers, which the scenarios exercise; the real pointer is on the hands-on checklist. |
