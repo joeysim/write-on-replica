@@ -7,6 +7,7 @@
 // inside a paragraph.
 
 import { tidyGroup, setVariantText } from './model.js';
+import { fixArticle } from './text.js';
 
 // --- runs ---------------------------------------------------------------------------------
 
@@ -313,6 +314,41 @@ export function setGroupText(blocks, vid, text) {
   const [inside, after] = splitRuns(rest, where.end - where.start);
   const ghost = inside.every((piece) => piece.ghost);
   return replaceBlocks(blocks, where.block, 1, withRuns(block, [...before, run(text, { vid, ghost }), ...after]));
+}
+
+// An "a" or "an" standing alone just before `offset`, with one space after it.
+const ARTICLE = /(^|[^\p{L}\p{N}'’])(an?|An?|AN) $/u;
+
+/**
+ * Shows different text for group `vid`, as setGroupText does, and says where the group
+ * now ends. With `agreeArticle`, an "a" or "an" just before the group is made to agree
+ * with the new text ("like a thumbtack" becomes "like an eraser"); the article keeps its
+ * capital and its ghosting, and one that is part of another group is left alone.
+ * @returns {{ blocks, end: {block, offset} | null }} `end` is null if the group is not there
+ */
+export function showVariant(blocks, vid, text, { agreeArticle = false } = {}) {
+  const where = locateGroup(blocks, vid);
+  if (!where) return { blocks, end: null };
+  let shown = setGroupText(blocks, vid, text);
+  let start = where.start;
+
+  if (agreeArticle && !where.whole) {
+    const block = shown[where.block];
+    const before = textOf(block).slice(0, start);
+    const found = ARTICLE.exec(before);
+    const agreed = found ? fixArticle(before, text) : before;
+    if (agreed !== before) {
+      const from = found.index + found[1].length;
+      const [left, rest] = splitRuns(block.runs, from);
+      const [old, right] = splitRuns(rest, found[2].length);
+      if (!old.some((piece) => piece.vid)) {
+        const article = run(agreed.slice(from, agreed.length - 1), marksOf(old[0]));
+        shown = replaceBlocks(shown, where.block, 1, withRuns(block, [...left, article, ...right]));
+        start += article.text.length - found[2].length;
+      }
+    }
+  }
+  return { blocks: shown, end: { block: where.block, offset: start + text.length } };
 }
 
 // --- normalising ------------------------------------------------------------------------------

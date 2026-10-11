@@ -37,6 +37,22 @@
   padding: calc(18vh + 0.85px) 0 45vh;
 }
 
+/* What is painted behind the text: the tint under the group the pointer is on. A word or
+   sentence is tinted line by line, the ends of the run fading out; a paragraph as a block. */
+#underlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+#underlay .tint {
+  position: absolute;
+  background: linear-gradient(to right, transparent 0, var(--hover) var(--lead, 0px), var(--hover) calc(100% - var(--trail, 0px)), transparent 100%);
+}
+#underlay .tint.paragraph {
+  background: var(--hover);
+  border-radius: 4px;
+}
+
 /* The marks under and beside text that has alternatives; drawn by editor/decor.js. */
 #decor {
   position: absolute;

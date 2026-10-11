@@ -4,10 +4,12 @@ import { createEditor } from './editor/editor.js';
 import { createDecor } from './editor/decor.js';
 import { initReadMode } from './features/readmode.js';
 import { initTooltips } from './features/tooltips.js';
+import { createAlternatives } from './features/alternatives.js';
+import { createSound } from './fx/sound.js';
 import { sampleState } from './sample.js';
 
 // What the shell keeps between launches.
-const REMEMBERED = ['read', 'alternates'];
+const REMEMBERED = ['read', 'alternates', 'sound'];
 
 const editor = createEditor(document.getElementById('editor'));
 editor.setState(sampleState());
@@ -23,11 +25,13 @@ ui.on((flags, patch) => {
   if (Object.keys(changed).length) native.call('settings.set', changed).catch(() => {});
 });
 
-const decor = createDecor({ svg: document.getElementById('decor'), editor });
+const decor = createDecor({ svg: document.getElementById('decor'), underlay: document.getElementById('underlay'), editor });
+const sound = createSound({ enabled: () => ui.get('sound') });
+const alternatives = createAlternatives({ editor, ui, decor, sound });
 initReadMode({ editor, ui });
 initTooltips();
 
 // One handle on the running app, for the console and for UI scenarios.
-window.writeOn = { editor, ui, native, decor };
+window.writeOn = { editor, ui, native, decor, sound, alternatives };
 
 document.fonts.ready.then(() => native.call('app.ready'));

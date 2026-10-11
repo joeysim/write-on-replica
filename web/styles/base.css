@@ -38,9 +38,9 @@
   --lab-label: #847c83;
   --lab-dash: #605f69;
   --selection: rgba(var(--accent-rgb), 0.28);
-  --hover: rgba(var(--accent-rgb), 0.11);
-  --word-line: #474c74;
-  --sentence-line: #5b4d68;
+  --hover: rgba(152, 168, 226, 0.1);
+  --word-line: rgba(var(--accent-rgb), 0.5);
+  --sentence-line: rgba(194, 154, 190, 0.45);
   --sentence-dot: #c29abe;
   --paragraph-bar: #805448;
   --paragraph-dot: #c88d6c;

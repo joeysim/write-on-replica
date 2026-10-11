@@ -15,6 +15,7 @@ import {
   clearGroup,
   locateGroup,
   setGroupText,
+  showVariant,
   marksAt,
   normaliseBlocks,
 } from '../../web/src/doc/blocks.js';
@@ -310,4 +311,75 @@ test('non-ASCII text keeps its offsets: emoji and combining marks are not split 
   const after = text.indexOf('👍🏽') + '👍🏽'.length;
   assert.equal(textOf(insertText(blocks, at(0, after), '!').blocks[0]), 'ok 👍🏽! née');
   assert.equal(textOf(deleteRange(blocks, at(0, 3), at(0, after)).blocks[0]), 'ok  née');
+});
+
+// --- showing another variant ---------------------------------------------------------------
+
+const WORD = '<p>Something small, like a <span data-vid="w">paperclip</span>, say.</p>';
+
+test('showing a variant swaps the text and reports where it now ends', () => {
+  const { blocks, end } = showVariant(B(WORD), 'w', 'thumbtack', { agreeArticle: true });
+  assert.equal(H(blocks), '<p>Something small, like a <span data-vid="w">thumbtack</span>, say.</p>');
+  assert.deepEqual(end, at(0, 'Something small, like a thumbtack'.length));
+});
+
+test('an article just before a word follows the sound of the new variant, both ways', () => {
+  const eraser = showVariant(B(WORD), 'w', 'eraser', { agreeArticle: true });
+  assert.equal(H(eraser.blocks), '<p>Something small, like an <span data-vid="w">eraser</span>, say.</p>');
+  assert.deepEqual(eraser.end, at(0, 'Something small, like an eraser'.length), 'the end moves with the longer article');
+  const back = showVariant(eraser.blocks, 'w', 'thumbtack', { agreeArticle: true });
+  assert.equal(H(back.blocks), '<p>Something small, like a <span data-vid="w">thumbtack</span>, say.</p>');
+});
+
+test('the article keeps its capital', () => {
+  const start = B('<p>A <span data-vid="w">thumbtack</span> will do. AN <span data-vid="x">EXIT</span></p>');
+  assert.match(H(showVariant(start, 'w', 'eraser', { agreeArticle: true }).blocks), /^<p>An <span data-vid="w">eraser<\/span> will do\./);
+  assert.match(H(showVariant(start, 'x', 'DOOR', { agreeArticle: true }).blocks), /A <span data-vid="x">DOOR<\/span>/);
+});
+
+test('silent h and you-sounds are heard, not spelled', () => {
+  const start = B('<p>It took a <span data-vid="w">day</span> and a <span data-vid="x">tool</span>.</p>');
+  assert.match(H(showVariant(start, 'w', 'hour', { agreeArticle: true }).blocks), /took an <span data-vid="w">hour/);
+  const user = showVariant(start, 'x', 'umbrella', { agreeArticle: true }).blocks;
+  assert.match(H(user), /and an <span data-vid="x">umbrella/);
+  assert.match(H(showVariant(user, 'x', 'unicorn', { agreeArticle: true }).blocks), /and a <span data-vid="x">unicorn/);
+});
+
+test('nothing else before the word is taken for an article', () => {
+  for (const html of [
+    '<p>Banana <span data-vid="w">paperclip</span></p>', // ends in "a" but is not the word "a"
+    '<p>a  <span data-vid="w">paperclip</span></p>', // two spaces
+    '<p>a, <span data-vid="w">paperclip</span></p>',
+    '<p>the <span data-vid="w">paperclip</span></p>',
+    '<p><span data-vid="w">paperclip</span></p>',
+  ]) {
+    const shown = showVariant(B(html), 'w', 'eraser', { agreeArticle: true });
+    assert.equal(H(shown.blocks), html.replace('paperclip', 'eraser'), html);
+  }
+});
+
+test('articles are left alone unless agreement is asked for', () => {
+  const sentence = B('<p>Pick a <span data-vid="s">Thumbtack works.</span></p>');
+  assert.equal(H(showVariant(sentence, 's', 'Eraser works.').blocks), '<p>Pick a <span data-vid="s">Eraser works.</span></p>');
+});
+
+test('a ghosted article stays ghosted, and one that belongs to another group is not touched', () => {
+  const ghost = B('<p>like <span data-ghost>a </span><span data-vid="w">paperclip</span></p>');
+  assert.equal(H(showVariant(ghost, 'w', 'eraser', { agreeArticle: true }).blocks), '<p>like <span data-ghost>an </span><span data-vid="w">eraser</span></p>');
+  const other = B('<p>like <span data-vid="art">a</span> <span data-vid="w">paperclip</span></p>');
+  assert.equal(H(showVariant(other, 'w', 'eraser', { agreeArticle: true }).blocks), '<p>like <span data-vid="art">a</span> <span data-vid="w">eraser</span></p>');
+});
+
+test('showing a paragraph variant replaces the whole block and ends at its end', () => {
+  const start = B('<p>Before.</p><p data-vid="para">First version. It is long.</p>');
+  const { blocks, end } = showVariant(start, 'para', 'Second.', { agreeArticle: false });
+  assert.equal(H(blocks), '<p>Before.</p><p data-vid="para">Second.</p>');
+  assert.deepEqual(end, at(1, 7));
+});
+
+test('showing a variant of a group that is not in the document changes nothing', () => {
+  const start = B(WORD);
+  const { blocks, end } = showVariant(start, 'missing', 'x', { agreeArticle: true });
+  assert.equal(blocks, start);
+  assert.equal(end, null);
 });
