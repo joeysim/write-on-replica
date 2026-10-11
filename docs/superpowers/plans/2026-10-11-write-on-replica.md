@@ -30,11 +30,11 @@
 
 Failure modes the spec implies but does not spell out, most likely first. Each is pinned by a test in the task named.
 
-1. **Pasting rich or multi-paragraph text** (from Pages, a browser, Slack) must arrive as plain paragraphs with no stray markup, colours or fonts, and blank lines preserved. — Task 9, UI scenario `paste.js`.
-2. **Opening files the app did not write**: no metadata comment, CRLF line endings, tabs, a trailing `-->` inside the text, a damaged metadata block, a 50,000-word file. Text must survive an open-and-save round trip byte for byte apart from line-ending normalisation, and opening must not hang. — Task 4 unit tests; Task 22 timing check.
-3. **Editing through a group**: Return, Backspace, select-all-and-type, and cut across word, sentence and paragraph groups and ghost runs must never leave duplicate ids, orphaned groups or a variant out of step with the text. — Task 9 unit tests on normalisation, UI scenario `group-edits.js`.
-4. **Text that is not plain ASCII**: emoji and other surrogate pairs, combining marks, CJK input through an input method, right-to-left runs. Counts, caret mapping, word and sentence targeting must not split a character or throw. — Task 2 unit tests; Task 9 composition guard.
-5. **AI that misbehaves**: 401, 429, 500, a stalled stream, a stream cut mid-line, empty output, numbered or quoted lines, Markdown fences round JSON, a trim that rewrites instead of deleting. The document must be untouched and one clear line shown. — Task 8 unit tests; Task 23 live and canned checks.
+1. **Pasting rich or multi-paragraph text** (from Pages, a browser, Slack) must arrive as plain paragraphs with no stray markup, colours or fonts, and blank lines preserved. — Task 8, UI scenario `paste.js`.
+2. **Opening files the app did not write**: no metadata comment, CRLF line endings, tabs, a trailing `-->` inside the text, a damaged metadata block, a 50,000-word file. Text must survive an open-and-save round trip byte for byte apart from line-ending normalisation, and opening must not hang. — Task 4 unit tests; Task 21 timing check.
+3. **Editing through a group**: Return, Backspace, select-all-and-type, and cut across word, sentence and paragraph groups and ghost runs must never leave duplicate ids, orphaned groups or a variant out of step with the text. — Task 8 unit tests on normalisation, UI scenario `group-edits.js`.
+4. **Text that is not plain ASCII**: emoji and other surrogate pairs, combining marks, CJK input through an input method, right-to-left runs. Counts, caret mapping, word and sentence targeting must not split a character or throw. — Task 3 unit tests; Task 8 composition guard.
+5. **AI that misbehaves**: 401, 429, 500, a stalled stream, a stream cut mid-line, empty output, numbered or quoted lines, Markdown fences round JSON, a trim that rewrites instead of deleting. The document must be untouched and one clear line shown. — Task 7 unit tests; Task 22 live and canned checks.
 
 ## File Map
 
