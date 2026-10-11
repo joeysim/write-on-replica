@@ -11,6 +11,7 @@ import { createContextMenu } from './features/contextmenu.js';
 import { initShortcuts } from './features/shortcuts.js';
 import { createCards } from './features/cards.js';
 import { createSound } from './fx/sound.js';
+import { createExplosions } from './fx/explosion.js';
 import { sampleState } from './sample.js';
 
 // What the shell keeps between launches.
@@ -32,7 +33,8 @@ ui.on((flags, patch) => {
 
 const decor = createDecor({ svg: document.getElementById('decor'), underlay: document.getElementById('underlay'), editor });
 const sound = createSound({ enabled: () => ui.get('sound') });
-const alternatives = createAlternatives({ editor, ui, decor, sound });
+const explosions = createExplosions({ canvas: document.getElementById('fx') });
+const alternatives = createAlternatives({ editor, ui, decor, sound, explosions });
 const panel = createPanel({ editor, ui, alternatives, commands });
 const menu = createContextMenu({ editor, ui, alternatives, commands });
 const cards = createCards({ editor });
@@ -47,6 +49,6 @@ commands.register('shortcuts', () => cards.toggle('shortcuts'));
 document.getElementById('open-shortcuts').addEventListener('click', () => commands.run('shortcuts'));
 
 // One handle on the running app, for the console and for UI scenarios.
-window.writeOn = { editor, ui, native, commands, decor, sound, alternatives, panel, menu, cards };
+window.writeOn = { editor, ui, native, commands, decor, sound, explosions, alternatives, panel, menu, cards };
 
 document.fonts.ready.then(() => native.call('app.ready'));

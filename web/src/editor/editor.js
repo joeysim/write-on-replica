@@ -35,7 +35,7 @@ export function createEditor(root) {
   let pending = null; // { before, key }: a native edit is in flight
   let dragged = null; // the selection being dragged from inside the editor
   const history = new History();
-  const listeners = { change: new Set(), selection: new Set(), history: new Set() };
+  const listeners = { change: new Set(), selection: new Set(), history: new Set(), travel: new Set() };
 
   const emit = (name, detail) => {
     for (const listener of listeners[name]) listener(detail);
@@ -338,6 +338,7 @@ export function createEditor(root) {
   function travel(direction) {
     const entry = direction === 'undo' ? history.undo(snapshot()) : history.redo(snapshot());
     if (!entry) return false;
+    emit('travel', { direction, meta: entry.meta }); // the page still shows what is about to change
     restore(entry.state);
     emit('history', { direction, meta: entry.meta });
     emit('change', { label: direction });

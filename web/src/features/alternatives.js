@@ -15,9 +15,21 @@ const SWAP_IN = [
   [{ opacity: 0.45, filter: 'blur(1.5px)' }, { filter: 'blur(0)', offset: 0.6 }, { opacity: 1, filter: 'blur(0)' }],
   { duration: 150, easing: 'ease-out' },
 ];
+// After a blast the next variant comes up more slowly, under the fire.
+const RISE_IN = [
+  [{ opacity: 0 }, { opacity: 0, filter: 'blur(1.5px)', offset: 0.2 }, { opacity: 0.6, filter: 'blur(0)', offset: 0.6 }, { opacity: 1, filter: 'blur(0)' }],
+  { duration: 420, easing: 'ease-out' },
+];
+// Undoing a blast: the word stays out of sight while the burst runs backwards (280 ms),
+// then arrives as any swap does.
+const RETURN_IN = [
+  [{ opacity: 0 }, { opacity: 0, offset: 0.65 }, { opacity: 0.45, filter: 'blur(1.5px)', offset: 0.65 }, { filter: 'blur(0)', offset: 0.86 }, { opacity: 1, filter: 'blur(0)' }],
+  { duration: 430 },
+];
+const THUMP_AFTER_MS = 140; // the thump's own run-up is 140 ms; it lands as the burst closes
 const STEP = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
 
-export function createAlternatives({ editor, ui, decor, sound }) {
+export function createAlternatives({ editor, ui, decor, sound, explosions }) {
   const hoverSession = new ToneSession({ idleMs: HOVER_IDLE_MS });
   let hovered = null; // id of the group under the pointer
   // Keys act on the hovered group only if the pointer came onto it since the last click
@@ -29,8 +41,8 @@ export function createAlternatives({ editor, ui, decor, sound }) {
 
   const agrees = (group) => group.scope === 'word';
 
-  function blurIn(vid) {
-    editor.elementFor(vid)?.animate(...SWAP_IN);
+  function blurIn(vid, how = SWAP_IN) {
+    editor.elementFor(vid)?.animate(...how);
   }
 
   /**
@@ -123,9 +135,10 @@ export function createAlternatives({ editor, ui, decor, sound }) {
    * Takes variant `index` out of group `vid`. If it was showing, another shows: the one
    * with text `show` if there is one, otherwise the next. The last variant cannot be removed.
    * @param session if given, a change of what shows ticks through it
+   * @param explode it is being blown up (see blowUp); undo and redo then come with their bursts
    * @returns the removed text, or null if nothing was removed
    */
-  function remove(vid, index, { session = null, show = null } = {}) {
+  function remove(vid, index, { session = null, show = null, explode = false } = {}) {
     const group = editor.groups[vid];
     if (!group || group.variants.length < 2 || !Number.isInteger(index) || index < 0 || index >= group.variants.length) return null;
     const removed = group.variants[index];
@@ -139,10 +152,10 @@ export function createAlternatives({ editor, ui, decor, sound }) {
         if (show !== null && kept.variants.includes(show)) setActive(kept, kept.variants.indexOf(show));
         draft.blocks = showVariant(draft.blocks, vid, kept.variants[kept.active], { agreeArticle: agrees(kept) }).blocks;
       },
-      { meta: { label: 'remove alternative', vid, removed } },
+      { meta: { label: 'remove alternative', vid, removed, explode } },
     );
     if (wasShowing) {
-      blurIn(vid);
+      blurIn(vid, explode ? RISE_IN : SWAP_IN);
       const shown = editor.groups[vid];
       if (session && shown) sound.tick(session.change(removed, shown.variants[shown.active]));
     }
@@ -230,6 +243,41 @@ export function createAlternatives({ editor, ui, decor, sound }) {
     return resolveTarget(editor.blocks, editor.groups, { start: position, end: position, collapsed: true }, scope);
   }
 
+  /**
+   * Blows up the variant of group `vid` that is showing: it is removed with a burst and a
+   * boom, and the next one shows. One of a pair leaves plain text. The last cannot go.
+   */
+  function blowUp(vid) {
+    const group = editor.groups[vid];
+    if (!group || group.variants.length < 2) return false;
+    const lines = decor.lines(vid);
+    remove(vid, group.active, { explode: true });
+    dissolveIfSingle(vid);
+    explosions.burst(lines);
+    sound.boom();
+    return true;
+  }
+
+  // Undo puts a blown-up variant back with the burst run backwards and a thump; redo blows
+  // it up again. The burst needs the place of the text as it was before the page changed.
+  let doomed = null;
+  editor.on('travel', ({ direction, meta }) => {
+    doomed = direction === 'redo' && meta?.explode ? decor.lines(meta.vid) : null;
+  });
+  editor.on('history', ({ direction, meta }) => {
+    if (!meta?.explode) return;
+    if (direction === 'redo') {
+      explosions.burst(doomed);
+      sound.boom();
+      blurIn(meta.vid, RISE_IN);
+    } else {
+      explosions.burst(decor.lines(meta.vid), { reverse: true });
+      blurIn(meta.vid, RETURN_IN);
+      setTimeout(() => sound.thump(), THUMP_AFTER_MS);
+    }
+    doomed = null;
+  });
+
   // --- under the pointer -----------------------------------------------------------------------
 
   function attend(vid) {
@@ -265,13 +313,15 @@ export function createAlternatives({ editor, ui, decor, sound }) {
     'keydown',
     (event) => {
       const direction = STEP[event.key];
-      if (!direction || !hovered || !armed || ui.get('read')) return;
+      const destroys = event.key === 'Delete' || event.key === 'Backspace';
+      if ((!direction && !destroys) || !hovered || !armed || ui.get('read')) return;
       if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-      // While something else has the focus (a panel row, a dialog) the arrows are its own.
+      // While something else has the focus (a panel row, a dialog) the keys are its own.
       const focus = document.activeElement;
       if (focus && focus !== document.body && focus !== editor.root) return;
       event.preventDefault();
-      cycle(hovered, direction);
+      if (destroys) blowUp(hovered);
+      else cycle(hovered, direction);
     },
     true,
   );
@@ -286,6 +336,7 @@ export function createAlternatives({ editor, ui, decor, sound }) {
     add,
     edit,
     remove,
+    blowUp,
     dissolveIfSingle,
     /** The id of the group under the pointer, or null. */
     hovered: () => hovered,

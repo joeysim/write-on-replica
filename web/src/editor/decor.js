@@ -57,8 +57,9 @@ function lineBoxes(rects) {
     if (line) {
       line.left = Math.min(line.left, rect.left);
       line.right = Math.max(line.right, rect.right);
+      line.bottom = Math.max(line.bottom, rect.bottom);
     } else {
-      lines.push({ left: rect.left, right: rect.right, top: rect.top });
+      lines.push({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom });
     }
   }
   return lines.sort((a, b) => a.top - b.top);
@@ -146,20 +147,20 @@ export function createDecor({ svg, underlay, editor }) {
     dots(group, model, (index) => [x - PARAGRAPH.dots, first + index * DOT_PITCH], PARAGRAPH.dot);
   }
 
+  /** The boxes the browser reports for a group's text: of its span, or of all the text in its paragraph. */
+  function rectsOf(target) {
+    if (target.tagName !== 'P') return target.getClientRects();
+    const range = document.createRange();
+    range.selectNodeContents(target);
+    return range.getClientRects();
+  }
+
   /** Where a group's text is: its lines, relative to `origin`, and how to read them. */
   function layoutOf(vid, model, origin) {
     const target = editor.elementFor(vid);
     if (!target) return null;
     const block = target.tagName === 'P';
-    let rects;
-    if (block) {
-      const range = document.createRange();
-      range.selectNodeContents(target);
-      rects = range.getClientRects();
-    } else {
-      rects = target.getClientRects();
-    }
-    const lines = lineBoxes(rects).map((line) => ({ left: line.left - origin.left, right: line.right - origin.left, top: line.top - origin.top }));
+    const lines = lineBoxes(rectsOf(target)).map((line) => ({ left: line.left - origin.left, right: line.right - origin.left, top: line.top - origin.top }));
     if (lines.length === 0) return null;
     const scope = block ? 'paragraph' : model.scope === 'sentence' ? 'sentence' : 'word';
     return { target, scope, lines, ascent: ascentOf(target) };
@@ -231,6 +232,19 @@ export function createDecor({ svg, underlay, editor }) {
   return {
     draw,
     schedule,
+    /**
+     * The lines of a group's text in window coordinates, each { left, top, right, bottom,
+     * font }, and for a group that sits on one line its `text`.
+     */
+    lines(vid) {
+      const target = editor.elementFor(vid);
+      if (!target) return [];
+      const style = getComputedStyle(target);
+      const font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+      const boxes = lineBoxes(rectsOf(target));
+      return boxes.map((box) => (boxes.length === 1 ? { ...box, font, text: target.textContent } : { ...box, font }));
+    },
+
     /** Tints the group with this id, as under the pointer; null for none. */
     setHover(vid) {
       if (vid === hovered) return;

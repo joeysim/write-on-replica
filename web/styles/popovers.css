@@ -107,3 +107,14 @@ body.is-card #card {
   margin: 14px 0 0;
   color: var(--dim-text);
 }
+
+/* --- explosions --------------------------------------------------------------------------- */
+
+#fx {
+  position: fixed;
+  z-index: 30;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}

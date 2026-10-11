@@ -520,8 +520,15 @@ Explosion, drawn on a canvas over the page:
 - 100–300 ms: sparks reach ~145 px; debris falls under gravity; fire breaks into embers.
 - 400 ms on: grey-brown smoke, gone by about 1.3 s.
 
-For a deleted alternative the burst is stretched along the word, and the word's letters
-fly apart. For the LinkedIn icon it is centred on the icon.
+For a deleted alternative the burst is stretched along the word, and the word itself
+flies apart: at the first instant it stands there broken into 2 px pieces, which then
+scatter, cooling from cream through yellow to orange. The next variant rises under the
+fire over about 420 ms. A paragraph burns along every one of its lines. For the LinkedIn
+icon the burst is centred on the icon.
+
+Undo of such a delete runs the first 330 ms of the same burst backwards in 280 ms (what
+an explosion leaves closes in to fire, then to the word in pieces) and the word then
+blurs in; the thump's thud lands as the burst closes. Redo blows it up again.
 
 View ▸ Sound Effects turns sound off.
 
