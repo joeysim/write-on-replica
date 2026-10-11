@@ -1,0 +1,68 @@
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../fonts/IBMPlexMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../fonts/IBMPlexMono-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: block;
+}
+@font-face {
+  font-family: "Caveat";
+  src: url("../fonts/Caveat-Variable.ttf") format("truetype");
+  font-weight: 400 700;
+  font-style: normal;
+  font-display: block;
+}
+
+/* Values measured from the source clips; see the design spec, section 4. */
+:root {
+  --bg: #050a1c;
+  --text-rgb: 245, 209, 192;
+  --accent-rgb: 129, 124, 212;
+  --text: rgb(var(--text-rgb));
+  --accent: rgb(var(--accent-rgb));
+  --panel: #0a0f1f;
+  --popover: #131623;
+  --dim-icon: rgba(var(--text-rgb), 0.36);
+  --dim-text: rgba(var(--text-rgb), 0.53);
+  --faint: #3a3e52;
+  --selection: rgba(var(--accent-rgb), 0.28);
+  --hover: rgba(var(--accent-rgb), 0.11);
+  --word-line: #474c74;
+  --sentence-line: #5b4d68;
+  --sentence-dot: #c29abe;
+  --paragraph-bar: #805448;
+  --lab: #c81042;
+
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --hand: "Caveat", "Bradley Hand", cursive;
+
+  --column: 780px;
+  --line: 1.82;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  font-family: var(--mono);
+  overflow: hidden;
+  cursor: default;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+::selection {
+  background: var(--selection);
+}

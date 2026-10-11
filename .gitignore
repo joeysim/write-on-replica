@@ -1,0 +1,8 @@
+# build output
+.build/
+build/
+node_modules/
+.DS_Store
+
+# source clips and measurements; the videos are the author's and stay local
+reference/
