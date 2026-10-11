@@ -1,0 +1,109 @@
+/* Things that float over the page: the context menu and cards. Measurements of the menu
+   are from the clips (design spec 6.9). */
+
+#menu {
+  position: fixed;
+  z-index: 40;
+  left: 0;
+  top: 0;
+  width: 376px;
+  box-sizing: border-box;
+  padding: 5px;
+  border: 1px solid var(--popover-edge);
+  border-radius: 12px;
+  background: var(--popover);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+  visibility: hidden;
+}
+#menu.is-open {
+  visibility: visible;
+}
+#menu .item {
+  display: flex;
+  justify-content: space-between;
+  height: 31px;
+  padding: 0 10px;
+  border-radius: 8px;
+  color: var(--text);
+  font: 400 13px/31px var(--mono);
+  white-space: pre;
+  cursor: pointer;
+}
+#menu .item .keys {
+  color: var(--dim-text);
+}
+#menu .item.is-current {
+  background: rgba(var(--text-rgb), 0.09);
+}
+#menu .item[aria-disabled="true"] {
+  color: rgba(var(--text-rgb), 0.3);
+  cursor: default;
+}
+#menu .item[aria-disabled="true"] .keys {
+  color: rgba(var(--text-rgb), 0.18);
+}
+
+/* --- cards -------------------------------------------------------------------------------- */
+
+#scrim {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  background: rgba(3, 6, 18, 0.62);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none; /* while it fades away, clicks already reach the page */
+  transition:
+    opacity 140ms ease,
+    visibility 0s linear 140ms;
+}
+#card {
+  position: fixed;
+  z-index: 51;
+  left: 50%;
+  top: 50%;
+  width: 500px;
+  max-height: calc(100% - 96px);
+  box-sizing: border-box;
+  padding: 22px 26px 24px;
+  border: 1px solid var(--popover-edge);
+  border-radius: 12px;
+  background: var(--popover);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  color: var(--text);
+  font: 400 13px/22px var(--mono);
+  overflow-y: auto;
+  transform: translate(-50%, -50%);
+  visibility: hidden;
+}
+body.is-card #scrim {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity 140ms ease,
+    visibility 0s linear 0s;
+}
+body.is-card #card {
+  visibility: visible;
+}
+#card .title {
+  margin: 0 0 10px;
+  color: var(--accent);
+  font: 400 19.7px/28px var(--hand);
+}
+#card .shortcut {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  height: 31px;
+  line-height: 31px;
+  white-space: pre;
+}
+#card .shortcut .keys {
+  color: var(--dim-text);
+}
+#card .note {
+  margin: 14px 0 0;
+  color: var(--dim-text);
+}

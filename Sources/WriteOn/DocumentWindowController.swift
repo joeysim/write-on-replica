@@ -26,10 +26,15 @@ final class EditorWindow: NSWindow {
 final class EditorWebView: WKWebView {
     /// A scripted run cannot dismiss a native menu, so the harness turns them off.
     var suppressesNativeMenus = false
+    /// Called when a native menu was asked for while they are turned off. WebKit then
+    /// waits for a menu that never shows and drops every later mouse event, so the
+    /// harness treats it as a mistake in the scenario.
+    var onSuppressedMenu: (() -> Void)?
 
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
         if suppressesNativeMenus {
             menu.removeAllItems()
+            onSuppressedMenu?()
         } else {
             super.willOpenMenu(menu, with: event)
         }

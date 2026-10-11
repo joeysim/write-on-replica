@@ -83,7 +83,8 @@ It opens as a bare editor. Clicking the word count turns the rest on.
 | `text` | `#f5d1c0` | Body text, caret |
 | `accent` | `#817cd4` | Active icons, active tab, active row marker, word-scope active dot |
 | `panel` | `#0a0f1f` | Side panels |
-| `popover` | `#131623` | Context menu, Lab popover, trim card, source view |
+| `popover` | `#121522` | Context menu, Lab popover, trim card, source view |
+| `popover-edge` | `#232735` | The hairline around them |
 | `dim-icon` | `#635b62` | Inactive icons |
 | `lit-icon` | `text` at 56% | An icon under the pointer |
 | `dim-text` | `#857b82` | Inactive tabs, inactive rows, shortcut labels, hints |
@@ -368,8 +369,13 @@ view over it.
 
 ### 6.9 Context menu
 
-Replaces the system menu outside Read mode. A dark rounded card with a label on the left
-and its shortcut on the right.
+Replaces the system menu outside Read mode. A dark rounded card, 376 × 136 px with its
+corner at the pointer (12 px radius, hairline edge), holding four 31 px rows: a label on
+the left and its shortcut, dimmer, on the right, in 13 px type set 15 px in. The row
+under the pointer is a lighter band with 8 px corners.
+
+A right-click inside the selection is about the selection. Anywhere else it puts the
+caret there and is about the word under it; inside an existing group, about that group.
 
 | With a selection | With no selection |
 | --- | --- |
@@ -659,6 +665,10 @@ go another way.
 | 36 | A target with no alternatives | While the panel looks at a word that has none, the word is a group of one. Making and unmaking that group is not an undo step, and it is never left behind: closing the panel, moving it on, undo, redo or opening a file turns a group of one back into plain text. |
 | 37 | Rows | The empty row is always the last. Emptying a row in the middle removes its variant and puts the caret in the empty row at the end. A row typed into the same words as another row does not become a second copy; the row it repeats shows instead. The only variant of a group cannot be emptied away. |
 | 38 | Typing an alternative and undo | The letters of an alternative typed in one go are one undo step. Undo and redo in the panel are the document's. |
+| 40 | Context menu states | Items that cannot apply are dimmed and do nothing: the two alternatives items for a selection across paragraphs or where there is no word (they then read just "Alternatives" and "AI alternatives"), Ghost with nothing to ghost, Stash on a blank line. Arrow keys and Return work in the menu; Esc, a click elsewhere, scrolling or any other key puts it away. Near the window's edge it opens on the other side of the pointer. |
+| 41 | Shortcut card | The keyboard icon opens a centred card over the dimmed page listing the shortcuts of §6.13 and the keys that work under the pointer; Esc, a click outside or the icon again closes it. |
+| 42 | Which shortcuts leave Read mode | The feature shortcuts (alternatives, AI alternatives, ghost, stash, Overflow, source view) and any context-menu item. Save, Open, Post to X, undo and redo do not. |
+| 43 | Undo keys | ⌘Z and Ctrl+Z (with Shift to redo) undo the document wherever the focus is, except in a plain text field, which keeps its own history. |
 | 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
 
 ## 10. Verification

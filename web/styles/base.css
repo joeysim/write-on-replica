@@ -28,7 +28,8 @@
   --text: rgb(var(--text-rgb));
   --accent: rgb(var(--accent-rgb));
   --panel: #0a0f1f;
-  --popover: #131623;
+  --popover: #121522;
+  --popover-edge: #232735;
   --dim-icon: #635b62;
   --lit-icon: rgba(var(--text-rgb), 0.56);
   --dim-text: #857b82;

@@ -13,7 +13,7 @@ import { locateGroup } from '../doc/blocks.js';
 const ROBOT =
   '<svg viewBox="20 -11 13 12" aria-hidden="true"><rect x="22.4" y="-6" width="8.2" height="6" rx="1.6" /><path d="M26.4 -8.5V-6" /><circle class="solid" cx="26.4" cy="-8.5" r=".8" /><circle class="solid" cx="24.9" cy="-3.1" r=".75" /><circle class="solid" cx="27.9" cy="-3.1" r=".75" /></svg>';
 
-export function createPanel({ editor, ui, alternatives }) {
+export function createPanel({ editor, ui, alternatives, commands }) {
   const root = document.getElementById('panel');
   const list = root.querySelector('.rows');
   const tabs = [...root.querySelectorAll('.tab')];
@@ -241,13 +241,6 @@ export function createPanel({ editor, ui, alternatives }) {
     const row = event.target.closest('.row');
     if (!row) return;
     const at = rows().indexOf(row);
-    if ((event.metaKey || event.ctrlKey) && !event.altKey && event.key.toLowerCase() === 'z') {
-      // The rows have no history of their own: undo is the document's.
-      event.preventDefault();
-      if (event.shiftKey) editor.redo();
-      else editor.undo();
-      return;
-    }
     if (event.metaKey || event.ctrlKey || event.altKey) return;
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -295,6 +288,8 @@ export function createPanel({ editor, ui, alternatives }) {
     sync(true);
     if (focused >= 0) focusRow(Math.min(focused, rows().length - 1));
   });
+
+  commands.register('alternatives', open);
 
   return {
     open,

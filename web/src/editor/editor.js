@@ -360,13 +360,6 @@ export function createEditor(root) {
     composing = false;
     syncFromDom();
   });
-  root.addEventListener('keydown', (event) => {
-    // Undo and redo are the editor's own: the browser's history knows nothing of groups.
-    if (!(event.metaKey || event.ctrlKey) || event.altKey || event.key.toLowerCase() !== 'z') return;
-    event.preventDefault();
-    if (event.shiftKey) redo();
-    else undo();
-  });
   root.addEventListener('copy', onCopy);
   root.addEventListener('cut', onCopy);
   root.addEventListener('paste', onPaste);

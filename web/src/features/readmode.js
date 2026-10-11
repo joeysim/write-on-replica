@@ -7,7 +7,7 @@
 import { countWords } from '../doc/text.js';
 import { lengthOf, textOf, extractText } from '../doc/blocks.js';
 
-export function initReadMode({ editor, ui }) {
+export function initReadMode({ editor, ui, commands }) {
   const wordcount = document.getElementById('wordcount');
   const alternates = document.getElementById('toggle-alternates');
   let whole = { words: 0, chars: 0 };
@@ -46,15 +46,7 @@ export function initReadMode({ editor, ui }) {
 
   wordcount.addEventListener('click', () => ui.toggle('read'));
   alternates.addEventListener('click', () => ui.toggle('alternates'));
-  document.addEventListener(
-    'keydown',
-    (event) => {
-      if (!event.ctrlKey || !event.shiftKey || event.metaKey || event.altKey || event.code !== 'KeyR') return;
-      event.preventDefault();
-      ui.toggle('read');
-    },
-    true,
-  );
+  commands.register('read', () => ui.toggle('read'));
 
   countDocument();
   show();

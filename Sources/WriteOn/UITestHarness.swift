@@ -58,6 +58,7 @@ final class UITestHarness {
     /// did has failed, whatever its scenario says.
     private var activations = 0
     private var keyGrabs = 0
+    private var nativeMenus = 0
 
     init(options: UITestOptions, controller: DocumentWindowController) {
         self.options = options
@@ -77,6 +78,7 @@ final class UITestHarness {
             let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
             if app?.processIdentifier == ProcessInfo.processInfo.processIdentifier { self?.activations += 1 }
         }
+        controller.webView.onSuppressedMenu = { [weak self] in self?.nativeMenus += 1 }
         controller.onPageLog = { [weak self] level, message in
             if level == "error" { self?.pageErrors.append(message) }
         }
@@ -345,6 +347,9 @@ final class UITestHarness {
         if NSApp.keyWindow != nil { keyGrabs += 1 }
         if activations > 0 || NSApp.isActive { intrusions.append("the run came to the front (\(max(activations, 1)) time(s)); it must stay in the background") }
         if keyGrabs > 0 { intrusions.append("the run's window took the keyboard; it must never be the key window") }
+        if nativeMenus > 0 {
+            intrusions.append("the scenario right-clicked where the page leaves the menu to the system; WebKit drops every mouse event after that in a scripted run, so ask the page with a 'contextmenu' event instead")
+        }
         let allFailures = failures + pageErrors.map { "page error: \($0)" } + intrusions
         let passed = ok && pageErrors.isEmpty && intrusions.isEmpty
         let result: [String: Any] = [
