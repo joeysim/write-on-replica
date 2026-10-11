@@ -38,9 +38,10 @@ export function initShortcuts({ ui, commands }) {
       if (event.altKey) return;
 
       // Undo and redo are the document's, with Command or Control, wherever the focus is,
-      // except in a field that keeps a history of its own.
+      // except in a field that keeps a history of its own. (The Overflow text is not one:
+      // it is part of the document.)
       if (event.metaKey !== event.ctrlKey && pressed(event, { key: 'z', code: 'KeyZ' })) {
-        if (event.target.closest?.('textarea, input')) return;
+        if (event.target.closest?.('textarea, input') && !event.target.closest('#overflow')) return;
         event.preventDefault();
         commands.run(event.shiftKey ? 'redo' : 'undo');
         return;
@@ -51,8 +52,9 @@ export function initShortcuts({ ui, commands }) {
       if (!shortcut) return;
       event.preventDefault();
       event.stopPropagation();
-      if (shortcut.feature) ui.set({ read: false });
+      // The command first: it may need to know that the tools were off when it was asked for.
       commands.run(shortcut.command);
+      if (shortcut.feature) ui.set({ read: false });
     },
     true,
   );

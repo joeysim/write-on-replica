@@ -51,6 +51,8 @@
 
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
   --hand: "Caveat", "Bradley Hand", cursive;
+  /* The handwritten labels: panel tabs, "Overflow", card titles. */
+  --label: 400 20.2px/28px var(--hand);
 
   --column: 780px;
   /* The clips average 36.4px between lines. WebKit places line boxes on whole pixels,

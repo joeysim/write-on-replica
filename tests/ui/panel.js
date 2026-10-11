@@ -53,6 +53,21 @@ const undoBefore = editor.canUndo;
 editor.select({ block: P1, offset: 14 });
 t.equal(panel.open(), true, 'the panel opens on the word at the caret');
 t.assert(ui.get('panel'), 'the interface knows the panel is open');
+// It slides as in the clip: 200ms on the browser's own curve. The clip's frames have its
+// edge 177.5px short of its place 47.5ms in, and 39.5px short at 114.2ms.
+{
+  const slide = el.getAnimations({ subtree: false })[0];
+  if (t.assert(slide, 'it slides in')) {
+    slide.pause();
+    slide.currentTime = 47.5;
+    await t.frame();
+    t.near(280 - el.getBoundingClientRect().right, 177.5, 5, 'early in the slide it is where the clip has it');
+    slide.currentTime = 114.2;
+    await t.frame();
+    t.near(280 - el.getBoundingClientRect().right, 39.5, 4, 'and later too');
+    slide.play();
+  }
+}
 await settled();
 {
   const box = el.getBoundingClientRect();
@@ -93,7 +108,9 @@ t.equal(heard(), '', 'opening is silent');
   const tab = el.querySelector('.tab');
   t.equal(getComputedStyle(tab).fontFamily.split(',')[0].replace(/"/g, ''), 'Caveat', 'tabs are in the handwriting face');
   t.near(tab.getBoundingClientRect().left, 22, 0.5, 'tabs start 22px in');
-  t.near(parseFloat(getComputedStyle(tab).fontSize), 19.7, 0.01, 'tab size');
+  t.near(parseFloat(getComputedStyle(tab).fontSize), 20.2, 0.01, 'tab size');
+  const tabs = [...el.querySelectorAll('.tab')].map((node) => node.getBoundingClientRect());
+  t.near(tabs[1].left - tabs[0].right, 13.7, 0.5, 'tabs are just under 14px apart');
   const hint = el.querySelector('.hint').getBoundingClientRect();
   t.near(hint.left, 20, 0.5, 'the hint starts 20px in');
   t.near(innerHeight - hint.bottom, 73, 4, 'the hint sits near the bottom');
@@ -107,7 +124,7 @@ t.equal(heard(), '', 'opening is silent');
   t.near(alpha(editor.blockElement(P2)), 0.36, 0.01, 'other paragraphs are at about a third');
   t.near(alpha(editor.blockElement(1)), 0.36, 0.01, 'the heading too');
   t.assert(document.querySelector('#decor g[data-vid="title01"]') !== null, 'marks elsewhere stay');
-  t.near(Number(getComputedStyle($('#decor')).opacity), 1, 0.01, 'at full strength');
+  await t.until(() => Number(getComputedStyle($('#decor')).opacity) > 0.99, 1000, 'the marks to be at full strength');
 }
 
 // --- adding an alternative ----------------------------------------------------------------------
@@ -333,6 +350,18 @@ await t.click(...t.pointOfText('second'));
   t.equal(editor.groups[vid], undefined, 'undoing the addition leaves no group of one behind');
   t.assert(docText(P2).startsWith('A second paragraph'), 'and the original text');
 }
+
+// Read mode is just the text: going into it closes the panel.
+editor.select({ block: P1, offset: 14 });
+panel.open();
+await settled();
+ui.set({ read: true });
+t.equal(ui.get('panel'), false, 'entering read mode closes the panel');
+await t.until(() => el.getAnimations({ subtree: false }).length === 0, 1500, 'the panel to slide away');
+t.equal(getComputedStyle(el).visibility, 'hidden', 'and it is out of sight');
+t.equal(alpha(editor.blockElement(P2)), 1, 'with the page back at full strength');
+ui.set({ read: false });
+t.equal(ui.get('panel'), false, 'it stays closed when the tools come back');
 
 // Where there is nothing to target, nothing opens. Opening leaves read mode.
 editor.select({ block: 4, offset: 0 });

@@ -12,6 +12,7 @@ import { initShortcuts } from './features/shortcuts.js';
 import { createCards } from './features/cards.js';
 import { initAIAlternatives } from './features/ai-alternatives.js';
 import { initGhost } from './features/ghost.js';
+import { createOverflow } from './features/overflow.js';
 import { createAIClient } from './ai/client.js';
 import { createSound } from './fx/sound.js';
 import { createExplosions } from './fx/explosion.js';
@@ -44,6 +45,7 @@ const cards = createCards({ editor });
 const ai = createAIClient(native);
 initAIAlternatives({ editor, panel, alternatives, ai, commands });
 initGhost({ editor, commands });
+const overflow = createOverflow({ editor, ui, commands });
 initReadMode({ editor, ui, commands });
 initTooltips();
 initShortcuts({ ui, commands });
@@ -55,6 +57,6 @@ commands.register('shortcuts', () => cards.toggle('shortcuts'));
 document.getElementById('open-shortcuts').addEventListener('click', () => commands.run('shortcuts'));
 
 // One handle on the running app, for the console and for UI scenarios.
-window.writeOn = { editor, ui, native, commands, decor, sound, explosions, alternatives, panel, menu, cards };
+window.writeOn = { editor, ui, native, commands, decor, sound, explosions, alternatives, panel, menu, cards, overflow };
 
 document.fonts.ready.then(() => native.call('app.ready'));

@@ -121,9 +121,9 @@ Opacity states: ghost text 11%; paragraphs other than the panel's target 35%.
   with 0.045 em; "LAB" 10 px with 1.74 px; "XYZ" 10 px bold, unspaced. (Cap height and
   character pitch were measured separately in the clips; these are the sizes that satisfy
   both.)
-- **Labels:** Caveat, 19.7 px, for the panel tabs ("Word", "Sentence", "Paragraph"),
-  "Overflow", "As saved", "Readable" and "Copy". Compared glyph for glyph with the clip's
-  tabs at 2x: the shapes, widths and heights match.
+- **Labels:** Caveat, 20.2 px, for the panel tabs ("Word", "Sentence", "Paragraph"),
+  "Overflow", "As saved", "Readable" and "Copy". Compared word by word with the clip at 2x
+  (the three tabs and "Overflow"): widths and heights agree to about a quarter of a pixel.
 - Both families are OFL-licensed and bundled with their licence files.
 
 ### 4.3 Page layout
@@ -299,8 +299,9 @@ Both rules were checked against every tick in the three clips.
 ### 6.5 The alternatives panel
 
 A 280 px panel (279 px and a hairline) that slides in from the left over the margin in
-180 ms. The text column does not move; the word count and the bottom-left icons stay in
-view over it.
+200 ms on the browser's default curve (`ease`); the clip's frames fit that to within 2 px,
+opening and closing. The text column does not move; the word count and the bottom-left
+icons stay in view over it. Going into Read mode closes it.
 
 - **Opening.** Right-click ▸ "Alternatives for selection" / "Alternatives for “word”", or
   Ctrl+Shift+A. With no selection the target is the word at the caret.
@@ -362,15 +363,30 @@ view over it.
 
 ### 6.8 Overflow
 
-- A 282 px panel on the right, toggled by the "XYZ" button or Ctrl+Shift+D. Header
-  "Overflow". A plain editable text area. Footer hint "ctrl+↵ or drag into the page to
-  use". The page does not dim.
+- The same 280 px panel (279 px and a hairline) down the right of the window, toggled by
+  the "XYZ" button or Ctrl+Shift+D, sliding as the alternatives panel does. Header
+  "Overflow" where the other panel has its tabs. A plain editable text area, 15 px, 26
+  characters wide, starting 22 px inside the hairline; its caret is the accent colour.
+  Footer hint "ctrl+↵ or drag into the page to use". The page neither moves nor dims, and
+  the keyboard icon and the "XYZ" button stay in reach over the panel.
+- The clip sets the lines of that text 23 and 22 px apart by turns (22.5 px, each line
+  snapped to a whole pixel). WebKit sets every line of a field the same whole number of
+  pixels apart, so the replica uses 22 px, as the alternatives panel's rows do; the first
+  line is where the clip has it and a paragraph of eight lines ends 4 px higher.
+- The return arrow in the hint is drawn. IBM Plex Mono has no such glyph, and the clip's
+  (a thin stem and bar with an open head, one character wide) comes from a font macOS does
+  not ship; it was traced from the clip to within a quarter of a pixel.
+- In Read mode the panel steps out of sight without being closed, and is back when the
+  tools are. Asking for it while it is put away (Ctrl+Shift+D) brings it back.
+- Its text is part of the document: it is saved with it and its edits are steps in the
+  one history, so undo works the same with the caret in the panel.
 - **Stash:** right-click ▸ "Stash this in Overflow", or Ctrl+Shift+X, moves the selection
-  out of the page and appends it to Overflow as its own paragraph, opening the panel.
-  With no selection it moves the whole paragraph at the caret.
+  out of the page and appends it to Overflow as its own paragraph, opening the panel and
+  scrolling it to the new paragraph. With no selection it moves the whole paragraph at
+  the caret.
 - **Use:** Ctrl+Return in Overflow moves the selection (or the paragraph at the caret)
   into the page at the page's last caret position. Dragging selected text from Overflow
-  into the page does the same.
+  into the page moves it to where it is dropped. Either is one step to undo.
 
 ### 6.9 Context menu
 
@@ -688,6 +704,7 @@ go another way.
 | 43 | Undo keys | ⌘Z and Ctrl+Z (with Shift to redo) undo the document wherever the focus is, except in a plain text field, which keeps its own history. |
 | 44 | While the AI is asked | The row of `??` cannot be typed in while it dances. Closing the panel or moving it to another target calls the request off, and nothing arrives. Suggestions show as they come but become variants together, when the answer is complete; a request that fails part-way leaves none of them. After a failure the row keeps its `??`, still, with the caret in it: deleting a mark and typing it again asks again. The reason replaces the footer hint for four seconds. |
 | 45 | Ghost at the edges | A run of ghosted text is what runs on unbroken within one paragraph; where the edge of a group splits it, it is still one. A caret on a ghosted word revives even at the very edge of the run, and a caret inside ghosted spaces or punctuation revives too. A selection with no words in it, a blank line and a caret among plain spaces give the command nothing to do, and the menu item is dimmed. A word beside ghosted text is ghosted in its own right. |
+| 46 | Stash and use, in detail | Stashed text is trimmed, and marks do not travel: a group or ghosted words go as the words that were showing. Where a stash empties a paragraph, the paragraph goes and a blank line with it, so the page stays one blank line between paragraphs. Taking whole lines out of Overflow closes it up the same way. Used text goes in as a paste would, the caret goes to the page and stands after it, and the page scrolls to show it; where the page has had no caret yet it is added at the end as a paragraph of its own. A blank line, or a selection with no words, gives either command nothing to do. |
 | 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
 
 ## 10. Verification

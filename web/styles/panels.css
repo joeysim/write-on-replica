@@ -13,24 +13,25 @@
   background: var(--panel);
   transform: translateX(-100%);
   visibility: hidden;
+  /* 200ms on the default curve: the clip's frames fit it to within 2px, in and out. */
   transition:
-    transform 180ms ease-out,
-    visibility 0s linear 180ms;
+    transform 200ms ease,
+    visibility 0s linear 200ms;
 }
 body.is-panel #panel {
   transform: none;
   visibility: visible;
   transition:
-    transform 180ms ease-out,
+    transform 200ms ease,
     visibility 0s linear 0s;
 }
 
 /* The tabs sit just above the line of the page's first text, and the rows start on it. */
 #panel .tabs {
   display: flex;
-  gap: 16px;
+  gap: 13.7px;
   margin: 0;
-  padding: calc(18vh - 0.2px) 0 0 22px;
+  padding: calc(18vh + 0.4px) 0 0 22px;
 }
 #panel .tab {
   margin: 0;
@@ -38,7 +39,7 @@ body.is-panel #panel {
   border: 0;
   background: none;
   color: var(--dim-text);
-  font: 400 19.7px/28px var(--hand);
+  font: var(--label);
   cursor: pointer;
 }
 #panel .tab:hover,
@@ -128,15 +129,19 @@ body.is-panel #panel {
   stroke: none;
 }
 
-#panel .hint {
+/* The line at the foot of either panel. */
+#panel .hint,
+#overflow .hint {
   position: absolute;
-  left: 20px;
-  bottom: 71px;
+  bottom: 70.5px;
   margin: 0;
   color: var(--dim-text);
   font: 400 10px/14px var(--mono);
   letter-spacing: 0.05em;
   white-space: pre;
+}
+#panel .hint {
+  left: 20px;
 }
 
 /* --- asking the AI ------------------------------------------------------------------------- */
@@ -212,4 +217,91 @@ body.is-panel #panel {
   right: 20px;
   color: var(--text);
   white-space: normal;
+}
+
+/* --- Overflow ------------------------------------------------------------------------------- */
+
+/* The same panel down the right of the window (design spec 6.8). The page neither moves nor
+   dims for it. In read mode it steps out of sight without being closed. */
+#overflow {
+  position: fixed;
+  z-index: 10;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 280px;
+  box-sizing: border-box;
+  border-left: 1px solid var(--edge);
+  background: var(--panel);
+  transform: translateX(100%);
+  visibility: hidden;
+  transition:
+    transform 200ms ease,
+    visibility 0s linear 200ms;
+}
+body.is-overflow:not(.is-read) #overflow {
+  transform: none;
+  visibility: visible;
+  transition:
+    transform 200ms ease,
+    visibility 0s linear 0s;
+}
+
+/* The header stands where the other panel has its tabs, with the text below it. */
+#overflow .title {
+  margin: 0;
+  padding: calc(18vh + 0.4px) 0 0 22px;
+  color: var(--accent);
+  font: var(--label);
+}
+#overflow .text {
+  position: absolute;
+  left: 22px;
+  top: calc(18vh + 39.3px);
+  width: 235px; /* 26 characters */
+  height: calc(100% - 18vh - 39.3px - 110px);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  outline: none;
+  resize: none;
+  background: none;
+  color: var(--text);
+  font: 400 15px/22px var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  caret-color: var(--accent);
+  overflow-y: auto;
+  scrollbar-width: none;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+#overflow .text::-webkit-scrollbar {
+  display: none;
+}
+#overflow .hint {
+  left: 22px;
+}
+/* The return arrow is drawn rather than set. Plex Mono has none, and the one in the clip
+   (a thin stem and bar with an open head) is from a font this system does not have. The
+   character stays in the text, unseen, and takes one character's room. */
+#overflow .hint .return {
+  display: inline-block;
+  width: 0.65em;
+  overflow: hidden;
+  color: transparent;
+  vertical-align: bottom;
+}
+#overflow .hint::after {
+  content: '';
+  position: absolute;
+  left: 32px;
+  top: 0;
+  width: 8px;
+  height: 14px;
+  background: currentColor;
+  -webkit-mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 14"><path d="M6.3 1.8V8.2H1.1M3.1 6.35L1.1 8.2L3.1 10.05" fill="none" stroke="black" stroke-width="0.65"/></svg>') 0 0 / 8px 14px no-repeat;
+  mask: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 14"><path d="M6.3 1.8V8.2H1.1M3.1 6.35L1.1 8.2L3.1 10.05" fill="none" stroke="black" stroke-width="0.65"/></svg>') 0 0 / 8px 14px no-repeat;
 }

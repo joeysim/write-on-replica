@@ -90,7 +90,7 @@ body.is-card #card {
 #card .title {
   margin: 0 0 10px;
   color: var(--accent);
-  font: 400 19.7px/28px var(--hand);
+  font: var(--label);
 }
 #card .shortcut {
   display: flex;

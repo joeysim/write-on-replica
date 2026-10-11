@@ -23,13 +23,6 @@ const choose = async (label) => {
   await t.click(r.left + 60, r.top + 15);
 };
 const brief = (s) => (s.length > 160 ? `${s.slice(0, 160)}…` : s);
-/** Whole strings must match; a failure shows only where they part. */
-const same = (actual, expected, message) => {
-  let i = 0;
-  while (i < actual.length && actual[i] === expected[i]) i += 1;
-  const near = (s) => `…${s.slice(Math.max(0, i - 30), i + 70)}…`;
-  t.assert(actual === expected, `${message}: at ${i} expected ${near(expected)}, got ${near(actual)}`);
-};
 
 const PASSAGE = 'Others only seem to, and you cannot tell which is which until the page has rested for a day or two.';
 const SAID = 'It can be said another way.';
@@ -80,7 +73,7 @@ const [px, py] = t.pointOfText('which is which');
 await t.rightClick(px, py);
 t.equal(third(), 'Ghost it', 'with a selection the third item reads Ghost it');
 await choose('Ghost it');
-same(html(), before.replace(PASSAGE, `<span data-ghost>${PASSAGE}</span>`), 'the selected words are ghosted, and only those');
+t.same(html(), before.replace(PASSAGE, `<span data-ghost>${PASSAGE}</span>`), 'the selected words are ghosted, and only those');
 t.equal(ghosts(), [PASSAGE], 'as one run');
 t.equal(textOf(A), `Some lines earn their place at once. ${PASSAGE} Dim the doubtful ones and read on without them.`, 'the words themselves are as they were');
 t.equal(getComputedStyle(editor.root.querySelector('[data-ghost]')).opacity, '0.11', 'ghosted text is drawn at 11%');
@@ -116,7 +109,7 @@ await t.snap('ghosted-selected');
 await t.rightClick(px, py);
 t.equal(third(), 'Revive it', 'inside ghosted text the item reads Revive it');
 await choose('Revive it');
-same(html(), before, 'the whole passage comes back, though nothing was selected');
+t.same(html(), before, 'the whole passage comes back, though nothing was selected');
 t.assert(editor.selection().collapsed, 'and nothing is selected now');
 t.equal((await t.pixels(...LINE)).ink.map(Math.round), plain.ink.map(Math.round), 'at full strength');
 
@@ -124,12 +117,12 @@ t.equal((await t.pixels(...LINE)).ink.map(Math.round), plain.ink.map(Math.round)
 await t.key('z', { meta: true });
 t.equal(ghosts(), [PASSAGE], 'undo ghosts it again');
 await t.key('z', { meta: true });
-same(html(), before, 'and undo once more puts it back as it began');
+t.same(html(), before, 'and undo once more puts it back as it began');
 t.assert(!editor.canUndo, 'two steps in all');
 await t.key('z', { meta: true, shift: true });
 t.equal(ghosts(), [PASSAGE], 'redo ghosts');
 await t.key('z', { meta: true, shift: true });
-same(html(), before, 'and redo revives');
+t.same(html(), before, 'and redo revives');
 
 // --- Ctrl+/ on the word at the caret ----------------------------------------------------------------
 
@@ -141,7 +134,7 @@ same(html(), before, 'and redo revives');
   t.equal(ghosts(), ['doubtful'], 'with nothing selected Ctrl+/ ghosts the word at the caret');
   t.equal(selected(), [A, at, A, at], 'and leaves the caret where it was');
   await t.key('/', { ctrl: true });
-  same(html(), before, 'again, and it is revived');
+  t.same(html(), before, 'again, and it is revived');
 }
 
 // --- across paragraphs ------------------------------------------------------------------------------
@@ -162,7 +155,7 @@ same(html(), before, 'and redo revives');
   selectIn(A, 'without');
   t.equal(commands.can('ghost'), true, 'a selection inside ghosted text can be acted on');
   await t.key('/', { ctrl: true });
-  same(html(), before, 'a selection that touches a ghosted stretch brings all of it back');
+  t.same(html(), before, 'a selection that touches a ghosted stretch brings all of it back');
 }
 
 // --- where there are groups -------------------------------------------------------------------------
@@ -199,7 +192,7 @@ same(html(), before, 'and redo revives');
   t.equal(ghosts(), ['a plain word'], 'and leaves the other stretch alone');
   selectIn(B, 'a plain word');
   await t.key('/', { ctrl: true });
-  same(html(), before, 'which a selection over it revives');
+  t.same(html(), before, 'which a selection over it revives');
 }
 
 // --- where there is nothing to act on ---------------------------------------------------------------
@@ -208,7 +201,7 @@ same(html(), before, 'and redo revives');
   editor.select({ block: BLANK, offset: 0 });
   t.equal(commands.can('ghost'), false, 'on a blank line there is nothing to ghost');
   await t.key('/', { ctrl: true });
-  same(html(), before, 'and Ctrl+/ does nothing');
+  t.same(html(), before, 'and Ctrl+/ does nothing');
   const blank = editor.blockElement(BLANK).getBoundingClientRect();
   await t.rightClick(blank.left + 200, blank.top + 18);
   t.equal(item('Ghost it')?.getAttribute('aria-disabled'), 'true', 'the menu item is dimmed there');

@@ -39,6 +39,15 @@
       if (a !== e) failures.push(`${message || 'values differ'}: expected ${e}, got ${a}`);
       return a === e;
     },
+    /** For long strings: the whole of each must match, and a failure shows only where they part. */
+    same(actual, expected, message) {
+      if (actual === expected) return true;
+      let i = 0;
+      while (i < actual.length && actual[i] === expected[i]) i += 1;
+      const around = (s) => `…${s.slice(Math.max(0, i - 30), i + 70)}…`;
+      failures.push(`${message || 'strings differ'}: at ${i} expected ${around(expected)}, got ${around(actual)}`);
+      return false;
+    },
     near(actual, expected, tolerance, message) {
       const ok = typeof actual === 'number' && Math.abs(actual - expected) <= tolerance;
       if (!ok) failures.push(`${message || 'value'}: expected ${expected} ± ${tolerance}, got ${actual}`);

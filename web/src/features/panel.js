@@ -360,6 +360,11 @@ export function createPanel({ editor, ui, alternatives, commands }) {
     if (focused >= 0) focusRow(Math.min(focused, rows().length - 1));
   });
 
+  // Read mode is just the text: going into it puts the panel away.
+  ui.on((flags, patch) => {
+    if (patch.read === true) close();
+  });
+
   commands.register('alternatives', open);
 
   return {
