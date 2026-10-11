@@ -138,3 +138,78 @@ body.is-panel #panel {
   letter-spacing: 0.05em;
   white-space: pre;
 }
+
+/* --- asking the AI ------------------------------------------------------------------------- */
+
+/* The two question marks of a request: accent, bold, and each dancing to its own beat. */
+#panel .row .q {
+  display: inline-block;
+  color: var(--accent);
+  font-weight: 700;
+  animation: q-first 0.9s ease-in-out infinite;
+}
+#panel .row .q + .q {
+  animation: q-second 1.15s ease-in-out infinite;
+}
+@keyframes q-first {
+  0% {
+    transform: translateY(0) rotate(0) rotateY(0);
+  }
+  25% {
+    transform: translateY(-2.5px) rotate(-14deg) rotateY(90deg);
+  }
+  50% {
+    transform: translateY(0) rotate(0) rotateY(180deg);
+  }
+  75% {
+    transform: translateY(2px) rotate(12deg) rotateY(270deg);
+  }
+  100% {
+    transform: translateY(0) rotate(0) rotateY(360deg);
+  }
+}
+@keyframes q-second {
+  0% {
+    transform: translateY(1.5px) rotate(10deg) rotateY(0);
+  }
+  30% {
+    transform: translateY(-2px) rotate(-8deg) rotateY(-120deg);
+  }
+  60% {
+    transform: translateY(1px) rotate(16deg) rotateY(-220deg);
+  }
+  100% {
+    transform: translateY(1.5px) rotate(10deg) rotateY(-360deg);
+  }
+}
+/* A suggestion arriving. */
+#panel .row.arriving {
+  animation: row-arrive 160ms ease-out;
+}
+@keyframes row-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+/* A request that failed: the row shakes once. */
+#panel .row.shake .text {
+  animation: row-shake 320ms ease-in-out;
+}
+@keyframes row-shake {
+  15%,
+  45%,
+  75% {
+    transform: translateX(-4px);
+  }
+  30%,
+  60%,
+  90% {
+    transform: translateX(4px);
+  }
+}
+#panel .hint.is-reason {
+  right: 20px;
+  color: var(--text);
+  white-space: normal;
+}

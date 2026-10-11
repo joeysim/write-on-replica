@@ -22,6 +22,14 @@ const shim = {
     localStorage.setItem(SETTINGS, JSON.stringify({ ...stored(), ...changes }));
     return null;
   },
+  // A stand-in for the AI: a few fixed suggestions, a piece at a time.
+  'ai.start': ({ id }) => {
+    const pieces = ['first idea\n', 'second ', 'idea\n', 'third idea\n', 'fourth idea\n', 'fifth idea\n'];
+    pieces.forEach((text, i) => setTimeout(() => globalThis.__writeon.emit('ai.delta', { id, text }), 150 + i * 90));
+    setTimeout(() => globalThis.__writeon.emit('ai.done', { id }), 150 + pieces.length * 90);
+    return null;
+  },
+  'ai.cancel': () => null,
   log: ({ level, message }) => {
     (level === 'error' ? console.error : console.log)(message);
     return null;

@@ -27,6 +27,14 @@ export function createPanel({ editor, ui, alternatives, commands }) {
   let draft = false; // there is an empty row at the end that is not a variant yet
   let before = null; // the text that was showing before the active variant
   let own = false; // the change to the document now under way is the panel's own
+  // The AI's part of the list (see features/ai-alternatives.js): the empty row asking with
+  // its `??`, and suggestions that have arrived but are not variants until the batch is in.
+  let asking = false;
+  let arrived = [];
+  let hooks = { ask: null, cancel: null };
+  const hint = root.querySelector('.hint');
+  const hintText = hint.textContent;
+  let reasonTimer = 0;
 
   const group = () => (vid ? editor.groups[vid] ?? null : null);
   const rows = () => [...list.children];
@@ -80,30 +88,51 @@ export function createPanel({ editor, ui, alternatives, commands }) {
   function sync(afresh = false) {
     const model = group();
     if (!model) return;
-    const wanted = model.variants.length + (draft ? 1 : 0);
+    const count = model.variants.length;
+    const wanted = count + arrived.length + (draft ? 1 : 0);
     while (list.children.length < wanted) list.append(makeRow());
     while (list.children.length > wanted) list.lastElementChild.remove();
     rows().forEach((row, index) => {
-      const variant = index < model.variants.length;
+      const variant = index < count;
+      const suggestion = !variant && index < count + arrived.length;
+      const asks = !variant && !suggestion && asking;
       const text = textOf(row);
-      row.dataset.index = variant ? String(index) : '-1';
+      row.dataset.index = variant ? String(index) : suggestion ? '-2' : '-1';
       row.classList.toggle('active', variant && index === model.active);
-      row.classList.toggle('empty', !variant);
-      const ai = variant && isAI(model, index);
+      row.classList.toggle('empty', !variant && !suggestion);
+      row.classList.toggle('arriving', suggestion);
+      row.classList.toggle('asking', asks);
+      if (!asks && !row.classList.contains('empty')) row.classList.remove('shake');
+      const ai = suggestion || (variant && isAI(model, index));
       if (ai !== row.classList.contains('ai')) {
         row.classList.toggle('ai', ai);
         row.querySelector('.marker').innerHTML = ai ? ROBOT : '';
       }
+      text.contentEditable = asks || suggestion ? 'false' : 'plaintext-only';
+      if (asks) {
+        // Two marks, each its own element so that each can dance to its own beat.
+        if (text.querySelectorAll('.q').length !== 2) text.innerHTML = '<span class="q">?</span><span class="q">?</span>';
+        return;
+      }
+      if (text.firstElementChild) text.textContent = text.textContent; // marks that have stopped dancing are plain text again
       // A row being typed in keeps its own text: it may end in a space the variant does not
       // have, and the empty row may hold text that is not (or not yet) a variant.
-      const wantedText = variant ? model.variants[index] : '';
-      const typing = document.activeElement === text;
-      const stale = typing && !afresh ? variant && clean(text.textContent).trim() !== wantedText : text.textContent !== wantedText;
+      const wantedText = variant ? model.variants[index] : suggestion ? arrived[index - count] : '';
+      const typing = document.activeElement === text && !suggestion; // a suggestion's row is not typed in
+      const stale = typing && !afresh ? variant && clean(text.textContent).trim() !== wantedText : text.textContent !== wantedText && !(row.classList.contains('shake') && !afresh);
       if (stale) {
         text.textContent = wantedText;
         if (typing) caretToEnd(text);
       }
     });
+    // While it asks, the asking row holds the focus, wherever in the list it has moved to.
+    if (asking && list.contains(document.activeElement)) {
+      const last = textOf(list.lastElementChild);
+      if (document.activeElement !== last) {
+        last.tabIndex = -1;
+        last.focus({ preventScroll: true });
+      }
+    }
     for (const tab of tabs) tab.classList.toggle('active', tab.dataset.scope === model.scope);
     const id = CSS.escape(vid);
     focusStyle.textContent = [
@@ -111,6 +140,40 @@ export function createPanel({ editor, ui, alternatives, commands }) {
       `#editor p:has([data-vid="${id}"]) { color: rgba(var(--text-rgb), 0.66); }`,
       `#editor [data-vid="${id}"] { color: var(--text); }`,
     ].join('\n');
+  }
+
+  function showHint(text = hintText, reason = false) {
+    clearTimeout(reasonTimer);
+    hint.textContent = text;
+    hint.classList.toggle('is-reason', reason);
+    if (reason) reasonTimer = setTimeout(showHint, 4000);
+  }
+
+  /** Stops whatever the AI was doing for this target. */
+  function callOff() {
+    const was = asking;
+    asking = false;
+    arrived = [];
+    if (was) hooks.cancel?.();
+  }
+
+  /** The row has become `??`: it asks the AI instead of being an alternative. */
+  function beginAsk(row) {
+    const model = group();
+    if (!model || asking) return;
+    const index = row ? indexOf(row) : -1;
+    if (index >= 0 && model.variants.length === 1) return; // the only variant is not a request
+    act(() => {
+      // A moment ago the row was a variant reading "?".
+      if (index >= 0) alternatives.remove(vid, index, { session, show: before });
+      draft = true;
+      asking = true;
+    });
+    showHint();
+    const last = textOf(rows()[rows().length - 1]);
+    last.tabIndex = -1;
+    last.focus({ preventScroll: true });
+    hooks.ask?.(vid);
   }
 
   function focusRow(index) {
@@ -134,6 +197,11 @@ export function createPanel({ editor, ui, alternatives, commands }) {
     if (!model) return;
     const text = clean(textOf(row).textContent).trim();
     const index = indexOf(row);
+    row.classList.remove('shake');
+    if (text === '??') {
+      beginAsk(row);
+      return;
+    }
     if (index < 0) {
       // The empty row: its first character makes a variant, and shows it.
       if (!text) return;
@@ -165,6 +233,7 @@ export function createPanel({ editor, ui, alternatives, commands }) {
 
   /** Takes `target` as the group to work on and puts the caret in its list. */
   function take(target) {
+    callOff();
     vid = quietly(() => alternatives.adopt(target));
     const model = group();
     session.begin(model.variants[model.active]);
@@ -191,6 +260,8 @@ export function createPanel({ editor, ui, alternatives, commands }) {
 
   function close() {
     if (!vid) return;
+    callOff();
+    showHint();
     const where = locateGroup(editor.blocks, vid);
     vid = null;
     spot = null;
@@ -297,5 +368,47 @@ export function createPanel({ editor, ui, alternatives, commands }) {
     isOpen: () => vid !== null,
     /** The id of the group the panel is working on, or null. */
     target: () => vid,
+
+    /** What the AI feature does to the list. */
+    ai: {
+      /** `ask(vid)` is called when a row asks for suggestions, `cancel()` when that is called off. */
+      on(ask, cancel) {
+        hooks = { ask, cancel };
+      },
+      /** Makes the empty row ask, as if `??` had been typed in it. */
+      begin() {
+        if (!vid || asking) return false;
+        beginAsk(null);
+        return true;
+      },
+      /** A suggestion has come. It shows as a row, though it is not a variant until the batch is in. */
+      arrive(text) {
+        if (!asking) return;
+        arrived.push(text);
+        sync();
+      },
+      /** The answer is complete: `commit` puts the batch in the document, the asking row goes, and the caret returns to the active row. */
+      finish(commit) {
+        if (!asking) return;
+        asking = false;
+        arrived = [];
+        draft = false;
+        quietly(commit);
+        sync(true);
+        focusRow(group().active);
+      },
+      /** It did not work: nothing changes, the row shakes, and the reason shows for a few seconds. */
+      fail(reason) {
+        if (!asking) return;
+        asking = false;
+        arrived = [];
+        sync();
+        const row = rows()[rows().length - 1];
+        textOf(row).textContent = '??';
+        row.classList.add('shake');
+        caretToEnd(textOf(row));
+        showHint(reason, true);
+      },
+    },
   };
 }

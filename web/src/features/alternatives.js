@@ -112,6 +112,21 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
     return index;
   }
 
+  /**
+   * Adds several variants in one step, none of them shown: a batch from the AI.
+   * @returns how many were added (empty ones and repeats are not)
+   */
+  function addMany(vid, texts, { ai = false } = {}) {
+    if (!editor.groups[vid]) return 0;
+    let added = 0;
+    editor.change('add alternatives', (draft) => {
+      for (const text of texts) {
+        if (addVariant(draft.groups[vid], text, { ai }) >= 0) added += 1;
+      }
+    });
+    return added;
+  }
+
   /** Changes the text of variant `index`; if it is showing, the page changes with it. */
   function edit(vid, index, text, { session = null } = {}) {
     const group = editor.groups[vid];
@@ -334,6 +349,7 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
     activate,
     cycle,
     add,
+    addMany,
     edit,
     remove,
     blowUp,

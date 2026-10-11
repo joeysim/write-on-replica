@@ -59,6 +59,10 @@ final class UITestHarness {
     private var activations = 0
     private var keyGrabs = 0
     private var nativeMenus = 0
+    // The scripted AI provider (`--ai mock`): what to answer next, and what was asked.
+    private var aiScript: [String: Any] = [:]
+    private var aiRequests: [[String: Any]] = []
+    private var aiCancelled: Set<String> = []
 
     init(options: UITestOptions, controller: DocumentWindowController) {
         self.options = options
@@ -153,6 +157,7 @@ final class UITestHarness {
             guard let self else { return nil }
             return ["zoom": self.options.zoom, "rendersAtZoom": self.rendersAtZoom, "aiMock": self.options.aiMock] as [String: Any]
         })
+        if options.aiMock { registerScriptedAI() }
         // What the run looks like from outside, for the scenario that checks it stays out
         // of the way. These are the real states, not the ones simulated for the page.
         bridge.on("test.environment", sync: { [weak self] _ in
@@ -190,6 +195,47 @@ final class UITestHarness {
         typealias Setter = @convention(c) (AnyObject, Selector, CGFloat) -> Void
         unsafeBitCast(method, to: Setter.self)(webView, selector, scale)
         return true
+    }
+
+    /// Stands in for the AI provider. A scenario says what the next requests get with
+    /// `test.ai { set: { chunks, firstMs, everyMs } }` or `{ set: { error, firstMs } }`;
+    /// `ai.start` then plays that back as the real client would, as `ai.delta` events and
+    /// an `ai.done`, or an `ai.error`. `test.ai` answers with every request received and
+    /// the ids of those called off.
+    private func registerScriptedAI() {
+        let bridge = controller.bridge
+        bridge.on("test.ai", sync: { [weak self] params in
+            guard let self else { return nil }
+            if let script = params["set"] as? [String: Any] { self.aiScript = script }
+            return ["requests": self.aiRequests, "cancelled": Array(self.aiCancelled)] as [String: Any]
+        })
+        bridge.on("ai.start", sync: { [weak self] params in
+            guard let self, let id = params["id"] as? String else { throw Bridge.Failure("ai.start needs an id") }
+            self.aiRequests.append(params)
+            let script = self.aiScript
+            let first = ((script["firstMs"] as? NSNumber)?.doubleValue ?? 0) / 1000
+            let every = ((script["everyMs"] as? NSNumber)?.doubleValue ?? 0) / 1000
+            let send: (TimeInterval, String, [String: Any]) -> Void = { [weak self] delay, event, payload in
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                    guard let self, !self.aiCancelled.contains(id) else { return }
+                    self.controller.bridge.emit(event, payload)
+                }
+            }
+            if let message = script["error"] as? String {
+                send(first, "ai.error", ["id": id, "message": message])
+                return nil
+            }
+            let chunks = script["chunks"] as? [String] ?? []
+            for (index, chunk) in chunks.enumerated() {
+                send(first + every * Double(index), "ai.delta", ["id": id, "text": chunk])
+            }
+            send(first + every * Double(chunks.count), "ai.done", ["id": id])
+            return nil
+        })
+        bridge.on("ai.cancel", sync: { [weak self] params in
+            if let id = params["id"] as? String { self?.aiCancelled.insert(id) }
+            return nil
+        })
     }
 
     private func snapshot(named name: String, reply: @escaping Bridge.Reply) {

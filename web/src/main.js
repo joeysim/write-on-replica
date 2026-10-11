@@ -10,6 +10,8 @@ import { createPanel } from './features/panel.js';
 import { createContextMenu } from './features/contextmenu.js';
 import { initShortcuts } from './features/shortcuts.js';
 import { createCards } from './features/cards.js';
+import { initAIAlternatives } from './features/ai-alternatives.js';
+import { createAIClient } from './ai/client.js';
 import { createSound } from './fx/sound.js';
 import { createExplosions } from './fx/explosion.js';
 import { sampleState } from './sample.js';
@@ -38,6 +40,8 @@ const alternatives = createAlternatives({ editor, ui, decor, sound, explosions }
 const panel = createPanel({ editor, ui, alternatives, commands });
 const menu = createContextMenu({ editor, ui, alternatives, commands });
 const cards = createCards({ editor });
+const ai = createAIClient(native);
+initAIAlternatives({ editor, panel, alternatives, ai, commands });
 initReadMode({ editor, ui, commands });
 initTooltips();
 initShortcuts({ ui, commands });

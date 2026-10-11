@@ -583,8 +583,13 @@ text. The web view loads only the bundled page and refuses every other navigatio
 external links open in the default browser.
 
 **Bridge.** Page to shell: `doc.state`, `file.save`, `file.open`, `draft.write`,
-`ai.start`, `ai.cancel`, `clipboard.write`, `url.open`, `settings.get`. Shell to page:
-`menu.command`, `file.opened`, `ai.delta`, `ai.done`, `ai.error`.
+`ai.start`, `ai.cancel`, `clipboard.write`, `url.open`, `settings.get`, `settings.set`.
+Shell to page: `menu.command`, `file.opened`, `ai.delta`, `ai.done`, `ai.error`.
+
+An AI request is `ai.start { id, messages, maxTokens, effort, schema? }`. The answer comes
+back as `ai.delta { id, text }` events while it streams, then `ai.done { id }`, or
+`ai.error { id, message }` with one line a person can read. `ai.cancel { id }` calls it
+off.
 
 **Build.** This Mac has the Command Line Tools but no Xcode, so the app is a Swift
 package built with `swift build`, and a script assembles and ad-hoc signs
@@ -676,6 +681,7 @@ go another way.
 | 41 | Shortcut card | The keyboard icon opens a centred card over the dimmed page listing the shortcuts of §6.13 and the keys that work under the pointer; Esc, a click outside or the icon again closes it. |
 | 42 | Which shortcuts leave Read mode | The feature shortcuts (alternatives, AI alternatives, ghost, stash, Overflow, source view) and any context-menu item. Save, Open, Post to X, undo and redo do not. |
 | 43 | Undo keys | ⌘Z and Ctrl+Z (with Shift to redo) undo the document wherever the focus is, except in a plain text field, which keeps its own history. |
+| 44 | While the AI is asked | The row of `??` cannot be typed in while it dances. Closing the panel or moving it to another target calls the request off, and nothing arrives. Suggestions show as they come but become variants together, when the answer is complete; a request that fails part-way leaves none of them. After a failure the row keeps its `??`, still, with the caret in it: deleting a mark and typing it again asks again. The reason replaces the footer hint for four seconds. |
 | 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
 
 ## 10. Verification
