@@ -138,6 +138,12 @@ final class UITestHarness {
         bridge.on("test.snap") { [weak self] params, reply in
             self?.snapshot(named: params["name"] as? String ?? "snapshot", reply: reply)
         }
+        // test.pixels { x, y, w, h } -> { ground: [r, g, b], ink: [r, g, b] }
+        // The colours painted in a part of the page: `ground` is what most of it shows (what
+        // lies behind the text), `ink` the brightest fiftieth of it (the text itself).
+        bridge.on("test.pixels") { [weak self] params, reply in
+            self?.pixels(params, reply: reply)
+        }
         bridge.on("test.mouse", sync: { [weak self] params in
             try self?.sendMouse(params)
             return nil
@@ -261,6 +267,43 @@ final class UITestHarness {
             } catch {
                 reply(.failure(Bridge.Failure("cannot write \(file): \(error.localizedDescription)")))
             }
+        }
+    }
+
+    private func pixels(_ params: [String: Any], reply: @escaping Bridge.Reply) {
+        let configuration = WKSnapshotConfiguration()
+        configuration.afterScreenUpdates = true
+        configuration.rect = CGRect(x: number(params["x"]), y: number(params["y"]), width: number(params["w"]), height: number(params["h"]))
+        controller.webView.takeSnapshot(with: configuration) { image, error in
+            guard let image = image?.cgImage(forProposedRect: nil, context: nil, hints: nil), image.width > 0, image.height > 0 else {
+                return reply(.failure(Bridge.Failure("cannot read pixels: \(error?.localizedDescription ?? "no image")")))
+            }
+            // Drawn into the image's own colour space, so the values are those a snapshot file holds.
+            let width = image.width, height = image.height
+            var bytes = [UInt8](repeating: 0, count: width * height * 4)
+            let space = image.colorSpace ?? CGColorSpaceCreateDeviceRGB()
+            let drawn = bytes.withUnsafeMutableBytes { buffer -> Bool in
+                guard let context = CGContext(
+                    data: buffer.baseAddress, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4,
+                    space: space, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                ) else { return false }
+                context.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+                return true
+            }
+            guard drawn else { return reply(.failure(Bridge.Failure("cannot read pixels: no bitmap"))) }
+
+            let count = width * height
+            var channels = [[UInt8]](repeating: [], count: 3)
+            for channel in 0..<3 {
+                channels[channel] = stride(from: channel, to: count * 4, by: 4).map { bytes[$0] }.sorted()
+            }
+            let ground = channels.map { Double($0[count / 2]) }
+            let luma = { (i: Int) in 0.299 * Double(bytes[i * 4]) + 0.587 * Double(bytes[i * 4 + 1]) + 0.114 * Double(bytes[i * 4 + 2]) }
+            let brightest = (0..<count).sorted { luma($0) > luma($1) }.prefix(max(1, count / 50))
+            let ink = (0..<3).map { channel in
+                brightest.reduce(0.0) { $0 + Double(bytes[$1 * 4 + channel]) } / Double(brightest.count)
+            }
+            reply(.success(["ground": ground, "ink": ink, "width": width, "height": height] as [String: Any]))
         }
     }
 

@@ -134,3 +134,9 @@ body:not(.is-alternates) #decor {
 #editor p[data-h] {
   font-weight: 700;
 }
+
+/* Ghosted text: still there, still readable, easy to ignore. A selection over it is dimmed
+   along with it. */
+#editor [data-ghost] {
+  opacity: 0.11;
+}

@@ -2,7 +2,8 @@
 // under the pointer when nothing is selected. It replaces the system's menu except in
 // read mode.
 
-import { hasGhost, textOf } from '../doc/blocks.js';
+import { textOf } from '../doc/blocks.js';
+import { ghostPlan } from '../doc/ghost.js';
 
 const MARGIN = 8; // how near the edge of the window the menu may come
 
@@ -23,12 +24,12 @@ export function createContextMenu({ editor, ui, alternatives, commands }) {
     const ranged = Boolean(selection) && !selection.collapsed;
     const target = alternatives.target();
     const what = ranged ? ' for selection' : target ? ` for “${target.text}”` : '';
-    const ghosted = Boolean(selection) && hasGhost(editor.blocks, selection.start, selection.end);
+    const ghost = ghostPlan(editor.blocks, selection);
     const hasText = Boolean(selection) && textOf(editor.blocks[selection.start.block]).trim() !== '';
     return [
       { command: 'alternatives', label: `Alternatives${what}`, keys: 'Ctrl+Shift+A', enabled: Boolean(target) },
       { command: 'ai-alternatives', label: `AI alternatives${what}`, keys: 'Ctrl+Shift+G', enabled: Boolean(target) },
-      { command: 'ghost', label: ghosted ? 'Revive it' : 'Ghost it', keys: 'Ctrl+/', enabled: ranged || ghosted || Boolean(target) },
+      { command: 'ghost', label: ghost?.revive ? 'Revive it' : 'Ghost it', keys: 'Ctrl+/', enabled: Boolean(ghost) },
       { command: 'stash', label: 'Stash this in Overflow', keys: 'Ctrl+Shift+X', enabled: ranged || hasText },
     ];
   }

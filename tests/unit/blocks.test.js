@@ -9,7 +9,6 @@ import {
   insertText,
   extractText,
   setGhost,
-  hasGhost,
   wrapInline,
   setBlockGroup,
   clearGroup,
@@ -172,14 +171,6 @@ test('reviving clears ghost from the range', () => {
   const html = '<p>One <span data-ghost>two three</span> four</p>';
   assert.equal(H(setGhost(B(html), at(0, 4), at(0, 13), false)), '<p>One two three four</p>');
   assert.equal(H(setGhost(B(html), at(0, 4), at(0, 7), false)), '<p>One two<span data-ghost> three</span> four</p>');
-});
-
-test('hasGhost reports ghost text in a range or under a caret', () => {
-  const blocks = B('<p>One <span data-ghost>two</span> three</p>');
-  assert.equal(hasGhost(blocks, at(0, 0), at(0, 3)), false);
-  assert.equal(hasGhost(blocks, at(0, 2), at(0, 5)), true);
-  assert.equal(hasGhost(blocks, at(0, 5), at(0, 5)), true, 'caret inside');
-  assert.equal(hasGhost(blocks, at(0, 9), at(0, 9)), false);
 });
 
 // --- groups --------------------------------------------------------------------------------

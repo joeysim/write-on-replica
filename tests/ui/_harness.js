@@ -62,6 +62,14 @@
       await t.settle();
       return call('test.snap', { name });
     },
+    /**
+     * The colours painted in a part of the page: `ground` is what most of it shows (what
+     * lies behind the text), `ink` the brightest fiftieth of it (the text). Each is [r, g, b].
+     */
+    async pixels(x, y, w, h) {
+      await t.settle();
+      return call('test.pixels', { x, y, w, h });
+    },
     // Input. Coordinates are CSS pixels in the page.
     //
     // Presses, releases, drags and keys are native events sent through the app's window.

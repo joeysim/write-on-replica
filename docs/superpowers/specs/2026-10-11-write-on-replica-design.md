@@ -349,10 +349,15 @@ view over it.
 ### 6.7 Ghost
 
 - Select text, then right-click ▸ "Ghost it" or Ctrl+/. With no selection it applies to
-  the word at the caret. The text drops to 11% and stays in the flow; a highlight flashes
-  over it and fades.
+  the word at the caret. The text drops to 11% at once, with no transition, and stays in
+  the flow.
+- The selection is kept, and is dimmed along with the words it lies on. In the clip that
+  is the faint highlight left over the passage after ghosting: it is there from the frame
+  the text dims, unchanged for three seconds, and gone on the frame of the next click,
+  when the word count stops reading "selected". There is no separate flash.
 - With the caret or selection in ghosted text the command reads "Revive it" and restores
-  every ghost run it touches.
+  every ghost run it touches, each of them whole and at once. In the clip a right-click
+  inside a four-line ghosted passage, with nothing selected, brings back all of it.
 - Ghosted text remains editable and is counted in the word count.
 
 ### 6.8 Overflow
@@ -682,6 +687,7 @@ go another way.
 | 42 | Which shortcuts leave Read mode | The feature shortcuts (alternatives, AI alternatives, ghost, stash, Overflow, source view) and any context-menu item. Save, Open, Post to X, undo and redo do not. |
 | 43 | Undo keys | ⌘Z and Ctrl+Z (with Shift to redo) undo the document wherever the focus is, except in a plain text field, which keeps its own history. |
 | 44 | While the AI is asked | The row of `??` cannot be typed in while it dances. Closing the panel or moving it to another target calls the request off, and nothing arrives. Suggestions show as they come but become variants together, when the answer is complete; a request that fails part-way leaves none of them. After a failure the row keeps its `??`, still, with the caret in it: deleting a mark and typing it again asks again. The reason replaces the footer hint for four seconds. |
+| 45 | Ghost at the edges | A run of ghosted text is what runs on unbroken within one paragraph; where the edge of a group splits it, it is still one. A caret on a ghosted word revives even at the very edge of the run, and a caret inside ghosted spaces or punctuation revives too. A selection with no words in it, a blank line and a caret among plain spaces give the command nothing to do, and the menu item is dimmed. A word beside ghosted text is ghosted in its own right. |
 | 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
 
 ## 10. Verification

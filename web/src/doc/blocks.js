@@ -215,22 +215,6 @@ export function setGhost(blocks, start, end, on) {
   return mapRange(blocks, start, end, (piece) => run(piece.text, { vid: piece.vid, ghost: on }));
 }
 
-/** Whether any ghosted text lies in the range. For a caret: whether it sits inside ghost. */
-export function hasGhost(blocks, start, end) {
-  if (start.block === end.block && start.offset === end.offset) return Boolean(marksAt(blocks[start.block], start.offset).ghost);
-  for (let i = start.block; i <= end.block; i++) {
-    const from = i === start.block ? start.offset : 0;
-    const to = i === end.block ? end.offset : Infinity;
-    let at = 0;
-    for (const piece of blocks[i].runs) {
-      const pieceEnd = at + piece.text.length;
-      if (piece.ghost && at < to && pieceEnd > from) return true;
-      at = pieceEnd;
-    }
-  }
-  return false;
-}
-
 // --- groups -----------------------------------------------------------------------------------
 
 /** Marks `start`..`end` of one block as inline group `vid`, replacing any groups inside. */
