@@ -42,6 +42,8 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     /// The page size the source clips were recorded at; the default for a new window.
     static let referencePageSize = NSSize(width: 1548, height: 976)
     static let minimumPageSize = NSSize(width: 720, height: 480)
+    /// Where a scripted run keeps its window: nowhere a display can be.
+    static let offscreenOrigin = NSPoint(x: -30000, y: -30000)
 
     let window: EditorWindow
     let webView: EditorWebView
@@ -111,9 +113,10 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         window.allowsFrameBeyondScreen = exactSize
         window.simulatesKeyState = scripted
         if scripted {
-            // Out of the way of whoever is using the Mac: not visible, not clickable, not
-            // in Mission Control or the window cycle. The page still lays out and paints,
-            // because WebKit has been told above not to wait for the window to be seen.
+            // Out of the way of whoever is using the Mac: off every display, and even
+            // there not visible, not clickable, not in Mission Control or the window cycle.
+            // The page still lays out and paints, because WebKit has been told above not
+            // to wait for the window to be seen.
             window.alphaValue = 0
             window.ignoresMouseEvents = true
             window.hasShadow = false
@@ -124,11 +127,9 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         window.delegate = self
         window.setContentSize(exactSize ? size : Self.fit(size, to: NSScreen.main))
         window.center()
-        if exactSize, let screen = NSScreen.main {
-            // Keep the title bar on screen; the bottom may hang off a small display.
-            var frame = window.frame
-            frame.origin.y = screen.visibleFrame.maxY - frame.height
-            window.setFrame(frame, display: false)
+        if scripted {
+            // Headless: parked far outside every display, as WebKit's own test runner does.
+            window.setFrameOrigin(Self.offscreenOrigin)
         }
 
         webView.navigationDelegate = self

@@ -671,10 +671,12 @@ go another way.
 2. **Scripted UI runs in the real web view.** A debug-only harness launches the app,
    drives a scenario and writes PNG snapshots of the page. Clicks, drags, typing and
    shortcuts are native events handed straight to the app's web view. A scripted run is
-   a background process and must not disturb whoever is using the Mac: it has no Dock
-   icon, is never the active app, and its window is invisible, click-through and unable
-   to take the keyboard; it leaves the clipboard, saved settings, speakers, file panels
-   and default browser alone. The first scenario checks this on every run. Inside, WebKit
+   headless and must not disturb whoever is using the Mac: it is a background process
+   with no Dock icon, never the active app, and its window is parked outside every
+   display, transparent, click-through and unable to take the keyboard; it leaves the
+   clipboard, saved settings, speakers, file panels and default browser alone. The first
+   scenario checks this on every run, and the harness fails any run that came to the
+   front or took the keyboard. Inside, WebKit
    is told to treat the page as visible and focused, so runs behave the same whether the
    Mac is in use, locked or unattended. For a window that is not really in front, WebKit
    discards pointer moves that have no button held, so scenarios hover by dispatching the

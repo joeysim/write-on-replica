@@ -54,7 +54,10 @@ final class UITestHarness {
     private var eventNumber = 0
     private var finished = false
     private var rendersAtZoom = false
+    /// Times the run came to the front or took the keyboard. It never should; a run that
+    /// did has failed, whatever its scenario says.
     private var activations = 0
+    private var keyGrabs = 0
 
     init(options: UITestOptions, controller: DocumentWindowController) {
         self.options = options
@@ -64,11 +67,15 @@ final class UITestHarness {
     func start() {
         try? FileManager.default.createDirectory(at: options.output, withIntermediateDirectories: true)
         // The run is set up never to come to the front. If it is brought there anyway, it
-        // steps back at once, so the keyboard returns to whatever had it.
+        // steps back at once, so the keyboard returns to whatever had it, and the run fails.
         NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
             self?.activations += 1
             NSApp.hide(nil)
             DispatchQueue.main.async { NSApp.unhideWithoutActivation() }
+        }
+        NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
+            let app = note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            if app?.processIdentifier == ProcessInfo.processInfo.processIdentifier { self?.activations += 1 }
         }
         controller.onPageLog = { [weak self] level, message in
             if level == "error" { self?.pageErrors.append(message) }
@@ -149,12 +156,14 @@ final class UITestHarness {
         bridge.on("test.environment", sync: { [weak self] _ in
             guard let self else { return nil }
             let window = self.controller.window
+            let onADisplay = NSScreen.screens.contains { $0.frame.intersects(window.frame) }
             return [
                 "active": NSApp.isActive,
                 "activations": self.activations,
-                "accessory": NSApp.activationPolicy() == .accessory,
-                "key": NSApp.keyWindow === window,
+                "inDock": NSApp.activationPolicy() == .regular,
+                "key": NSApp.keyWindow != nil,
                 "canBecomeKey": window.canBecomeKey,
+                "onADisplay": onADisplay,
                 "alpha": Double(window.alphaValue),
                 "ignoresMouse": window.ignoresMouseEvents,
             ] as [String: Any]
@@ -223,6 +232,7 @@ final class UITestHarness {
     }
 
     private func sendMouse(_ params: [String: Any]) throws {
+        if NSApp.keyWindow != nil { keyGrabs += 1 }
         let webView = controller.webView
         guard let window = webView.window else { throw Bridge.Failure("the web view has no window") }
         let type = params["type"] as? String ?? "move"
@@ -271,6 +281,7 @@ final class UITestHarness {
     }
 
     private func sendKey(_ params: [String: Any]) throws {
+        if NSApp.keyWindow != nil { keyGrabs += 1 }
         guard let window = controller.webView.window else { throw Bridge.Failure("the web view has no window") }
         guard let name = params["key"] as? String, let key = KeyMap.lookup(name) else {
             throw Bridge.Failure("unknown key: \(params["key"] ?? "nil")")
@@ -328,10 +339,17 @@ final class UITestHarness {
     private func finish(ok: Bool, failures: [String], logs: [String]) {
         guard !finished else { return }
         finished = true
-        let allFailures = failures + pageErrors.map { "page error: \($0)" }
+        // Whatever the scenario found, a run that came to the front or took the keyboard
+        // has disturbed someone, and that is a failure of the run.
+        var intrusions: [String] = []
+        if NSApp.keyWindow != nil { keyGrabs += 1 }
+        if activations > 0 || NSApp.isActive { intrusions.append("the run came to the front (\(max(activations, 1)) time(s)); it must stay in the background") }
+        if keyGrabs > 0 { intrusions.append("the run's window took the keyboard; it must never be the key window") }
+        let allFailures = failures + pageErrors.map { "page error: \($0)" } + intrusions
+        let passed = ok && pageErrors.isEmpty && intrusions.isEmpty
         let result: [String: Any] = [
             "scenario": options.scenario.deletingPathExtension().lastPathComponent,
-            "ok": ok && pageErrors.isEmpty,
+            "ok": passed,
             "failures": allFailures,
             "logs": logs,
             "snapshots": snapshots,
@@ -340,7 +358,7 @@ final class UITestHarness {
         if let data = try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: options.output.appendingPathComponent("result.json"))
         }
-        exit(ok && pageErrors.isEmpty ? 0 : 1)
+        exit(passed ? 0 : 1)
     }
 }
 

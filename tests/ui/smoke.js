@@ -3,16 +3,19 @@
 const info = await t.call('app.info');
 t.assert(info && info.inApp === true, 'the bridge answers app.info');
 
-// A scripted run stays out of the way of whoever is using the Mac: it is never the active
-// app, its window cannot take the keyboard, cannot be seen and cannot be clicked, and it
-// makes no sound. The page inside still behaves as visible and focused.
+// A scripted run is headless and stays out of the way of whoever is using the Mac: it has
+// no Dock icon and is not the active app, its window is on no display, cannot take the
+// keyboard, cannot be seen and cannot be clicked, and it makes no sound. The page inside
+// still behaves as visible and focused. (The harness also fails any run that came to the
+// front or took the keyboard at any point.)
 const outside = await t.call('test.environment');
-t.equal(outside.accessory, true, 'the run has no Dock icon and is not an app to switch to');
+t.equal(outside.inDock, false, 'the run has no Dock icon and is not in the app switcher');
 t.equal(outside.active, false, 'it is not the active app');
 t.equal(outside.activations, 0, 'and never was');
-t.equal(outside.key, false, 'its window does not have the keyboard');
-t.equal(outside.canBecomeKey, false, 'and cannot take it');
-t.equal(outside.alpha, 0, 'the window cannot be seen');
+t.equal(outside.key, false, 'it has no key window');
+t.equal(outside.canBecomeKey, false, 'and its window cannot become one');
+t.equal(outside.onADisplay, false, 'the window is on no display');
+t.equal(outside.alpha, 0, 'and could not be seen if it were');
 t.equal(outside.ignoresMouse, true, 'or clicked');
 t.equal(window.writeOn.ui.get('sound'), false, 'sound effects are off unless a scenario asks for them');
 t.equal(document.visibilityState, 'visible', 'the page still counts as visible');

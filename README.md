@@ -31,14 +31,16 @@ A scenario is the body of an async function with a helper `t` in scope
 (`tests/ui/_harness.js`): assertions, snapshots, and input. Clicks, drags, typing and
 shortcuts are native events handed straight to the app's web view.
 
-**A scripted run stays out of your way.** It is a background process: no Dock icon, never
-the active app, and its window is invisible, click-through and unable to take the keyboard.
-Nothing you type or click reaches it and it takes nothing from you; it leaves the
-clipboard, your saved settings and the speakers alone (sound effects are off unless a
-scenario asks for them). `tests/ui/smoke.js` checks all of this on every run. Inside, the
-harness makes WebKit treat the page as visible and focused, so scenarios run the same
-whether the Mac is in use, locked or unattended, and from a shell with no terminal. They
-do need a window server session (someone logged in at the console, even if locked).
+**Scripted runs are headless.** A run is a background process with no Dock icon that is
+never the active app. Its window is parked far outside every display, and is transparent,
+click-through and unable to take the keyboard. Nothing you type or click reaches it and it
+takes nothing from you; it leaves the clipboard, your saved settings and the speakers
+alone (sound effects are off unless a scenario asks for them). `tests/ui/smoke.js` checks
+this on every run, and the harness fails any run that came to the front or took the
+keyboard at any point. Inside, the harness makes WebKit treat the page as visible and
+focused, so scenarios run the same whether the Mac is in use, locked or unattended, and
+from a shell with no terminal. They do need a window server session (someone logged in at
+the console, even if locked), because WebKit will not lay out a page without one.
 Hovering is simulated with DOM events, because WebKit discards button-less pointer moves
 for a window that is not really in front.
 
