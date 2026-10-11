@@ -437,8 +437,10 @@ Overflow text, as plain paragraphs.
 - The `write_on` comment holds the editor state: `html` (one `<p>` per block, `<p><br></p>`
   for a blank line, headings as `<p># …</p>`, inline groups as `<span data-vid="id">`,
   paragraph groups as `<p data-vid="id">`, ghost runs as `<span data-ghost>`) and `groups`.
-  `ai` appears only on groups that have AI variants. `>` is escaped inside the JSON so the
-  comment cannot be closed early.
+  `ai` appears only on groups that have AI variants. Inside the JSON, `-->` and `--!>`
+  are written with an escaped `>`, so text can never close the comment early.
+- A document with no groups and no ghost runs has nothing to record, so it is saved as
+  plain Markdown with no metadata comment.
 - **Opening.** If the comment is present and the text of its `html` equals the Markdown
   above it, the editor state is restored from it. If the Markdown was changed in another
   editor, the Markdown wins: a group is kept only where its active text can still be
@@ -622,6 +624,8 @@ go another way.
 | 29 | Ghost with no selection | Applies to the word at the caret, like the alternatives commands. |
 | 30 | Mac shell additions | Blended title bar, menu bar with ⌘ equivalents, Save As, Open Recent, unsaved-changes prompt, crash snapshots, file name suggested from the first heading, a sound toggle. None of these are in the clips. |
 | 31 | Error presentation | Everything in §8. |
+| 32 | Plain documents | A document with no groups and no ghost runs is saved without the metadata comment. The clips only show a file that has groups. |
+| 33 | Line pitch | 36 px instead of the measured 36.4 px; see §4.2. |
 
 ## 10. Verification
 
