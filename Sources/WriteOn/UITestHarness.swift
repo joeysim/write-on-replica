@@ -1,7 +1,8 @@
 import AppKit
 import WebKit
 
-/// Options for a scripted UI run: `--ui-test <scenario.js> --out <dir> [--size WxH] [--zoom N] [--timeout S] [--ai mock]`.
+/// Options for a scripted UI run:
+/// `--ui-test <scenario.js> --out <dir> [--size WxH] [--zoom N] [--timeout S] [--ai mock] [--setting name=value]…`
 struct UITestOptions {
     let scenario: URL
     let output: URL
@@ -9,6 +10,8 @@ struct UITestOptions {
     var zoom: Double = 1
     var timeout: TimeInterval = 60
     var aiMock = false
+    /// Interface settings the run starts with, as if left that way by an earlier launch.
+    var settings: [String: Any] = [:]
 
     static func parse(_ arguments: [String]) -> UITestOptions? {
         func value(after flag: String) -> String? {
@@ -24,6 +27,15 @@ struct UITestOptions {
         if let zoom = value(after: "--zoom").flatMap(Double.init) { options.zoom = zoom }
         if let timeout = value(after: "--timeout").flatMap(Double.init) { options.timeout = timeout }
         options.aiMock = value(after: "--ai") == "mock"
+        for (index, argument) in arguments.enumerated() where argument == "--setting" && index + 1 < arguments.count {
+            let pair = arguments[index + 1].split(separator: "=", maxSplits: 1).map(String.init)
+            guard pair.count == 2 else { continue }
+            switch pair[1] {
+            case "true": options.settings[pair[0]] = true
+            case "false": options.settings[pair[0]] = false
+            default: options.settings[pair[0]] = Double(pair[1]).map { $0 as Any } ?? pair[1]
+            }
+        }
         return options
     }
 }
@@ -41,6 +53,7 @@ final class UITestHarness {
     private var pageErrors: [String] = []
     private var eventNumber = 0
     private var finished = false
+    private var rendersAtZoom = false
 
     init(options: UITestOptions, controller: DocumentWindowController) {
         self.options = options
@@ -53,6 +66,7 @@ final class UITestHarness {
             if level == "error" { self?.pageErrors.append(message) }
         }
         registerHandlers()
+        if options.zoom != 1 { rendersAtZoom = overrideScale(CGFloat(options.zoom)) }
         if controller.pageIsReady {
             run()
         } else {
@@ -120,7 +134,7 @@ final class UITestHarness {
         })
         bridge.on("test.options", sync: { [weak self] _ in
             guard let self else { return nil }
-            return ["zoom": self.options.zoom, "aiMock": self.options.aiMock] as [String: Any]
+            return ["zoom": self.options.zoom, "rendersAtZoom": self.rendersAtZoom, "aiMock": self.options.aiMock] as [String: Any]
         })
         bridge.on("test.done", sync: { [weak self] params in
             let failures = params["failures"] as? [String] ?? []
@@ -131,11 +145,25 @@ final class UITestHarness {
         })
     }
 
+    /// Makes the page lay out and paint as it would on a display with `scale` pixels per
+    /// point, whatever display the Mac has. The clips were recorded at 2x, where WebKit
+    /// places things on half points; on a 1x display it rounds them to whole ones. Test-only
+    /// SPI, as used by WebKit's own runner. Returns false if this WebKit does not have it.
+    private func overrideScale(_ scale: CGFloat) -> Bool {
+        let webView = controller.webView
+        let selector = NSSelectorFromString("_setOverrideDeviceScaleFactor:")
+        guard webView.responds(to: selector), let method = webView.method(for: selector) else { return false }
+        typealias Setter = @convention(c) (AnyObject, Selector, CGFloat) -> Void
+        unsafeBitCast(method, to: Setter.self)(webView, selector, scale)
+        return true
+    }
+
     private func snapshot(named name: String, reply: @escaping Bridge.Reply) {
         let webView = controller.webView
         let configuration = WKSnapshotConfiguration()
         configuration.afterScreenUpdates = true
-        if options.zoom != 1 {
+        if options.zoom != 1, !rendersAtZoom {
+            // Without the scale override the best available is the 1x page drawn larger.
             configuration.snapshotWidth = NSNumber(value: Double(webView.bounds.width) * options.zoom)
         }
         webView.takeSnapshot(with: configuration) { [weak self] image, error in

@@ -1,0 +1,192 @@
+/* The chrome: the word count and the controls around the text. Each control is placed
+   from the nearest edge of the window, at the offsets measured in the clips (design
+   spec, section 4.3). The top row is centred 32px from the top, the bottom row 32px
+   from the bottom. */
+
+.control {
+  position: fixed;
+  z-index: 20;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dim-icon);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    color 150ms ease,
+    opacity 200ms ease,
+    visibility 0s linear 0s;
+}
+/* A kinder target than the drawing itself. */
+.control::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+}
+.control.is-hovered {
+  color: var(--lit-icon);
+}
+.control.is-on,
+.control.is-on.is-hovered {
+  color: var(--accent);
+}
+
+/* Until the page knows which mode it was left in, no control shows, so none flashes by. */
+body.is-booting .control {
+  visibility: hidden;
+}
+
+/* Read mode: everything but the word count steps back. */
+body.is-read .chrome {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    color 150ms ease,
+    opacity 200ms ease,
+    visibility 0s linear 200ms;
+}
+
+.control svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.72;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.control svg .solid {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* --- word count ------------------------------------------------------------------------- */
+
+#wordcount {
+  left: 16px;
+  top: 20px;
+  padding: 3.5px 8px 4.5px;
+  font: 400 10.72px/16px var(--mono);
+  letter-spacing: 0.055em;
+  color: var(--faint);
+  white-space: pre;
+}
+#wordcount::after {
+  inset: -4px;
+}
+#wordcount.is-hovered {
+  color: var(--faint-lit);
+}
+
+/* --- icons ------------------------------------------------------------------------------ */
+
+.icon {
+  width: 20px;
+  height: 20px;
+}
+.icon.wide {
+  width: 26px;
+  height: 18px;
+}
+
+#toggle-alternates {
+  left: calc(50% - 34px);
+  top: 23px;
+}
+#open-source {
+  left: calc(50% + 8px);
+  top: 23px;
+}
+#open-shortcuts {
+  right: 22px;
+  top: 23px;
+}
+
+#save {
+  left: 21px;
+  bottom: 22px;
+}
+#open {
+  left: 55px;
+  bottom: 22px;
+}
+#post-x {
+  left: 91px;
+  bottom: 22px;
+}
+#linkedin {
+  left: 126px;
+  bottom: 22px;
+}
+
+/* --- the Lab button --------------------------------------------------------------------- */
+
+#lab {
+  left: calc(50% - 23px);
+  bottom: 13px;
+  width: 46px;
+  height: 26px;
+  color: var(--lab-label);
+  /* Two pixels more than the height: the label sits a pixel below the middle. */
+  font: 400 10px/28px var(--mono);
+  letter-spacing: 1.74px;
+  text-align: center;
+}
+#lab svg {
+  position: absolute;
+  inset: 0;
+  color: var(--lab-dash);
+  stroke-width: 1;
+  stroke-linecap: butt;
+  /* Three on, two off, as a 1px dashed border comes out in the original; the gap is
+     adjusted so twenty-six dashes close the loop exactly. */
+  stroke-dasharray: 3 2.035;
+  stroke-dashoffset: 0.16;
+  transition: color 150ms ease;
+}
+#lab span {
+  position: relative;
+}
+#lab.is-hovered,
+#lab.is-hovered svg,
+body.is-lab #lab,
+body.is-lab #lab svg {
+  color: var(--accent);
+}
+
+/* --- the Overflow toggle ---------------------------------------------------------------- */
+
+#toggle-overflow {
+  right: 22px;
+  bottom: 23px;
+  font: 700 10px/1 var(--mono);
+}
+body.is-overflow #toggle-overflow {
+  color: var(--accent);
+}
+
+/* --- tooltips --------------------------------------------------------------------------- */
+
+#tooltip {
+  position: fixed;
+  z-index: 30;
+  left: 0;
+  top: 0;
+  font: 400 9.92px/14px var(--mono);
+  letter-spacing: 0.045em;
+  color: var(--tip);
+  white-space: pre;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+#tooltip.is-showing {
+  opacity: 1;
+}
+body.is-read #tooltip {
+  opacity: 0;
+}

@@ -37,6 +37,7 @@
   padding: calc(18vh + 0.85px) 0 45vh;
 }
 
+/* The marks under and beside text that has alternatives; drawn by editor/decor.js. */
 #decor {
   position: absolute;
   inset: 0;
@@ -44,6 +45,57 @@
   height: 100%;
   overflow: visible;
   pointer-events: none;
+  /* Above the text, so a selection does not paint over the marks. */
+  z-index: 1;
+  transition:
+    opacity 200ms ease,
+    visibility 0s linear 0s;
+}
+body.is-booting #decor,
+body.is-read #decor,
+body:not(.is-alternates) #decor {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 200ms ease,
+    visibility 0s linear 200ms;
+}
+
+#decor .mark.word {
+  color: var(--word-line);
+  --dot: var(--accent);
+}
+#decor .mark.sentence {
+  color: var(--sentence-line);
+  --dot: var(--sentence-dot);
+}
+#decor .mark.paragraph {
+  color: var(--paragraph-bar);
+  --dot: var(--paragraph-dot);
+}
+#decor .line {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#decor .word .line {
+  stroke-width: 1.3;
+}
+#decor .sentence .line {
+  stroke-width: 1.2;
+}
+#decor .paragraph .line {
+  stroke-width: 2;
+}
+/* One dot per variant: a ring, filled for the one that is showing. */
+#decor .dot {
+  fill: none;
+  stroke: var(--ring);
+  stroke-width: 0.5;
+}
+#decor .dot.active {
+  fill: var(--dot);
+  stroke: none;
 }
 
 #editor {

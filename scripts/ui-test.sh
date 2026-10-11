@@ -2,6 +2,8 @@
 # Run one UI scenario from tests/ui through the built app's harness, in the real web view.
 #   scripts/ui-test.sh <scenario> [--zoom 2] [--size 1548x976] [--ai mock] [--timeout 60]
 # Snapshots and result.json land in build/ui/<scenario>/. Exit status is the scenario's.
+# A scenario can ask for launch options of its own on its first line:
+#   // launch: --setting read=false
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 NAME="${1:?usage: ui-test.sh <scenario> [options]}"
@@ -14,8 +16,9 @@ OUT="$ROOT/build/ui/$NAME"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 status=0
+read -r -a OWN <<<"$(sed -n '1s|^// launch: ||p' "$SCENARIO")"
 # The page is read from the working copy, so page-only changes need no rebuild.
-WRITEON_WEB_ROOT="${WRITEON_WEB_ROOT:-$ROOT/web}" "$BIN" --ui-test "$SCENARIO" --out "$OUT" "$@" || status=$?
+WRITEON_WEB_ROOT="${WRITEON_WEB_ROOT:-$ROOT/web}" "$BIN" --ui-test "$SCENARIO" --out "$OUT" ${OWN[@]+"${OWN[@]}"} "$@" || status=$?
 if [ -f "$OUT/result.json" ]; then
   python3 -I -c '
 import json, sys

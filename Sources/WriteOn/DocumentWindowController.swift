@@ -48,13 +48,16 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     var onClosed: ((DocumentWindowController) -> Void)?
 
     private let scripted: Bool
+    private let settings: AppSettings
 
     /// - Parameters:
+    ///   - settings: where the page's interface choices are kept.
     ///   - pageSize: content size in points; defaults to the reference size, fitted to the screen.
     ///   - scripted: a UI test run. Keeps `pageSize` exactly, and makes the page behave as
     ///     visible and focused even when the Mac is locked.
-    init(webRoot: URL, pageSize: NSSize? = nil, scripted: Bool = false) {
+    init(webRoot: URL, settings: AppSettings, pageSize: NSSize? = nil, scripted: Bool = false) {
         self.scripted = scripted
+        self.settings = settings
         let exactSize = scripted
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(AssetSchemeHandler(root: webRoot), forURLScheme: AssetSchemeHandler.scheme)
@@ -152,6 +155,13 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
             guard let self, !self.pageIsReady else { return nil }
             self.pageIsReady = true
             self.onPageReady?()
+            return nil
+        })
+        bridge.on("settings.get", sync: { [weak self] _ in
+            self?.settings.interface ?? [:]
+        })
+        bridge.on("settings.set", sync: { [weak self] params in
+            self?.settings.updateInterface(params)
             return nil
         })
         bridge.on("log", sync: { [weak self] params in

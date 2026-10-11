@@ -52,3 +52,12 @@ test('seededRandom is repeatable and spread over [0, 1)', () => {
   assert.ok(values.every((v) => v >= 0 && v < 1));
   assert.ok(Math.min(...values) < 0.1 && Math.max(...values) > 0.9);
 });
+
+test('a vertical line is the same stroke turned on its side', () => {
+  const across = points(wobblePath({ x0: 100, x1: 300, y: 40, seed: 'bar' }));
+  const down = points(wobblePath({ x0: 100, x1: 300, y: 40, seed: 'bar', vertical: true }));
+  assert.equal(down.length, across.length);
+  assert.deepEqual(down, across.map(([x, y]) => [y, x]));
+  assert.equal(down[0][1], 100);
+  assert.equal(down[down.length - 1][1], 300);
+});

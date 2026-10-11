@@ -22,8 +22,10 @@ scripts/dev-server.sh             # serve the page at http://127.0.0.1:4173 for 
 `scripts/ui-test.sh <name>` launches the built app with `--ui-test`, runs
 `tests/ui/<name>.js` inside the page and writes snapshots and `result.json` to
 `build/ui/<name>/`. The page is read from `web/` in the working copy, so page-only changes
-need no rebuild. `--zoom 2` renders snapshots at twice the size, which is the scale of the
-source clips.
+need no rebuild. `--zoom 2` makes the page lay out and paint as it does on a 2x display,
+whatever display the Mac has, and snapshots come out at that scale, which is the scale of
+the source clips. A scenario can ask for launch options of its own on its first line
+(`// launch: --setting read=false` starts it with the tools on).
 
 A scenario is the body of an async function with a helper `t` in scope
 (`tests/ui/_harness.js`): assertions, snapshots, and input. Clicks, drags, typing and

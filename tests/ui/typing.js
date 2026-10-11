@@ -121,4 +121,20 @@ consistent('after a composition');
 await t.key('z', { meta: true });
 t.equal(html(), '<p>ab</p>', 'and it is undone as one step');
 
+// Loading another document while the caret sits late in a paragraph: WebKit goes on
+// reporting the old place for a moment, and the editor must still read a selection.
+editor.setState({ html: '<p>A <span data-vid="aaaaaaa">word</span> here</p>', groups: { aaaaaaa: { scope: 'word', variants: ['word', 'term'], active: 0 } }, overflow: '' });
+editor.select({ block: 0, offset: 8 });
+let read = 'nothing';
+const stop = editor.on('change', () => {
+  try {
+    read = editor.selection();
+  } catch (error) {
+    read = `threw ${error.name}`;
+  }
+});
+editor.setState({ html: '<p><br></p>', groups: {}, overflow: '' });
+stop();
+t.equal(read && read.start, { block: 0, offset: 0 }, 'the selection reads as the start of the new document');
+
 await t.snap('typing');

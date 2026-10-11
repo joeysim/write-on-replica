@@ -4,6 +4,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var controllers: [DocumentWindowController] = []
     private var harness: UITestHarness?
     private var webRoot: URL?
+    private var settings = AppSettings.standard
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard let root = AssetSchemeHandler.locateWebRoot() else {
@@ -14,6 +15,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.mainMenu = Self.buildMenu()
 
         let test = UITestOptions.parse(CommandLine.arguments)
+        if let test {
+            // A scripted run starts from the settings it names and saves nothing.
+            settings = AppSettings(defaults: nil, initial: test.settings)
+        }
         let controller = openWindow(pageSize: test?.pageSize, scripted: test != nil)
         NSApp.activate(ignoringOtherApps: true)
         if let test {
@@ -32,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @discardableResult
     func openWindow(pageSize: NSSize? = nil, scripted: Bool = false) -> DocumentWindowController {
         guard let webRoot else { fatalError("openWindow before launch finished") }
-        let controller = DocumentWindowController(webRoot: webRoot, pageSize: pageSize, scripted: scripted)
+        let controller = DocumentWindowController(webRoot: webRoot, settings: settings, pageSize: pageSize, scripted: scripted)
         controller.onClosed = { [weak self] closed in
             self?.controllers.removeAll { $0 === closed }
         }

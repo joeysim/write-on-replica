@@ -29,15 +29,22 @@
   --accent: rgb(var(--accent-rgb));
   --panel: #0a0f1f;
   --popover: #131623;
-  --dim-icon: rgba(var(--text-rgb), 0.36);
+  --dim-icon: #635b62;
+  --lit-icon: rgba(var(--text-rgb), 0.56);
   --dim-text: rgba(var(--text-rgb), 0.53);
-  --faint: #3a3e52;
+  --faint: #26293c;
+  --faint-lit: #575763;
+  --tip: #5a5b6a;
+  --lab-label: #847c83;
+  --lab-dash: #605f69;
   --selection: rgba(var(--accent-rgb), 0.28);
   --hover: rgba(var(--accent-rgb), 0.11);
   --word-line: #474c74;
   --sentence-line: #5b4d68;
   --sentence-dot: #c29abe;
   --paragraph-bar: #805448;
+  --paragraph-dot: #c88d6c;
+  --ring: #6c6879;
   --lab: #c81042;
 
   --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;

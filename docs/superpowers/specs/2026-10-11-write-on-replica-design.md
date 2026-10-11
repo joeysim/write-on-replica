@@ -84,15 +84,21 @@ It opens as a bare editor. Clicking the word count turns the rest on.
 | `accent` | `#817cd4` | Active icons, active tab, active row marker, word-scope active dot |
 | `panel` | `#0a0f1f` | Side panels |
 | `popover` | `#131623` | Context menu, Lab popover, trim card, source view |
-| `dim-icon` | `text` at 36% | Inactive icons |
+| `dim-icon` | `#635b62` | Inactive icons |
+| `lit-icon` | `text` at 56% | An icon under the pointer |
 | `dim-text` | `text` at 53% | Inactive tabs, inactive rows, shortcut labels, hints |
-| `faint` | `#3a3e52` | Word count |
+| `faint` | `#26293c` | Word count |
+| `faint-lit` | `#575763` | Word count under the pointer |
+| `tip` | `#5a5b6a` | Shortcut tooltips |
+| `lab-label`, `lab-dash` | `#847c83`, `#605f69` | The LAB button's letters and dashed outline |
 | `selection` | `accent` at 28% | Text selection |
 | `hover` | `accent` at 11% | Hover highlight on a group |
 | `word-line` | `#474c74` | Word-scope underline |
 | `sentence-line` | `#5b4d68` | Sentence-scope underline |
 | `sentence-dot` | `#c29abe` | Sentence-scope active dot |
 | `paragraph-bar` | `#805448` | Paragraph-scope margin bar |
+| `paragraph-dot` | `#c88d6c` | Paragraph-scope active dot |
+| `ring` | `#6c6879` | The dots of variants that are not showing |
 | `lab` | `#c81042` | Scan line, Lab marks |
 
 Opacity states: ghost text 11%; paragraphs other than the panel's target 35%.
@@ -108,7 +114,11 @@ Opacity states: ghost text 11%; paragraphs other than the panel's target 35%.
   where the clips have it; each line after it is 0.4 px higher than in the clips. The
   alternative, scaling the whole page by 1.011, would soften the text on a 1× display.
 - **Panels and menus:** IBM Plex Mono at 15 px (panel rows, overflow text), 13 px (menus,
-  Lab), 12 px (trim card), 10 px (word count, hints, tooltips).
+  Lab), 12 px (trim card), 10 px (hints).
+- **Small labels are letter-spaced.** Word count 10.72 px with 0.055 em; tooltips 9.92 px
+  with 0.045 em; "LAB" 10 px with 1.74 px; "XYZ" 10 px bold, unspaced. (Cap height and
+  character pitch were measured separately in the clips; these are the sizes that satisfy
+  both.)
 - **Labels:** a handwriting face, believed to be Caveat, ~22 px, for the panel tabs
   ("Word", "Sentence", "Paragraph"), "Overflow", "As saved", "Readable" and "Copy". To be
   confirmed against frames during implementation; if it does not match, the closest
@@ -127,15 +137,21 @@ Opacity states: ghost text 11%; paragraphs other than the panel's target 35%.
 
 | Element | Position (1548×976) | Notes |
 | --- | --- | --- |
-| Word count | left 24 px, top row | "535 words 3115 chars"; with a selection "34 words 182 chars selected". Words are whitespace-separated; chars include spaces (both readouts in the clips check out against the selected text). |
-| Alternates toggle | top centre, left of centre | Three dots over a short bar; accent when on |
-| Source icon | top centre, right of centre | "M↓" in a rounded rectangle |
-| Keyboard icon | top right, 24 px inset | |
-| Save, Open, X, LinkedIn | bottom left, centres at x = 30, 65, 100, 136 | 18 px icons |
-| LAB | bottom centre | Dashed rounded rectangle, letter-spaced caps |
-| Overflow toggle | bottom right, 24 px inset | "XYZ" in a box; accent when open |
+| Word count | left 24 px, top row | "535 words 3115 chars"; with a selection "34 words 182 chars selected". Words are whitespace-separated; chars include spaces (both readouts in the clips check out against the selected text). Lights up under the pointer. |
+| Alternates toggle | centre (753, 32) | Three 7 px dots (ring, disc, ring) over a 24.4 px bar; accent when on |
+| Source icon | centre (795, 32) | "M↓" in a 24.45 × 16.95 rounded rectangle |
+| Keyboard icon | centre (1513, 32) | Same rectangle; rows of four and five dots over a bar |
+| Save, Open, X, LinkedIn | centres at x = 31, 65.5, 101, 136, y = 944 | 16.9 px of ink each, 1.7 px strokes; X is the solid logo |
+| LAB | 45.4 × 26 at (751.4, 937) | 1 px dashed outline, radius 5, dashes of 3 with gaps of 2; letter-spaced caps |
+| Overflow toggle | centre (1513, 944) | "XYZ" in the same rounded rectangle; accent when open |
 
-Exact icon geometry is drawn as SVG from 4–10× enlargements of the frames.
+Icon geometry was measured from the frames to about a twentieth of a pixel and is drawn as
+inline SVG. WebKit paints an inline SVG from a whole pixel, so each control is laid out on
+whole pixels and any half pixel in a drawing's position is written into the drawing.
+
+An icon brightens under the pointer, and one that has a shortcut shows it in a small label
+centred 25.5 px above the icon's middle, kept 22 px inside the window's edge. Labels seen
+in the clips: "Ctrl+S", "Ctrl+O", "Ctrl+Shift+P", "Ctrl+Shift+D".
 
 ### 4.4 Window
 
@@ -223,16 +239,20 @@ Each scope has its own mark, so the three can sit near each other without confus
 | --- | --- | --- | --- |
 | Mark | Underline | Underline | Vertical bar in the left margin |
 | Colour | `word-line` | `sentence-line` | `paragraph-bar` |
-| Thickness | 1.25 px | 1.2 px | 1.5 px |
-| Position | 4.3 px below the baseline | 9.6 px below the baseline | 19 px left of the text, from the first line's ascenders to the last line's descenders |
-| Dots | Under the line, centred on the word, 8.5 px below the baseline | Inline at the right end; the line stops 3 px short of them | Stacked top to bottom, centred on the bar's middle, 6 px to its left |
-| Active dot | Filled `accent` | Filled `sentence-dot` | Filled, a lighter `paragraph-bar` |
+| Thickness | 1.3 px | 1.2 px | 2 px |
+| Position | 3.8 px below the baseline | 9.8 px below the baseline | 19.1 px left of the text, from 16.75 px above the first baseline to 2.4 px below the last |
+| Dots | Under the line, centred on the word, 7.9 px below the baseline | Inline at the right end, 0.75 px above the line; the line stops 3 px short of them | Stacked top to bottom around the bar's middle, 5.65 px to its left |
+| Active dot | Filled `accent` | Filled `sentence-dot` | Filled `paragraph-dot` |
 
 - One dot per variant, in variant order. 3 px diameter, 5 px pitch. The active one is
-  filled; the rest are hollow rings.
+  filled; the rest are rings 0.5 px thick in `ring`.
+- Each dot sits at the start of a 5 px cell (3 px of dot, 2 px of air). A word's row of
+  cells is centred under the word, so the dots themselves sit 1 px left of centre; a
+  sentence's row ends at the end of its text, so the last dot ends 2 px before it.
 - The lines are drawn like an editor's pen: a slow wobble of about ±0.3 px over roughly
-  100 px, a slight tilt, and a stroke that fades in over its first few pixels. The wobble
-  is seeded from the group id, so a given line always looks the same.
+  100 px, a slight tilt, and a stroke that fades in as the pen touches down and out as it
+  lifts. The wobble is seeded from the group id, so a given line always looks the same.
+- The marks are drawn above the text, so a selection does not cover them.
 - An underline that wraps continues on each line. Sentence dots sit at the very end;
   word dots centre under the last line of the wrapped phrase.
 
@@ -626,6 +646,8 @@ go another way.
 | 31 | Error presentation | Everything in §8. |
 | 32 | Plain documents | A document with no groups and no ghost runs is saved without the metadata comment. The clips only show a file that has groups. |
 | 33 | Line pitch | 36 px instead of the measured 36.4 px; see §4.2. |
+| 34 | Other tooltips | The source icon shows "Ctrl+U". An icon in the top row has no room above it, so its label goes below. The alternates toggle, keyboard icon, LAB and LinkedIn show none. |
+| 35 | Alternates toggle when off | Drawn in the inactive icon colour. The clips only show it on. |
 
 ## 10. Verification
 

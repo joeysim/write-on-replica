@@ -5,9 +5,23 @@
 const handler = globalThis.webkit?.messageHandlers?.writeon;
 const listeners = new Map();
 
+const SETTINGS = 'write_on.settings';
+const stored = () => {
+  try {
+    return JSON.parse(localStorage.getItem(SETTINGS)) ?? {};
+  } catch {
+    return {};
+  }
+};
+
 const shim = {
   'app.info': () => ({ inApp: false, version: 'browser' }),
   'app.ready': () => null,
+  'settings.get': stored,
+  'settings.set': (changes) => {
+    localStorage.setItem(SETTINGS, JSON.stringify({ ...stored(), ...changes }));
+    return null;
+  },
   log: ({ level, message }) => {
     (level === 'error' ? console.error : console.log)(message);
     return null;

@@ -28,8 +28,10 @@ const round = (n) => Math.round(n * 100) / 100;
  * @param period wobble wavelength in px (varied a little per line)
  * @param tilt   total rise or fall from end to end, at most, in px
  * @param step   distance between points in px
+ * @param vertical draw the line top to bottom instead: x0 and x1 are then heights and y
+ *   is the horizontal position
  */
-export function wobblePath({ x0, x1, y, seed, amp = 0.3, period = 100, tilt = 0.4, step = 6 }) {
+export function wobblePath({ x0, x1, y, seed, amp = 0.3, period = 100, tilt = 0.4, step = 6, vertical = false }) {
   const length = x1 - x0;
   if (!(length > 0)) return '';
   const random = seededRandom(String(seed));
@@ -48,11 +50,9 @@ export function wobblePath({ x0, x1, y, seed, amp = 0.3, period = 100, tilt = 0.
     return y + wave + slope * (along / length - 0.5);
   };
 
+  const point = (x) => (vertical ? `${round(at(x))} ${round(x)}` : `${round(x)} ${round(at(x))}`);
   const count = Math.max(1, Math.round(length / step));
-  let d = `M${round(x0)} ${round(at(x0))}`;
-  for (let i = 1; i <= count; i++) {
-    const x = i === count ? x1 : x0 + (length * i) / count;
-    d += ` L${round(x)} ${round(at(x))}`;
-  }
+  let d = `M${point(x0)}`;
+  for (let i = 1; i <= count; i++) d += ` L${point(i === count ? x1 : x0 + (length * i) / count)}`;
   return d;
 }

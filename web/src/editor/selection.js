@@ -20,9 +20,12 @@ export function positionOf(root, node, offset) {
   if (!root.contains(node)) return null;
   const p = blockOf(root, node);
   if (!p) return null;
+  // Just after its contents are replaced, WebKit can still report a point by an offset
+  // the node no longer has.
+  const length = node.nodeType === Node.TEXT_NODE ? node.data.length : node.childNodes.length;
   const range = document.createRange();
   range.setStart(p, 0);
-  range.setEnd(node, offset);
+  range.setEnd(node, Math.min(offset, length));
   return { block: Array.prototype.indexOf.call(root.children, p), offset: range.toString().length };
 }
 
