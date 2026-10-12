@@ -33,8 +33,8 @@ off. Every window after the first starts blank; Help ▸ The Welcome Piece bring
 | Shortcut | What it does |
 | --- | --- |
 | Ctrl+Shift+R, or click the word count | Read mode: just the text |
-| Ctrl+Shift+A | Alternatives for the selection, or the word at the caret |
-| Ctrl+Shift+G | AI alternatives for the selection or word |
+| Ctrl+Shift+A | Alternatives for the selection, or the word at the caret; with no caret in the text, the word under the pointer |
+| Ctrl+Shift+G | AI alternatives, for the same |
 | Ctrl+/ | Ghost it, or revive it |
 | Ctrl+Shift+X | Stash the selection (or the paragraph) in Overflow |
 | Ctrl+Shift+D | Overflow panel |

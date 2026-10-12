@@ -314,7 +314,11 @@ opening and closing. The text column does not move; the word count and the botto
 icons stay in view over it. Going into Read mode closes it.
 
 - **Opening.** Right-click ▸ "Alternatives for selection" / "Alternatives for “word”", or
-  Ctrl+Shift+A. With no selection the target is the word at the caret.
+  Ctrl+Shift+A. With no selection the target is the word at the caret, whatever the
+  pointer is on: in the clip the pointer rests on "tension", the caret is in "obvious",
+  and the panel opens on "obvious". With no caret in the text either (a window just
+  opened, or the keyboard somewhere else), the target is the group or the word the
+  pointer is resting on. Ctrl+Shift+G goes by the same rule.
 - **Scope of a selection.** A whole multi-sentence paragraph is `paragraph`; one or more
   complete sentences (including a heading) is `sentence`; anything else is `word`, which
   also covers short phrases such as "tough stuff". A selection that crosses paragraphs
@@ -831,6 +835,7 @@ go another way.
 | 47 | Trims, in detail | A click on a faded passage keeps it and a second click lets it go again. Choosing another level, or "Original", puts a pending proposal away first. If the request fails the card keeps the trim's name, gives the reason in one line and offers only "Done"; the same if the answer holds nothing that is the text with words deleted ("The AI found nothing it could cut without rewording."), or nothing at all ("The AI found nothing to cut."). A paragraph that came back reworded is left alone while the others are proposed. Going into Read mode puts the popover and any pass away. Arrow keys are not needed in the popover; Esc and a click elsewhere close it. |
 | 48 | Post to X, in detail | The clip only hovers the X icon, so everything past "opens X's compose window" is a choice: the address (`x.com/intent/post`), the text sent (the page as it reads: no heading mark, nothing ghosted, nothing from Overflow, nothing of the other versions), the two limits and the clipboard fallback, the wording and behaviour of the note, and doing nothing for an empty page. |
 | 49 | Documents and windows | Where a file opens (the window that has it, else one nobody has written in, else its own); a new window being blank and the welcome piece shown once; unsaved work coming back after a crash as an unsaved document rather than being offered in a dialog; one question at a time; Undo and Redo in the menu being the document's; which commands the menus hold and what they are called. |
+| 50 | A shortcut with no caret | With neither a caret nor a selection in the text, Alternatives and AI alternatives act on what the pointer is resting on: the group, or the word. The clip only shows the case with a caret, which wins over the pointer. |
 | 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
 
 ## 10. Verification

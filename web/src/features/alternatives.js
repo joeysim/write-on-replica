@@ -32,6 +32,7 @@ const STEP = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
 export function createAlternatives({ editor, ui, decor, sound, explosions }) {
   const hoverSession = new ToneSession({ idleMs: HOVER_IDLE_MS });
   let hovered = null; // id of the group under the pointer
+  let pointer = null; // where the pointer last was in the window, or null when it has left
   // Keys act on the hovered group only if the pointer came onto it since the last click
   // or typed character, so clicking into a group to edit it leaves the caret keys alone.
   let armed = false;
@@ -259,6 +260,22 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
   }
 
   /**
+   * What the pointer is resting on in the text: the group there, or the word. Null when it
+   * is off the text, or beside a line and on no word. For when there is no caret to go by.
+   */
+  function pointed() {
+    if (!pointer) return null;
+    const under = document.elementFromPoint(pointer.x, pointer.y);
+    if (!under || !editor.root.contains(under)) return null;
+    const position = editor.positionFromPoint(pointer.x, pointer.y);
+    const found = position && targetAt(position);
+    if (!found) return null;
+    const boxes = [...editor.rangeFor(found.block, found.start, found.end).getClientRects()];
+    const on = (box) => pointer.x >= box.left && pointer.x <= box.right && pointer.y >= box.top && pointer.y <= box.bottom;
+    return boxes.some(on) ? found : null;
+  }
+
+  /**
    * Blows up the variant of group `vid` that is showing: it is removed with a burst and a
    * boom, and the next one shows. One of a pair leaves plain text. The last cannot go.
    */
@@ -309,8 +326,14 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
     return editor.groups[element.dataset.vid] ? element.dataset.vid : null;
   }
 
-  document.addEventListener('mousemove', (event) => attend(ui.get('read') ? null : groupUnder(event.target)));
-  document.documentElement.addEventListener('mouseleave', () => attend(null));
+  document.addEventListener('mousemove', (event) => {
+    pointer = { x: event.clientX, y: event.clientY };
+    attend(ui.get('read') ? null : groupUnder(event.target));
+  });
+  document.documentElement.addEventListener('mouseleave', () => {
+    pointer = null;
+    attend(null);
+  });
   document.addEventListener('mousedown', () => {
     armed = false;
   });
@@ -352,6 +375,7 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
   return {
     target,
     targetAt,
+    pointed,
     adopt,
     release,
     activate,

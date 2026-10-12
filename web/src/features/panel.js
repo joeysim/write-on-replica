@@ -250,7 +250,9 @@ export function createPanel({ editor, ui, alternatives, commands }) {
    * @returns {boolean} false if there is nothing there to work on
    */
   function open() {
-    const target = alternatives.target();
+    // The caret or the selection says what is meant. With neither in the text (a window
+    // just opened, the keyboard somewhere else) the pointer does: the group or word under it.
+    const target = alternatives.target() ?? (editor.selection() ? null : alternatives.pointed());
     if (!target) return false;
     spot = { block: target.block, offset: target.start };
     ui.set({ panel: true, read: false });
