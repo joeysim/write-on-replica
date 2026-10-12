@@ -64,6 +64,9 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     /// Where Copy puts text. A scripted run has a pasteboard of its own, so it never
     /// replaces what the person at this Mac has copied.
     let pasteboard: NSPasteboard
+    /// The pages a scripted run was asked to open in the browser. It opens none of them,
+    /// and keeps the list for its scenario to read.
+    private(set) var askedToOpen: [URL] = []
 
     /// - Parameters:
     ///   - settings: where the page's interface choices are kept.
@@ -193,6 +196,19 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
             guard let self, let text = params["text"] as? String else { throw Bridge.Failure("clipboard.write needs text") }
             self.pasteboard.clearContents()
             guard self.pasteboard.setString(text, forType: .string) else { throw Bridge.Failure("the text could not be copied") }
+            return nil
+        })
+        // The one page the document sends anyone to is X's compose window, so that is the
+        // one page the shell will open, whatever it is asked for.
+        bridge.on("browser.open", sync: { [weak self] params in
+            guard let self, let text = params["url"] as? String, let url = URL(string: text),
+                  url.scheme == "https", url.host == "x.com", url.path == "/intent/post"
+            else { throw Bridge.Failure("only X's compose window can be opened") }
+            if self.scripted {
+                self.askedToOpen.append(url)
+            } else if !NSWorkspace.shared.open(url) {
+                throw Bridge.Failure("the browser could not be opened")
+            }
             return nil
         })
         bridge.on("log", sync: { [weak self] params in

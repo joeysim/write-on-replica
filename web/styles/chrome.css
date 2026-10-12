@@ -118,9 +118,11 @@ body.is-read .chrome {
   left: 91px;
   bottom: 22px;
 }
+/* This one runs from the pointer (features/share.js). Its middle is --x from the left of the
+   window and --up from the bottom, wherever it has run to, and never out of the window. */
 #linkedin {
-  left: 126px;
-  bottom: 22px;
+  left: clamp(8px, calc(var(--x, 136px) - 10px), calc(100vw - 28px));
+  bottom: clamp(8px, calc(var(--up, 32px) - 10px), calc(100vh - 28px));
 }
 
 /* --- the Lab button --------------------------------------------------------------------- */
@@ -187,6 +189,11 @@ body.is-overflow #toggle-overflow {
 #tooltip.is-showing {
   opacity: 1;
 }
-body.is-read #tooltip {
+/* A note from a control is there to be noticed, as a label is not. */
+#tooltip.is-note {
+  color: var(--lit-icon);
+}
+/* In read mode there is nothing to label, but a note is still for reading. */
+body.is-read #tooltip:not(.is-note) {
   opacity: 0;
 }

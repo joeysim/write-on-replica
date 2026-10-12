@@ -168,6 +168,10 @@ final class UITestHarness {
         bridge.on("test.clipboard", sync: { [weak self] _ in
             ["text": self?.controller.pasteboard.string(forType: .string) ?? ""] as [String: Any]
         })
+        // test.opened -> { urls }: the pages the document asked the browser for. None was opened.
+        bridge.on("test.opened", sync: { [weak self] _ in
+            ["urls": self?.controller.askedToOpen.map(\.absoluteString) ?? []] as [String: Any]
+        })
         // What the run looks like from outside, for the scenario that checks it stays out
         // of the way. These are the real states, not the ones simulated for the page.
         bridge.on("test.environment", sync: { [weak self] _ in

@@ -1,5 +1,6 @@
 // What the chrome does under the pointer: the control lights up, and one that has a
-// shortcut shows it in a small label (design spec 4.3 and 6.13).
+// shortcut shows it in a small label (design spec 4.3 and 6.13). The same label carries
+// the odd note from a control: what it has just done, when that needs saying.
 //
 // The lit state is a class set here rather than CSS :hover, so it is in one place with the
 // label and follows a control that moves or disappears.
@@ -9,15 +10,16 @@ const EDGE = { left: 12, right: 21.8 }; // how near the sides of the window a la
 
 export function initTooltips() {
   const tip = document.getElementById('tooltip');
-  let current = null;
+  let current = null; // the control under the pointer
+  let note = null; // { control, text, ms, timer }: said by a control, and shown whatever the pointer is over
 
-  function place(control) {
-    const label = control?.dataset.tip;
-    if (!label) {
+  function show(control, text) {
+    tip.classList.toggle('is-note', Boolean(note));
+    if (!control || !text) {
       tip.classList.remove('is-showing');
       return;
     }
-    tip.textContent = label;
+    tip.textContent = text;
     const at = control.getBoundingClientRect();
     const size = tip.getBoundingClientRect();
     const middle = at.top + at.height / 2;
@@ -28,24 +30,54 @@ export function initTooltips() {
     tip.style.top = `${top - size.height / 2}px`;
     tip.classList.add('is-showing');
   }
+  const refresh = () => (note ? show(note.control, note.text) : show(current, current?.dataset.tip));
 
   function attend(control) {
     if (control === current) return;
     current?.classList.remove('is-hovered');
     current = control;
     current?.classList.add('is-hovered');
-    place(current);
+    refresh();
   }
+
+  function unsay() {
+    clearTimeout(note?.timer);
+    note = null;
+  }
+  const count = () => {
+    clearTimeout(note.timer);
+    note.timer = setTimeout(() => {
+      unsay();
+      refresh();
+    }, note.ms);
+  };
 
   document.addEventListener('mouseover', (event) => attend(event.target.closest?.('.control') ?? null));
   document.documentElement.addEventListener('mouseleave', () => attend(null));
-  window.addEventListener('blur', () => attend(null));
-  // A press puts the label away; it comes back the next time the pointer arrives.
-  document.addEventListener('mousedown', (event) => {
-    const control = event.target.closest?.('.control');
-    if (!control) return;
-    tip.classList.remove('is-showing');
-    // Keep the caret and selection in the text while the chrome is used.
-    event.preventDefault();
+  window.addEventListener('blur', () => {
+    attend(null);
+    // A note is not read while the window is behind another: its time starts over when it is back.
+    clearTimeout(note?.timer);
   });
+  window.addEventListener('focus', () => {
+    if (note) count();
+  });
+  // A press puts the label away, and a note with it; a label comes back the next time the
+  // pointer arrives.
+  document.addEventListener('mousedown', (event) => {
+    unsay();
+    show(null);
+    // Keep the caret and selection in the text while the chrome is used.
+    if (event.target.closest?.('.control')) event.preventDefault();
+  });
+
+  return {
+    /** Has `control` say `text` for `ms`, in place of whatever label is showing. A press anywhere puts it away. */
+    say(control, text, ms = 4000) {
+      unsay();
+      note = { control, text, ms, timer: null };
+      if (document.hasFocus()) count();
+      refresh();
+    },
+  };
 }

@@ -550,13 +550,28 @@ hairline edge, 7 px corners and a soft shadow that falls mostly below it.
   Read-only. Esc closes.
 
 **Post to X** (X icon, Ctrl+Shift+P): opens X's compose window in the default browser
-with the document text filled in, heading marker and ghosted text removed. If the text is
-longer than 4,000 characters it is copied to the clipboard instead and the compose
-window opens empty, with a note saying so.
+(`https://x.com/intent/post?text=…`) with the document text filled in, heading marker and
+ghosted text removed. If the text is longer than 4,000 characters it is copied to the
+clipboard instead and the compose window opens empty, with a note by the X icon saying
+so: "Too long to fill in: it is on the clipboard, ready to paste." The same happens when
+the link itself would run past 8,000 characters, which text outside the Latin alphabet
+does much sooner: X's servers refuse a request much past 14,000 bytes (measured), and the
+browser's own headers count towards that.
+
+The note is the control's label put to another use (§4.3): in the colour of a lit
+control, shown in Read mode too, for four seconds counted from when the window is next in
+front, since the browser has just covered it. A press anywhere puts it away. If the
+browser cannot be opened, the note says that instead. With no text on the page the
+command does nothing. The shell will open that one address and no other.
 
 **LinkedIn:** the fourth icon runs from the pointer. Whenever the pointer comes within
-40 px it jumps 45–120 px away, staying inside the window. After seven escapes the next
-approach blows it up, with the explosion and boom. It stays gone until the next launch.
+25 px of its middle it hops 90–120 px straight away from the pointer, give or take 10°,
+turning aside rather than leave the window (its middle stays 18 px inside). The hop takes
+280 ms on `cubic-bezier(0.35, 1.2, 0.2, 1.02)`, a quick start and a slight overshoot;
+caught in the air it is off again from where it is. After six escapes the next approach
+blows it up, with the explosion and boom. It stays gone until the next launch. It cannot
+be reached from the keyboard, is hidden from assistive technology, shows no label, and
+does not move in Read mode. These numbers are measured from the clip.
 
 ### 6.12 Sound and explosions
 
@@ -741,6 +756,7 @@ go another way.
 | 45 | Ghost at the edges | A run of ghosted text is what runs on unbroken within one paragraph; where the edge of a group splits it, it is still one. A caret on a ghosted word revives even at the very edge of the run, and a caret inside ghosted spaces or punctuation revives too. A selection with no words in it, a blank line and a caret among plain spaces give the command nothing to do, and the menu item is dimmed. A word beside ghosted text is ghosted in its own right. |
 | 46 | Stash and use, in detail | Stashed text is trimmed, and marks do not travel: a group or ghosted words go as the words that were showing. Where a stash empties a paragraph, the paragraph goes and a blank line with it, so the page stays one blank line between paragraphs. Taking whole lines out of Overflow closes it up the same way. Used text goes in as a paste would, the caret goes to the page and stands after it, and the page scrolls to show it; where the page has had no caret yet it is added at the end as a paragraph of its own. A blank line, or a selection with no words, gives either command nothing to do. |
 | 47 | Trims, in detail | A click on a faded passage keeps it and a second click lets it go again. Choosing another level, or "Original", puts a pending proposal away first. If the request fails the card keeps the trim's name, gives the reason in one line and offers only "Done"; the same if the answer holds nothing that is the text with words deleted ("The AI found nothing it could cut without rewording."), or nothing at all ("The AI found nothing to cut."). A paragraph that came back reworded is left alone while the others are proposed. Going into Read mode puts the popover and any pass away. Arrow keys are not needed in the popover; Esc and a click elsewhere close it. |
+| 48 | Post to X, in detail | The clip only hovers the X icon, so everything past "opens X's compose window" is a choice: the address (`x.com/intent/post`), the text sent (the page as it reads: no heading mark, nothing ghosted, nothing from Overflow, nothing of the other versions), the two limits and the clipboard fallback, the wording and behaviour of the note, and doing nothing for an empty page. |
 | 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
 
 ## 10. Verification

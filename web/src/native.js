@@ -31,6 +31,10 @@ const shim = {
   },
   'ai.cancel': () => null,
   'clipboard.write': ({ text }) => navigator.clipboard.writeText(text).then(() => null),
+  'browser.open': ({ url }) => {
+    window.open(url, '_blank', 'noopener');
+    return null;
+  },
   log: ({ level, message }) => {
     (level === 'error' ? console.error : console.log)(message);
     return null;
