@@ -69,6 +69,10 @@ with no alternatives and nothing ghosted is saved as plain Markdown with no comm
 A file edited elsewhere opens with its text as it now is, and keeps the alternatives whose
 words are still there.
 
+Saving replaces the file's text and nothing else (its permissions and Finder tags stay,
+and a link stays a link). If something else has changed the file since the window read or
+wrote it, saving asks before writing over it.
+
 Unsaved work is copied to `~/Library/Application Support/Write_On/Drafts` every few seconds
 and comes back as an unsaved document if the app is ever killed.
 
@@ -115,7 +119,8 @@ These need someone at the Mac:
    Play sounds turns them off in every window.
 8. **Panels.** ⌘S on a new document drops a save panel from the window, offering the
    heading as the name. ⌘O, Open Recent. Close with unsaved changes: Save, Cancel, Don't Save.
-   Quit with two unsaved windows: asked about each in turn.
+   Quit with two unsaved windows: asked about each in turn. Change an open file in another
+   editor and then save it here: asked before it is written over.
 9. **From Finder.** Right-click a `.md` file ▸ Open With ▸ Write_On.
 10. **After a crash.** Type something, wait five seconds, `killall -9 WriteOn`, open the app
     again: the work is back, unsaved, with a note by the Save icon.

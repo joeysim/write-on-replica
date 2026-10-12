@@ -386,6 +386,7 @@ final class UITestHarness {
         // test.dialogs { answers? } -> { asked }: what the shell has asked or told the person
         // so far, having first, if `answers` is given, said how to answer what comes next:
         // { save: "name.md" | null }, { open: ["name.md"] }, { unsaved: "save" | "discard" | "cancel" },
+        // { changed: "save" | "cancel" } (the file is not as the window left it),
         // any of them with `after`, the milliseconds the answer takes to come.
         bridge.on("test.dialogs", sync: { [weak self] params in
             guard let self else { return nil }
@@ -425,6 +426,43 @@ final class UITestHarness {
             let url = folder.appendingPathComponent(name)
             let text = params["asTheAppDoes"] as? Bool == true ? try? self.app.store.read(url) : try? String(contentsOf: url, encoding: .utf8)
             return ["text": text ?? NSNull()] as [String: Any]
+        })
+        // test.file { name, linkTo?, mode?, attribute? } -> { link, mode, attributes, text }: makes
+        // `name` a link to another of the run's files, sets its permissions (as "600") or
+        // attaches an extended attribute to it, and says how the file stands: whether it is a
+        // link, and the permissions, attributes and text of the file it is or points at.
+        bridge.on("test.file", sync: { params in
+            guard let name = params["name"] as? String else { throw Bridge.Failure("test.file needs a name") }
+            let url = folder.appendingPathComponent(name)
+            let files = FileManager.default
+            if let to = params["linkTo"] as? String {
+                try? files.removeItem(at: url)
+                try files.createSymbolicLink(atPath: url.path, withDestinationPath: to)
+            }
+            let target = url.resolvingSymlinksInPath()
+            if let mode = (params["mode"] as? String).flatMap({ Int($0, radix: 8) }) {
+                try files.setAttributes([.posixPermissions: mode], ofItemAtPath: target.path)
+            }
+            if let attribute = params["attribute"] as? String {
+                let value = Array("kept".utf8)
+                guard setxattr(target.path, attribute, value, value.count, 0, 0) == 0 else { throw Bridge.Failure("could not attach \(attribute)") }
+            }
+            let isLink = (try? files.destinationOfSymbolicLink(atPath: url.path)) != nil
+            let mode = (try? files.attributesOfItem(atPath: target.path)[.posixPermissions] as? Int).flatMap { $0 }.map { String($0, radix: 8) }
+            var names: [String] = []
+            let size = listxattr(target.path, nil, 0, 0)
+            if size > 0 {
+                var buffer = [CChar](repeating: 0, count: size)
+                if listxattr(target.path, &buffer, size, 0) > 0 {
+                    names = buffer.split(separator: 0).map { String(cString: Array($0) + [0]) }
+                }
+            }
+            return [
+                "link": isLink,
+                "mode": mode ?? NSNull(),
+                "attributes": names,
+                "text": (try? String(contentsOf: target, encoding: .utf8)) ?? NSNull(),
+            ] as [String: Any]
         })
         // As Finder hands files over.
         bridge.on("test.openFiles", sync: { [weak self] params in
@@ -829,6 +867,12 @@ final class ScriptedAsking: Asking {
         default: choice = .cancel
         }
         later { reply(choice) }
+    }
+
+    func whetherToReplace(_ name: String, for window: NSWindow?, then reply: @escaping (Bool) -> Void) {
+        asked.append(["kind": "changed", "name": name])
+        let replace = take("changed") as? String == "save"
+        later { reply(replace) }
     }
 
     func tell(_ message: String, detail: String, for window: NSWindow?) {

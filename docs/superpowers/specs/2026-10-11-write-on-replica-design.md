@@ -161,6 +161,10 @@ page colour and the title text hidden. The traffic lights remain. Page content s
 the title bar, so every control is clickable and the layout inside the page matches the
 video. In full screen the title bar disappears and the match is exact.
 
+The window goes down to 720×480. The text column keeps its 780 px wherever there is room
+and narrows where there is not, leaving 44 px either side for the marks that stand beside
+the text.
+
 ## 5. Document model
 
 ### 5.1 Structure
@@ -179,7 +183,9 @@ A group is `{ scope, variants: string[], active: number, ai?: string[] }`:
   the document; editing that text in place edits the active variant.
 - `ai` lists the variants that came from the AI. A variant the user then edits no longer
   matches and counts as theirs.
-- Ids are seven random base-36 characters, e.g. `h00a0dg`.
+- Ids are seven random base-36 characters, e.g. `h00a0dg`. Read from a file, an id is
+  taken only if it is one to sixteen lower-case letters and digits; a mark with any other
+  id is read as plain text, and the file's note says so (§6.11).
 
 Rules that keep the model sound:
 
@@ -277,6 +283,10 @@ Each scope has its own mark, so the three can sit near each other without confus
 - **Guard against accidents.** Arrows and Delete act on a hovered group only when the
   pointer moved onto it since the last click or typed character. Clicking into a group to
   edit its text therefore gives normal caret keys until the pointer leaves and returns.
+  With text selected, or a modifier held, the keys are the text's whatever the pointer
+  rests on: they extend the selection, close it up, delete what is selected. That, too,
+  counts as the writer at work in the text, and the keys stay the text's until the
+  pointer leaves the group and returns.
 
 ### 6.4 The two tones
 
@@ -538,6 +548,10 @@ Overflow text, as plain paragraphs.
   one line by the Open icon, the way a control's note is (see Post to X below). A file
   that is not UTF-8 is read all the same, UTF-16 by its mark and anything else as
   Latin-1, and is saved as UTF-8.
+- Saving replaces the file's text and nothing else: its permissions and what Finder has
+  attached to it (tags, comments) stay, and a link stays a link to the file written.
+- A file that something else has changed since this window read or wrote it is not
+  written over unasked: saving says so and offers Cancel or Save Anyway.
 - Closing or quitting with unsaved changes asks first: Save, Cancel, Don't Save. One
   question at a time: while a panel or alert about a document is up, saving it again
   waits, and so does a second Open panel.
@@ -622,7 +636,7 @@ Undo of such a delete runs the first 330 ms of the same burst backwards in 280 m
 an explosion leaves closes in to fire, then to the word in pieces) and the word then
 blurs in; the thump's thud lands as the burst closes. Redo blows it up again.
 
-View ▸ Sound Effects turns sound off.
+Settings ▸ Play sounds turns sound off, in every window.
 
 ### 6.13 Shortcuts
 
@@ -672,7 +686,7 @@ Write_On.app
 │   ├── AIClient       LunaRoute chat completions, streaming, cancellation
 │   ├── Credentials    API key lookup
 │   ├── Assets         serves the bundled page on a private URL scheme
-│   └── UITestHarness  runs a scripted scenario and writes snapshots (debug only)
+│   └── UITestHarness  runs a scripted scenario and writes snapshots (only when launched with --ui-test)
 └── Page (plain ES modules, no build step, no dependencies)
     ├── doc/      model, file format, text utilities, history      ← pure, unit-tested
     ├── ai/       prompt builders and response parsers             ← pure, unit-tested
@@ -688,7 +702,8 @@ files, windows, secrets and network.
 
 **The page never sees the API key.** It asks the shell to run a request and receives
 text. The web view loads only the bundled page and refuses every other navigation;
-external links open in the default browser.
+nothing the page does is handed to the browser. The one page the app opens there is X's
+compose window, asked for by name and checked by the shell (§6.11).
 
 **Bridge.** Page to shell: `doc.start` (what this window opens with), `doc.state`
 (unsaved or not, the name, what the menu bar needs), `file.save`, `file.open`,

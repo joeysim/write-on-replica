@@ -31,7 +31,8 @@
 
 #page {
   position: relative;
-  width: var(--column);
+  /* As wide as in the clips wherever there is room, and narrower in a window that has none. */
+  width: min(var(--column), calc(100% - 2 * var(--gutter)));
   margin: 0 auto;
   /* 18vh, plus the fraction that puts the first text baseline where the clips have it. */
   padding: calc(18vh + 0.85px) 0 45vh;

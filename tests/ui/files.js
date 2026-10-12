@@ -196,3 +196,63 @@ await told((s) => !s.dirty && s.drafts.length === 0, 'the document to be saved')
   t.equal([again.kind, again.name], ['file', 'copy.md'], 'saved work comes back from its file');
   t.same(again.text, asIs(), 'as it is on disk');
 }
+
+// --- a file that something else has changed -------------------------------------------------------
+
+// Another editor, a sync or a script may change the file while it is open here. Saving then
+// asks first, and does not write over their work unasked. (Found in review.)
+{
+  const ELSEWHERE = '# A file from elsewhere\n\nRewritten by another editor while it was open here.\n';
+  await t.writeFile('copy.md', base64(ELSEWHERE));
+  await typeAt(2, 0, 'Meanwhile, ');
+  const before = (await asked()).length;
+
+  await answer({ changed: 'cancel' });
+  await t.key('s', { ctrl: true });
+  await told(async () => (await asked()).length === before + 1, 'saving to ask about the changed file');
+  t.equal((await asked()).at(-1), ['changed', 'copy.md', null], 'the question names the file');
+  t.same(await onDisk('copy.md'), ELSEWHERE, 'Cancel leaves what the other editor wrote');
+  t.equal([unsaved(), (await shell()).dirty, (await shell()).file], [true, true, 'copy.md'], 'and leaves this window as it was: unsaved, on the same file');
+
+  // The same on the way out of the window: Save there does not get past the question either.
+  await answer({ unsaved: 'save' }, { changed: 'cancel' });
+  t.equal((await t.call('test.close')).closes, false, 'closing with Save, and then Cancel, keeps the window');
+  t.same(await onDisk('copy.md'), ELSEWHERE, 'and the file');
+
+  await answer({ changed: 'save' });
+  await t.key('s', { ctrl: true });
+  await t.until(() => !unsaved(), 2500, 'Save Anyway to save');
+  t.same(await onDisk('copy.md'), asIs(), 'Save Anyway writes this window’s text');
+
+  // Once written, the file is as this window knows it, and there is nothing more to ask.
+  const sofar = (await asked()).length;
+  await typeAt(2, 0, 'And then ');
+  await t.key('s', { ctrl: true });
+  await t.until(() => !unsaved(), 2500, 'the next save to go through');
+  t.equal((await asked()).length, sofar, 'the save after that asks nothing');
+  t.same(await onDisk('copy.md'), asIs(), 'and writes');
+}
+
+// --- what a file has besides its text -------------------------------------------------------------
+
+// Saving replaces the text and nothing else: who may read the file, what Finder has attached
+// to it (its tags, for one), and, where the file is a link, the link. (Found in review: each
+// save put a new file in its place, with none of these.)
+{
+  await t.writeFile('real.md', base64('# Linked\n\nFirst.\n'));
+  await t.call('test.file', { name: 'real.md', mode: '600', attribute: 'com.apple.metadata:_kMDItemUserTags' });
+  await t.call('test.file', { name: 'real.md', attribute: 'org.example.note' });
+  await t.call('test.file', { name: 'link.md', linkTo: 'real.md' });
+  await answer({ save: 'link.md' });
+  commands.run('save-as');
+  await told((s) => s.file === 'link.md' && !s.dirty, 'the document to be saved through the link');
+  await typeAt(2, 0, 'Twice, ');
+  await t.key('s', { ctrl: true });
+  await t.until(() => !unsaved(), 2500, 'and saved again');
+  const link = await t.call('test.file', { name: 'link.md' });
+  const real = await t.call('test.file', { name: 'real.md' });
+  t.equal([link.link, real.link], [true, false], 'a link is still a link after saving through it');
+  t.same(real.text ?? '', asIs(), 'and the file it points at has the text');
+  t.equal(real.mode, '600', 'which is still private to its owner');
+  t.equal(['com.apple.metadata:_kMDItemUserTags', 'org.example.note'].filter((name) => !real.attributes.includes(name)), [], 'and still has what was attached to it');
+}

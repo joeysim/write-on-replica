@@ -55,6 +55,9 @@
   --label: 400 20.2px/28px var(--hand);
 
   --column: 780px;
+  /* The least there is between the column and the window's edge, when the window is too
+     narrow for the column: room for the marks that stand beside the text. */
+  --gutter: 44px;
   /* The clips average 36.4px between lines. WebKit places line boxes on whole pixels,
      so the nearest crisp value is used. */
   --line: 36px;

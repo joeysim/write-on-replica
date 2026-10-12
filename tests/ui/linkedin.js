@@ -59,6 +59,21 @@ for (const url of [
   t.assert(refused, `the shell will not open ${url}`);
 }
 t.equal((await opened()).length, 2, 'and has opened none of them');
+// Nor does anything else the page might do get a page opened. It has no links, and the one
+// way to the browser is the request the shell checks. (Found in review: a link followed in
+// the page, or a window opened from it, was handed to the browser whatever its address.)
+{
+  window.open('https://example.com/?with=the-text');
+  const link = Object.assign(document.createElement('a'), { href: 'https://example.com/elsewhere', target: '_blank', textContent: 'elsewhere' });
+  document.body.append(link);
+  link.click();
+  link.target = '';
+  link.click();
+  link.remove();
+  await t.wait(300);
+  t.equal((await opened()).length, 2, 'a link followed in the page, or a window opened from it, goes nowhere');
+  t.assert(location.href.startsWith('writeon://app/'), 'and the page stays where it is');
+}
 
 // A piece too long to hand over in a link goes to the clipboard instead, and a note says so:
 // in read mode too, where the button it stands by is out of sight.

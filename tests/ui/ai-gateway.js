@@ -57,6 +57,12 @@ const sorted = (value) =>
   t.equal([await outcome, pieces], ['done', ['said']], 'what the model thinks on the way is not the answer');
 }
 {
+  // Found in review: an answer holding one of the characters some programs put between lines
+  // lost the whole piece they were in, without a word.
+  const { pieces, outcome } = ask('separators');
+  t.equal([await outcome, pieces.join('')], ['done', 'one\u2028two\u2029three\u0085four\n'], 'line and paragraph separators inside the text are text, and arrive');
+}
+{
   const { pieces, outcome } = ask('empty');
   t.equal([await outcome, pieces], ['done', []], 'an answer with nothing in it is still an answer (the page decides what to make of it)');
 }

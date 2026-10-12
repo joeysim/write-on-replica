@@ -3,6 +3,7 @@
 // <span data-vid> and <span data-ghost> around them, nested as format.js writes them.
 
 import { runsToHtml } from '../doc/format.js';
+import { isId } from '../doc/ids.js';
 
 const keyCache = new WeakMap();
 
@@ -45,7 +46,7 @@ export function readBlock(p) {
     let vid;
     let ghost = false;
     for (let el = node.parentElement; el && el !== p; el = el.parentElement) {
-      if (!vid && el.dataset.vid) vid = el.dataset.vid;
+      if (!vid && isId(el.dataset.vid)) vid = el.dataset.vid;
       if ('ghost' in el.dataset) ghost = true;
     }
     const last = runs[runs.length - 1];
@@ -61,7 +62,7 @@ export function readBlock(p) {
   let block;
   if (level >= 1 && level <= 6) block = { kind: 'h', level, runs };
   else block = runs.length ? { kind: 'p', runs } : { kind: 'blank', runs: [] };
-  if (p.dataset?.vid && runs.length) block.vid = p.dataset.vid;
+  if (isId(p.dataset?.vid) && runs.length) block.vid = p.dataset.vid;
   return block;
 }
 

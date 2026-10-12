@@ -106,6 +106,9 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     private var able: [String: Bool] = [:]
     /// Where a recovered document used to live, which is where saving it starts.
     private var formerURL: URL?
+    /// The file's text as this window last read or wrote it. If the file no longer says
+    /// that, something else has changed it, and saving asks before writing over it.
+    private var knownText: String?
     private var start: DocumentStart
     private var startTaken = false
     /// A question about this document is waiting for its answer. One at a time: a second
@@ -140,9 +143,10 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         self.ai = ai
         self.start = start
         switch start {
-        case .file(let url, _):
+        case .file(let url, let text):
             id = UUID().uuidString
             fileURL = url.standardizedFileURL
+            knownText = text
         case .recovered(let draft):
             // Still unsaved, and still kept under the same name until it is saved or let go.
             id = draft.id
@@ -356,14 +360,12 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
-        guard let url = navigationAction.request.url else { return decisionHandler(.cancel) }
-        if url.scheme == AssetSchemeHandler.scheme, url.host == AssetSchemeHandler.host {
-            return decisionHandler(.allow)
-        }
-        if url.scheme == "http" || url.scheme == "https" {
-            sendToBrowser(url)
-        }
-        decisionHandler(.cancel)
+        // The web view shows the app's own page and goes nowhere else. Nor is a link handed
+        // on to the browser: the page has none, and the one page the app does open there is
+        // asked for by name and checked (`browser.open`).
+        let url = navigationAction.request.url
+        let ours = url?.scheme == AssetSchemeHandler.scheme && url?.host == AssetSchemeHandler.host
+        decisionHandler(ours ? .allow : .cancel)
     }
 
     func webView(
@@ -372,10 +374,8 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         for navigationAction: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        if let url = navigationAction.request.url, url.scheme == "http" || url.scheme == "https" {
-            sendToBrowser(url)
-        }
-        return nil
+        // No second window, and nothing opened in its place.
+        nil
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
@@ -427,6 +427,7 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
                 return ["kind": "recovered", "text": draft.text, "name": fileURL?.lastPathComponent ?? draft.name]
             }
             if let fileURL, let text = try? store.read(fileURL) {
+                knownText = text
                 return ["kind": "file", "text": text, "name": fileURL.lastPathComponent]
             }
         }
@@ -442,6 +443,7 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     /// Puts a file in this window, in place of a document nobody has written in.
     func load(_ url: URL, text: String) {
         fileURL = url.standardizedFileURL
+        knownText = text
         formerURL = nil
         dirty = false
         if startTaken {
@@ -471,7 +473,21 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
 
     /// Writes the document to its file, asking where first if it has none or `saveAs` is set.
     private func save(_ text: String, saveAs: Bool, then done: @escaping (Bool) -> Void) {
-        if let fileURL, !saveAs { return done(write(text, to: fileURL)) }
+        if let fileURL, !saveAs {
+            // Another editor, a sync or a script may have changed the file since this window
+            // read or wrote it. Their work is not written over unasked. (A file that has gone
+            // is simply written again.)
+            if let knownText, let onDisk = try? store.read(fileURL), onDisk != knownText {
+                isAsking = true
+                asking.whetherToReplace(fileURL.lastPathComponent, for: window) { [weak self] replace in
+                    guard let self else { return done(false) }
+                    self.isAsking = false
+                    done(replace && self.write(text, to: fileURL))
+                }
+                return
+            }
+            return done(write(text, to: fileURL))
+        }
         let known = fileURL ?? formerURL
         let suggested = known?.lastPathComponent ?? "\(displayName).\(FileStore.fileExtension)"
         isAsking = true
@@ -493,6 +509,7 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
             return false
         }
         fileURL = url.standardizedFileURL
+        knownText = text
         formerURL = nil
         dirty = false
         store.discardDraft(id)

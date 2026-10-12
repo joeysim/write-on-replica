@@ -330,10 +330,18 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
       const direction = STEP[event.key];
       const destroys = event.key === 'Delete' || event.key === 'Backspace';
       if ((!direction && !destroys) || !hovered || !armed || ui.get('read')) return;
-      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       // While something else has the focus (a panel row, a dialog) the keys are its own.
       const focus = document.activeElement;
       if (focus && focus !== document.body && focus !== editor.root) return;
+      // With a modifier held, or with text selected, the key is the text's: it extends the
+      // selection, moves by a word, closes the selection up, deletes what is selected. Like a
+      // typed character it also means the writer is at work in the text, so the word under
+      // the pointer is left alone until the pointer comes back onto it.
+      const selection = editor.selection();
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || (selection && !selection.collapsed)) {
+        armed = false;
+        return;
+      }
       event.preventDefault();
       if (destroys) blowUp(hovered);
       else cycle(hovered, direction);

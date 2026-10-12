@@ -21,6 +21,7 @@
 
 import { isValidGroup, tidyGroup } from './model.js';
 import { clearGroup } from './blocks.js';
+import { isId } from './ids.js';
 
 const OVERFLOW_MARK = '<!-- overflow -->';
 const META_OPEN = '<!-- write_on ';
@@ -41,6 +42,12 @@ function decodeEntities(text) {
     }
     return ENTITIES[name.toLowerCase()] ?? whole;
   });
+}
+
+// An id is checked where it is read, so there is nothing in one to escape. It is escaped
+// all the same: what is written into the page's markup must not depend on that.
+function escapeAttribute(value) {
+  return String(value).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function escapeText(text) {
@@ -89,13 +96,24 @@ function finishBlock(vid, runs) {
   return block;
 }
 
-/** Reads html in the file's shape. Unknown tags are dropped and their text kept. */
-export function htmlToBlocks(html) {
+/**
+ * Reads html in the file's shape. Unknown tags are dropped and their text kept, and so is
+ * a mark whose id is not an id (see ids.js): its text is read as plain text.
+ * @param unread if given, `unread.ids` (a Set) collects the ids that were not taken
+ */
+export function htmlToBlocks(html, unread = null) {
   const blocks = [];
   let open = false;
   let blockVid;
   let runs = [];
   let spans = [];
+  const idOf = (attrs) => {
+    const value = attrs['data-vid'];
+    if (!value) return undefined;
+    if (isId(value)) return value;
+    unread?.ids.add(value);
+    return undefined;
+  };
 
   const close = () => {
     blocks.push(finishBlock(blockVid, runs));
@@ -124,13 +142,13 @@ export function htmlToBlocks(html) {
       if (open) close();
       if (!closing) {
         open = true;
-        blockVid = attributes(rawAttrs)['data-vid'] || undefined;
+        blockVid = idOf(attributes(rawAttrs));
       }
     } else if (tag === 'span') {
       if (closing) spans.pop();
       else {
         const attrs = attributes(rawAttrs);
-        spans.push({ vid: attrs['data-vid'] || undefined, ghost: 'data-ghost' in attrs });
+        spans.push({ vid: idOf(attrs), ghost: 'data-ghost' in attrs });
         open = true;
       }
     }
@@ -162,7 +180,7 @@ export function runsToHtml(runs) {
     if (!unit.vid) {
       html += escapeText(unit.runs[0].text);
     } else {
-      html += `<span data-vid="${unit.vid}">`;
+      html += `<span data-vid="${escapeAttribute(unit.vid)}">`;
       for (const run of unit.runs) {
         html += run.ghost && !ghost ? `<span data-ghost>${escapeText(run.text)}</span>` : escapeText(run.text);
       }
@@ -174,7 +192,7 @@ export function runsToHtml(runs) {
 }
 
 function blockToHtml(block) {
-  const attr = block.vid ? ` data-vid="${block.vid}"` : '';
+  const attr = block.vid ? ` data-vid="${escapeAttribute(block.vid)}"` : '';
   if (block.kind === 'blank') return `<p${attr}><br></p>`;
   const marker = block.kind === 'h' ? `${'#'.repeat(block.level)} ` : '';
   return `<p${attr}>${marker}${runsToHtml(block.runs)}</p>`;
@@ -382,8 +400,8 @@ function keepValidGroups(blocks, groups) {
   let dropped = 0;
   const check = (vid) => {
     if (!vid) return false;
-    if (vid in kept) return true;
-    const group = groups?.[vid];
+    if (Object.hasOwn(kept, vid)) return true;
+    const group = groups && Object.hasOwn(groups, vid) ? groups[vid] : undefined;
     if (!isValidGroup(group)) {
       dropped += 1;
       return false;
@@ -454,14 +472,16 @@ export function parse(fileText) {
   let note = damaged ? 'The alternatives saved in this file could not be read. The text is intact.' : null;
 
   if (meta) {
-    const recorded = htmlToBlocks(meta.html);
-    const total = new Set(recorded.flatMap((b) => [b.vid, ...b.runs.map((r) => r.vid)]).filter(Boolean)).size;
+    const unread = { ids: new Set() };
+    const recorded = htmlToBlocks(meta.html, unread);
+    const total = new Set(recorded.flatMap((b) => [b.vid, ...b.runs.map((r) => r.vid)]).filter(Boolean)).size + unread.ids.size;
     // Blank lines at either end do not count: files differ in whether they keep them.
     if (trimBlankLines(blocksToMarkdown(recorded)) === trimBlankLines(text)) {
       const { kept, dropped } = keepValidGroups(recorded, meta.groups);
       blocks = recorded;
       groups = kept;
-      if (dropped) note = `${dropped} of ${total} alternatives in this file could not be read.`;
+      const lost = dropped + unread.ids.size;
+      if (lost) note = `${lost} of ${total} alternatives in this file could not be read.`;
     } else {
       // The Markdown was edited in another tool: it wins. Groups are kept where their
       // showing text can still be found, looking first in the paragraph they were in.
@@ -473,7 +493,7 @@ export function parse(fileText) {
       });
       let keptCount = 0;
       for (const [vid, index] of position) {
-        const group = meta.groups?.[vid];
+        const group = meta.groups && Object.hasOwn(meta.groups, vid) ? meta.groups[vid] : undefined;
         if (!isValidGroup(group)) continue;
         if (reattach(blocks, vid, tidyGroup(group), index)) {
           groups[vid] = tidyGroup(group);

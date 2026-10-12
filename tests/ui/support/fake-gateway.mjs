@@ -55,6 +55,12 @@ const CASES = {
     response.write(sse({ choices: [{ delta: {}, finish_reason: 'stop' }], usage: { total_tokens: 9 } }));
     response.end('data: [DONE]\n\n');
   },
+  // Characters some programs put between lines (U+2028, U+2029, U+0085), sent as JSON may
+  // send them: raw, inside a string. They are part of the text, not the end of a line of the stream.
+  async separators(response) {
+    response.write(delta('one\u2028two\u2029three\u0085four\n'));
+    response.end('data: [DONE]\n\n');
+  },
   async empty(response) {
     response.end('data: [DONE]\n\n');
   },
@@ -119,7 +125,10 @@ const server = createServer(async (request, response) => {
     return refuse(response, 400, 'The request was not JSON.');
   }
   const last = body.messages?.at(-1)?.content ?? '';
-  const name = /\[\[case: (\w+)\]\]/.exec(last)?.[1] ?? 'stream';
+  // Like the real model, this one thinks before it says even one word, and what it thinks is
+  // counted against the limit: asked for a word with room for only a word, it runs out.
+  const cramped = /single word/.test(last) && (body.max_tokens ?? 0) < 256;
+  const name = cramped ? 'length' : (/\[\[case: (\w+)\]\]/.exec(last)?.[1] ?? 'stream');
   const run = CASES[name];
   if (!run) return refuse(response, 400, `No such case: ${name}`);
   let complete = false;

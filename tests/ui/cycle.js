@@ -139,7 +139,11 @@ t.equal(showing('wb3nch1'), textOf(PARA).includes('easel') ? 'easel' : 'workbenc
   const shown = showing('wb3nch1');
   await t.key('ArrowRight', { shift: true });
   t.equal(showing('wb3nch1'), shown, 'Shift+Right selects; it does not swap');
+  // With text selected the arrows are the text's (tests/ui/explode.js has the whole of that);
+  // the selection is closed up before the pointer goes to the next word.
   await away();
+  await t.key('ArrowLeft');
+  t.equal(editor.selection().collapsed, true, 'an arrow closes the selection up');
 }
 heard();
 

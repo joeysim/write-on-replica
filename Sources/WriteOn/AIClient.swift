@@ -90,7 +90,9 @@ final class AIClient {
             let began = Date()
             let body: [String: Any] = [
                 "messages": [["role": "user", "content": "Reply with the single word: ok"]],
-                "stream": true, "max_tokens": 16, "reasoning_effort": "low",
+                // Room for far more than a word: the model may think first, and what it
+                // thinks is counted too. With room for one word it sometimes ran out.
+                "stream": true, "max_tokens": 1024, "reasoning_effort": "low",
             ]
             do {
                 let access = try await self.ask(body, chosen) { _ in }
@@ -183,14 +185,15 @@ final class AIClient {
         // A line that goes dead part-way looks, from here, like an answer that simply ended.
         // So the answer has to say that it is finished: with [DONE], or a reason for stopping.
         var finished = false
-        for try await line in bytes.lines {
-            guard line.hasPrefix("data:") else { continue }
+        /// Takes one line of the stream. True when the stream has said it is done.
+        func take(_ bytes: [UInt8]) async throws -> Bool {
+            guard let line = String(bytes: bytes, encoding: .utf8), line.hasPrefix("data:") else { return false }
             let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
             if payload == "[DONE]" {
                 finished = true
-                break
+                return true
             }
-            guard let event = (try? JSONSerialization.jsonObject(with: Data(payload.utf8))) as? [String: Any] else { continue }
+            guard let event = (try? JSONSerialization.jsonObject(with: Data(payload.utf8))) as? [String: Any] else { return false }
             if let error = event["error"] {
                 throw Failure.failed(Self.words(of: error, without: access.key) ?? "it gave no reason")
             }
@@ -203,7 +206,23 @@ final class AIClient {
                 if reason == "length" { throw Failure.cutShort }
                 finished = true
             }
+            return false
         }
+        // The stream's lines end at a line feed and nowhere else. (The system's own way of
+        // reading lines also ends one at U+2028, U+2029 and U+0085, which JSON may carry
+        // raw inside a string: a piece of the answer holding one would be lost whole.)
+        var line: [UInt8] = []
+        read: for try await byte in bytes {
+            guard byte == 0x0A else {
+                line.append(byte)
+                continue
+            }
+            if line.last == 0x0D { line.removeLast() }
+            let done = try await take(line)
+            line.removeAll(keepingCapacity: true)
+            if done { break read }
+        }
+        if !finished, !line.isEmpty { _ = try await take(line) }
         guard finished else { throw URLError(.networkConnectionLost) }
         return access
     }

@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { htmlToBlocks, blocksToHtml, blocksToMarkdown, markdownToBlocks, serialize, readable, sourceLines, parse, plainText, suggestedName } from '../../web/src/doc/format.js';
 import { sampleState } from '../../web/src/sample.js';
+import { isId, newId } from '../../web/src/doc/ids.js';
 
 // A small document with the same shape as the file in the author's clip: a blank first
 // line, a heading that is a sentence group, a word group with an AI variant, a paragraph
@@ -407,4 +408,44 @@ test('a long heading is cut to a name of reasonable length, at a word', () => {
   assert.ok(!name.endsWith(' ') && 'Twelve words that go on and on until the name would be too long '.repeat(4).startsWith(`${name} `), name);
   const emoji = named(`<p># ${'👍🏽'.repeat(60)}</p>`);
   assert.ok(emoji.length <= 80 && /^(👍🏽)+$/u.test(emoji), 'never through the middle of a character');
+});
+
+// --- ids ------------------------------------------------------------------------------------------
+
+// Found in review: an id read from a file was trusted as it stood, and written into the page's
+// markup unescaped. Only a second parse on the way into the editor kept a crafted one harmless.
+test('an id is a few lower-case letters and digits, and never a name every object already has', () => {
+  for (const id of ['h00a0dg', '7an7qy7', 'a', 'x1', newId()]) assert.equal(isId(id), true, id);
+  for (const id of ['', 'A', 'has space', 'x" onmouseover="alert(1)', '__proto__', 'constructor', 'a'.repeat(17), 'é', 7, null, undefined]) {
+    assert.equal(isId(id), false, String(id));
+  }
+});
+
+test('a mark whose id is not an id is read as plain text, and the file says so', () => {
+  const crafted = 'x" onmouseover="alert(1)';
+  const html = `<p>say <span data-vid="${crafted.replace(/"/g, '&quot;')}">hello</span> now</p>`;
+  assert.equal(blocksToHtml(htmlToBlocks(html)), '<p>say hello now</p>', 'html is read without it');
+
+  const file = `say hello now\n\n<!-- write_on ${JSON.stringify({ version: 1, html, groups: { [crafted]: { scope: 'word', variants: ['hello', 'hi'], active: 0 } } })} -->\n`;
+  const { state, note } = parse(file);
+  assert.deepEqual(state, { html: '<p>say hello now</p>', groups: {}, overflow: '' });
+  assert.equal(note, '1 of 1 alternatives in this file could not be read.');
+});
+
+test('ids that name what every object has cannot stand in for a group', () => {
+  for (const id of ['__proto__', 'constructor']) {
+    const html = `<p data-vid="${id}">A <span data-vid="${id}">word</span> and <span data-vid="g00dvid">another</span>.</p>`;
+    const groups = JSON.parse(`{"${id}":{"scope":"word","variants":["word","term"],"active":0},"g00dvid":{"scope":"word","variants":["another","one more"],"active":0}}`);
+    const file = `A word and another.\n\n<!-- write_on ${JSON.stringify({ version: 1, html, groups })} -->\n`;
+    const { state, note } = parse(file);
+    assert.equal(state.html, '<p>A word and <span data-vid="g00dvid">another</span>.</p>', id);
+    assert.deepEqual(Object.keys(state.groups), ['g00dvid'], id);
+    assert.equal(Object.getPrototypeOf(state.groups), Object.prototype, 'and the groups are an ordinary object still');
+    assert.equal(note, '1 of 2 alternatives in this file could not be read.', id);
+  }
+});
+
+test('whatever an id holds, it cannot break out of its attribute when written', () => {
+  const blocks = [{ kind: 'p', vid: 'p" onclick="x', runs: [{ text: 'a ' }, { text: 'word', vid: 'w"><img src=x onerror=y>' }] }];
+  assert.equal(blocksToHtml(blocks), '<p data-vid="p&quot; onclick=&quot;x">a <span data-vid="w&quot;&gt;&lt;img src=x onerror=y&gt;">word</span></p>');
 });

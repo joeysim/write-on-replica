@@ -48,8 +48,23 @@ final class FileStore {
         return String(data: data, encoding: .isoLatin1) ?? ""
     }
 
+    /// Writes `text` to `url`, whole or not at all. A file already there keeps everything
+    /// but its text: who may read it, what Finder has attached to it (its tags, for one),
+    /// and, where `url` is a link, the link, which goes on pointing at the file written.
     func write(_ text: String, to url: URL) throws {
-        try Data(text.utf8).write(to: url, options: .atomic)
+        let data = Data(text.utf8)
+        let files = FileManager.default
+        let target = url.resolvingSymlinksInPath()
+        guard files.fileExists(atPath: target.path) else {
+            return try data.write(to: target, options: .atomic)
+        }
+        // Written beside the file and then put in its place, which carries the old file's
+        // permissions and attributes over to the new one.
+        let scratch = try files.url(for: .itemReplacementDirectory, in: .userDomainMask, appropriateFor: target, create: true)
+        defer { try? files.removeItem(at: scratch) }
+        let fresh = scratch.appendingPathComponent(target.lastPathComponent)
+        try data.write(to: fresh)
+        _ = try files.replaceItemAt(target, withItemAt: fresh)
     }
 
     // MARK: Recent documents
@@ -129,6 +144,8 @@ protocol Asking: AnyObject {
     func whereToSave(suggested: String, in directory: URL?, for window: NSWindow?, then reply: @escaping (URL?) -> Void)
     func whatToOpen(for window: NSWindow?, then reply: @escaping ([URL]) -> Void)
     func whetherToSave(_ name: String, for window: NSWindow?, then reply: @escaping (UnsavedChoice) -> Void)
+    /// The file `name` is no longer as this window last read or wrote it. Write over it?
+    func whetherToReplace(_ name: String, for window: NSWindow?, then reply: @escaping (Bool) -> Void)
     func tell(_ message: String, detail: String, for window: NSWindow?)
 }
 
@@ -171,6 +188,20 @@ final class Panels: Asking {
             alert.beginSheetModal(for: window, completionHandler: choose)
         } else {
             choose(alert.runModal())
+        }
+    }
+
+    func whetherToReplace(_ name: String, for window: NSWindow?, then reply: @escaping (Bool) -> Void) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "“\(name)” has been changed by another application."
+        alert.informativeText = "If you save, what was changed there is replaced by what is in this window."
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: "Save Anyway")
+        if let window, window.isVisible {
+            alert.beginSheetModal(for: window) { reply($0 == .alertSecondButtonReturn) }
+        } else {
+            reply(alert.runModal() == .alertSecondButtonReturn)
         }
     }
 

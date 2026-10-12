@@ -188,6 +188,58 @@ t.equal(editor.groups.wb3nch1.variants.length, 3, 'Option+Backspace is left alon
 await t.key('z', { meta: true });
 await away();
 
+// With text selected the keys are the text's, whatever the pointer is resting on. (Found in
+// review: Backspace blew up the alternative under the pointer and left the selection.)
+{
+  const LINE = 5; // "Click the word count in the top-left corner…"
+  const line = textOf(LINE);
+  const showing = editor.groups.wb3nch1.active;
+
+  // A selection made from the keyboard, with the pointer at rest on a word.
+  editor.focus();
+  editor.select({ block: LINE, offset: 0 });
+  await t.settle();
+  await hoverGroup('wb3nch1');
+  for (let i = 0; i < 5; i++) await t.key('ArrowRight', { shift: true });
+  t.equal([editor.selection().collapsed, editor.groups.wb3nch1.active], [false, showing], 'Shift+arrows select in the text and leave the word under the pointer alone');
+  await t.key('Backspace');
+  t.equal([editor.groups.wb3nch1.variants.length, textOf(LINE)], [3, line.slice(5)], 'Backspace deletes what is selected, not the alternative under the pointer');
+  t.equal(sounds(), '', 'quietly');
+  // The keyboard is at work in the text now: the next arrow moves the caret.
+  await t.key('ArrowRight');
+  t.equal([editor.groups.wb3nch1.active, editor.selection().start.offset], [showing, 1], 'and the arrow after that moves the caret');
+  await t.key('z', { meta: true });
+  t.equal(textOf(LINE), line, 'undo restores the line');
+
+  // A selection made first, and the pointer brought to rest on a word afterwards.
+  editor.select({ block: LINE, offset: 6 }, { block: LINE, offset: 9 });
+  await t.settle();
+  await away();
+  await hoverGroup('wb3nch1');
+  await t.key('ArrowRight');
+  t.equal([editor.groups.wb3nch1.active, editor.selection().collapsed], [showing, true], 'an arrow closes the selection up and does not flip the word');
+  editor.select({ block: LINE, offset: 6 }, { block: LINE, offset: 9 });
+  await t.settle();
+  await away();
+  await hoverGroup('wb3nch1');
+  await t.key('Delete');
+  t.equal([editor.groups.wb3nch1.variants.length, textOf(LINE)], [3, line.slice(0, 6) + line.slice(9)], 'and Delete deletes what is selected');
+  t.equal(sounds(), '', 'quietly');
+  await t.key('z', { meta: true });
+  t.equal(textOf(LINE), line, 'which undo restores');
+
+  // It takes the pointer coming back onto the word for the keys to be the word's again.
+  await t.key('ArrowLeft');
+  await away();
+  await hoverGroup('wb3nch1');
+  await t.key('ArrowRight');
+  t.assert(editor.groups.wb3nch1.active !== showing, 'the pointer coming back onto the word gives it the keys again');
+  await t.key('ArrowLeft');
+  t.equal(editor.groups.wb3nch1.active, showing, 'both ways');
+  sounds();
+  await away();
+}
+
 // --- the last pair ------------------------------------------------------------------------------
 
 // A group of two: blowing up one leaves plain text, and undo makes it a group again.
