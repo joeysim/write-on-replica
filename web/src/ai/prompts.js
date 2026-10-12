@@ -135,6 +135,15 @@ const MARK_TASKS = {
 
 const numbered = (paragraphs) => paragraphs.map((p) => `[${p.n}] ${p.text}`).join('\n');
 
+// What the model thinks before it answers is counted against the same limit as the answer.
+// Measured on glm-5.3-flash at low effort: to cut 570 words by a tenth it thought for 1,300
+// to 3,300 tokens, by 30% for 6,300, and with no room for that it answered nothing; a
+// marking pass over 164 words thought for up to 400. So each pass asks for its answer and
+// room to think besides, up to what a model will give.
+const THINKING = { trim: (words) => 2000 + 15 * words, mark: (words) => 1000 + 4 * words };
+const MOST_TOKENS = 32000;
+const room = (answer, thinking) => Math.min(MOST_TOKENS, Math.max(600, answer) + thinking);
+
 /**
  * A request for one Lab pass over the document.
  * @param kind one of LAB_KINDS
@@ -170,7 +179,7 @@ export function labRequest(kind, paragraphs, { percent = 10 } = {}) {
           ].join('\n'),
         },
       ],
-      maxTokens: Math.max(600, Math.ceil(chars / 3) + 400),
+      maxTokens: room(Math.ceil(chars / 3) + 400, THINKING.trim(words)),
       effort: 'low',
       schema: SCHEMAS.trim,
     };
@@ -193,7 +202,7 @@ export function labRequest(kind, paragraphs, { percent = 10 } = {}) {
           ].join('\n'),
         },
       ],
-      maxTokens: Math.max(600, Math.ceil(chars / 6) + 400),
+      maxTokens: room(Math.ceil(chars / 6) + 400, THINKING.mark(words)),
       effort: 'low',
       schema: SCHEMAS.typos,
     };
@@ -217,7 +226,7 @@ export function labRequest(kind, paragraphs, { percent = 10 } = {}) {
         ].join('\n'),
       },
     ],
-    maxTokens: Math.max(600, Math.ceil(chars / 4) + 400),
+    maxTokens: room(Math.ceil(chars / 4) + 400, THINKING.mark(words)),
     effort: 'low',
     schema: SCHEMAS.marks,
   };

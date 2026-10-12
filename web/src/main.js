@@ -63,6 +63,8 @@ const files = createFiles({ editor, ui, commands, native, tooltips });
 const shortcuts = initShortcuts({ ui, commands });
 // The menu bar's items run the same commands as the keys.
 native.on('menu.command', ({ name }) => shortcuts.perform(name));
+// The sound is turned on and off in the Settings window, for every window at once.
+native.on('settings.changed', ({ sound }) => ui.set({ sound }));
 
 // Undo is the document's own: the browser's history knows nothing of groups.
 commands.register('undo', () => editor.undo());
@@ -71,7 +73,7 @@ commands.register('shortcuts', () => cards.toggle('shortcuts'));
 document.getElementById('open-shortcuts').addEventListener('click', () => commands.run('shortcuts'));
 
 // One handle on the running app, for the console and for UI scenarios.
-window.writeOn = { editor, ui, native, commands, decor, sound, explosions, alternatives, panel, menu, cards, overflow, source, lab, tooltips, files };
+window.writeOn = { editor, ui, native, commands, ai, decor, sound, explosions, alternatives, panel, menu, cards, overflow, source, lab, tooltips, files };
 
 // Everything is listening: now the document.
 files.show(start);

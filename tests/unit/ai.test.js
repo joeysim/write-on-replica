@@ -221,3 +221,30 @@ test('typo fixes need the passage verbatim and a different replacement', () => {
     { n: 1, start: 16, end: 21, replace: 'fox,', reason: 'space before comma' },
   ]);
 });
+
+// --- room to think ---------------------------------------------------------------------------------
+
+// Measured against glm-5.3-flash at low effort (October 2026): what the model thinks before it
+// answers is counted against the same limit as the answer. A slight trim of 570 words took 1,300
+// to 3,300 tokens of thought, a 30% trim 6,300; given 1,350 in all, it thought until the limit
+// and answered nothing. Marking passes thought for up to 400 on 164 words.
+test('a Lab pass leaves the model room to think, as well as to answer', () => {
+  const paragraphs = Array.from({ length: 7 }, (_, i) => ({ n: i + 1, text: Array.from({ length: 81 }, () => 'word').join(' ') })); // 567 words
+  const words = 567;
+  const answer = (kind) => Math.ceil(paragraphs.reduce((sum, p) => sum + p.text.length, 0) / (kind === 'trim' ? 3 : 4));
+  for (const percent of [10, 30, 50]) {
+    const room = labRequest('trim', paragraphs, { percent }).maxTokens;
+    assert.ok(room >= answer('trim') + 2000 + 15 * words, `a ${percent}% trim of ${words} words: ${room}`);
+  }
+  for (const kind of ['typos', 'weak', 'filler']) {
+    const room = labRequest(kind, paragraphs).maxTokens;
+    assert.ok(room >= 1000 + 4 * words && room < labRequest('trim', paragraphs).maxTokens, `${kind}: ${room}`);
+  }
+  // A short piece still gets a floor to think in.
+  assert.ok(labRequest('trim', [{ n: 1, text: 'Six words to cut down here.' }]).maxTokens >= 2000);
+});
+
+test('however long the piece, a Lab pass asks for no more than a model will give', () => {
+  const long = Array.from({ length: 600 }, (_, i) => ({ n: i + 1, text: Array.from({ length: 84 }, () => 'word').join(' ') })); // 50,400 words
+  for (const kind of LAB_KINDS) assert.ok(labRequest(kind, long).maxTokens <= 32000, kind);
+});

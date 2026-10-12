@@ -116,6 +116,7 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     private let settings: AppSettings
     private let store: FileStore
     private let asking: Asking
+    private let ai: AIClient
     /// Where Copy puts text. A scripted run has a pasteboard of its own, so it never
     /// replaces what the person at this Mac has copied.
     let pasteboard: NSPasteboard
@@ -129,13 +130,14 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     ///   - scripted: a UI test run. Keeps `pageSize` exactly, and makes the page behave as
     ///     visible and focused even when the Mac is locked.
     init(
-        webRoot: URL, settings: AppSettings, store: FileStore, asking: Asking,
+        webRoot: URL, settings: AppSettings, store: FileStore, asking: Asking, ai: AIClient,
         start: DocumentStart = .blank, pageSize: NSSize? = nil, scripted: Bool = false
     ) {
         self.scripted = scripted
         self.settings = settings
         self.store = store
         self.asking = asking
+        self.ai = ai
         self.start = start
         switch start {
         case .file(let url, _):
@@ -305,6 +307,18 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
             self.store.keep(Draft(id: self.id, text: text, name: self.displayName, path: (self.fileURL ?? self.formerURL)?.path))
             return nil
         })
+        // The AI is asked from here, where the key is, and its answer is passed back in pieces.
+        bridge.on("ai.start", sync: { [weak self] params in
+            guard let self else { return nil }
+            try self.ai.start(params, for: self.id) { [weak self] event, payload in
+                self?.bridge.emit(event, payload)
+            }
+            return nil
+        })
+        bridge.on("ai.cancel", sync: { [weak self] params in
+            if let self, let id = params["id"] as? String { self.ai.cancel(id, for: self.id) }
+            return nil
+        })
         bridge.on("log", sync: { [weak self] params in
             let level = params["level"] as? String ?? "log"
             let message = params["message"] as? String ?? ""
@@ -376,6 +390,7 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         Self.report("the page process ended; reloading")
         pageIsReady = false
+        ai.cancelAll(for: id)
         webView.load(URLRequest(url: AssetSchemeHandler.indexURL))
     }
 
@@ -534,6 +549,7 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     }
 
     func windowWillClose(_ notification: Notification) {
+        ai.cancelAll(for: id)
         webView.configuration.userContentController.removeScriptMessageHandler(forName: Bridge.name, contentWorld: .page)
         onClosed?(self)
     }

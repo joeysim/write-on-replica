@@ -20,7 +20,7 @@ const text = (block) => editor.blocks[block].runs.map((run) => run.text).join(''
 t.equal(titles(await menu()), ['Write_On', 'File', 'Edit', 'View', 'Tools', 'Window', 'Help'], 'the menus');
 t.equal(
   titles(await menu('Write_On')),
-  ['About Write_On', '-', 'Services', '-', 'Hide Write_On ⌘H', 'Hide Others ⌥⌘H', 'Show All', '-', 'Quit Write_On ⌘Q'],
+  ['About Write_On', '-', 'Settings… ⌘,', '-', 'Services', '-', 'Hide Write_On ⌘H', 'Hide Others ⌥⌘H', 'Show All', '-', 'Quit Write_On ⌘Q'],
   'the app’s own',
 );
 t.equal(

@@ -12,7 +12,8 @@ import { applyCuts } from './trim.js';
 
 /**
  * The paragraphs as the model is offered them: numbered from 1, without headings, blank
- * lines or ghosted text.
+ * lines or ghosted text. Where ghosted text is left out the gap is closed, so the model
+ * is not shown two spaces, or a space before a comma, that the page does not have.
  * @returns {Array<{n: number, block: number, text: string, map: number[]}>} `map[i]` is
  *   where character `i` of `text` stands in the block's own text
  */
@@ -21,16 +22,31 @@ export function offered(blocks) {
   blocks.forEach((block, index) => {
     if (block.kind !== 'p') return;
     let text = '';
-    const map = [];
+    let map = [];
     let at = 0;
+    let dropped = true; // so that space at the very start goes the same way
     for (const piece of block.runs) {
-      if (!piece.ghost) {
-        text += piece.text;
-        for (let i = 0; i < piece.text.length; i++) map.push(at + i);
+      if (piece.ghost) {
+        dropped = true;
+      } else {
+        let from = 0;
+        if (dropped) {
+          const space = /^\s*/.exec(piece.text)[0].length;
+          if (space && (text === '' || /\s$/.test(text))) from = space;
+          if (/[,.;:!?]/.test(piece.text[from] ?? '')) {
+            const kept = text.trimEnd().length;
+            text = text.slice(0, kept);
+            map = map.slice(0, kept);
+          }
+          dropped = from === piece.text.length; // nothing of it left: the gap is still open
+        }
+        text += piece.text.slice(from);
+        for (let i = from; i < piece.text.length; i++) map.push(at + i);
       }
       at += piece.text.length;
     }
-    if (/\S/.test(text)) paragraphs.push({ n: paragraphs.length + 1, block: index, text, map });
+    const kept = text.trimEnd().length;
+    if (kept) paragraphs.push({ n: paragraphs.length + 1, block: index, text: text.slice(0, kept), map: map.slice(0, kept) });
   });
   return paragraphs;
 }

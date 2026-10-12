@@ -39,6 +39,22 @@ test('the model is offered the paragraphs, numbered, without headings, blank lin
   assert.equal(paragraphs[1].map.length, paragraphs[1].text.length);
 });
 
+test('where ghosted text is left out, the gap it leaves is closed up', () => {
+  // Found with the real model: offered "what could go.  It never rewrites", it reported a doubled space.
+  const blocks = B(
+    '<p>It dims what could go. <span data-ghost>You decide what goes.</span> It never rewrites.</p>' +
+      '<p><span data-ghost>An aside.</span> Starts here <span data-ghost>(or not)</span>, and ends <span data-ghost>somewhere</span></p>',
+  );
+  const [first, second] = offered(blocks);
+  assert.equal(first.text, 'It dims what could go. It never rewrites.');
+  assert.equal(second.text, 'Starts here, and ends');
+  for (const paragraph of [first, second]) {
+    assert.equal(paragraph.map.length, paragraph.text.length);
+    const whole = textOf(blocks[paragraph.block]);
+    for (let i = 0; i < paragraph.text.length; i++) assert.equal(whole[paragraph.map[i]], paragraph.text[i], `character ${i} knows its place`);
+  }
+});
+
 test('a paragraph that is ghosted whole is not offered', () => {
   const paragraphs = offered(B('<p><span data-ghost>All of this is set aside.</span></p><p>This is not.</p>'));
   assert.deepEqual(paragraphs.map((p) => p.text), ['This is not.']);

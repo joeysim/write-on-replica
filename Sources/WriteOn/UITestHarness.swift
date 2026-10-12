@@ -10,6 +10,10 @@ struct UITestOptions {
     var zoom: Double = 1
     var timeout: TimeInterval = 60
     var aiMock = false
+    /// `--ai live`: the run asks the real AI service, with the real key.
+    var aiLive = false
+    /// `--ai-idle <seconds>`: how long the AI client waits on a silent stream, in place of its 20 s.
+    var aiIdle: TimeInterval?
     /// Interface settings the run starts with, as if left that way by an earlier launch.
     var settings: [String: Any] = [:]
     /// Where the run keeps what the app keeps between launches (its drafts). Its own
@@ -32,6 +36,8 @@ struct UITestOptions {
         if let zoom = value(after: "--zoom").flatMap(Double.init) { options.zoom = zoom }
         if let timeout = value(after: "--timeout").flatMap(Double.init) { options.timeout = timeout }
         options.aiMock = value(after: "--ai") == "mock"
+        options.aiLive = value(after: "--ai") == "live"
+        options.aiIdle = value(after: "--ai-idle").flatMap(Double.init)
         for (index, argument) in arguments.enumerated() where argument == "--setting" && index + 1 < arguments.count {
             let pair = arguments[index + 1].split(separator: "=", maxSplits: 1).map(String.init)
             guard pair.count == 2 else { continue }
@@ -171,7 +177,7 @@ final class UITestHarness {
         })
         bridge.on("test.options", sync: { [weak self] _ in
             guard let self else { return nil }
-            return ["zoom": self.options.zoom, "rendersAtZoom": self.rendersAtZoom, "aiMock": self.options.aiMock] as [String: Any]
+            return ["zoom": self.options.zoom, "rendersAtZoom": self.rendersAtZoom, "aiMock": self.options.aiMock, "aiLive": self.options.aiLive] as [String: Any]
         })
         if options.aiMock { registerScriptedAI() }
         // test.clipboard -> { text }: what the page last copied, read from the run's own pasteboard.
@@ -184,6 +190,8 @@ final class UITestHarness {
         })
         registerFiles()
         registerMenus()
+        registerSettings()
+        if options.aiLive { registerLoginShell() }
         // What the run looks like from outside, for the scenario that checks it stays out
         // of the way. These are the real states, not the ones simulated for the page.
         bridge.on("test.environment", sync: { [weak self] _ in
@@ -209,6 +217,85 @@ final class UITestHarness {
             DispatchQueue.main.async { self?.finish(ok: params["ok"] as? Bool ?? false, failures: failures, logs: logs) }
             return nil
         })
+    }
+
+    // MARK: Settings
+
+    /// test.settings { key?, forget?, address?, model?, sound?, test?, environment?, picture? } -> what the
+    /// Settings window shows afterwards. Each change is made the way a person makes it: the
+    /// control is given its value and sends its action. The window itself is never put up.
+    private func registerSettings() {
+        controller.bridge.on("test.settings") { [weak self] params, reply in
+            guard let self else { return }
+            let panel = self.app.settingsPanel
+            let send = { (control: NSControl) in
+                if let action = control.action { NSApp.sendAction(action, to: control.target, from: control) }
+            }
+            if let environment = params["environment"] as? [String: String] {
+                self.app.credentials.environment = environment
+                panel.refresh()
+            }
+            if let key = params["key"] as? String {
+                panel.keyField.stringValue = key
+                send(panel.keyField)
+            }
+            if params["forget"] as? Bool == true { send(panel.forgetButton) }
+            if let address = params["address"] as? String {
+                panel.addressField.stringValue = address
+                send(panel.addressField)
+            }
+            if let model = params["model"] as? String {
+                panel.modelField.stringValue = model
+                send(panel.modelField)
+            }
+            if let sound = params["sound"] as? Bool {
+                panel.soundBox.state = sound ? .on : .off
+                send(panel.soundBox)
+            }
+            if params.isEmpty { panel.refresh() }
+            if params["test"] as? Bool == true { send(panel.testButton) }
+            // The notes are filled in when the lookups and the test have come back.
+            func answer() {
+                guard panel.pending == 0 else { return DispatchQueue.main.asyncAfter(deadline: .now() + 0.02, execute: answer) }
+                if let name = params["picture"] as? String, let png = panel.picture() {
+                    let file = name + ".png"
+                    try? png.write(to: self.options.output.appendingPathComponent(file))
+                    self.snapshots.append(file)
+                }
+                reply(.success([
+                    "keyNote": panel.keyNote.stringValue,
+                    "keyField": panel.keyField.stringValue,
+                    "forgettable": !panel.forgetButton.isHidden,
+                    "address": panel.addressField.stringValue,
+                    "model": panel.modelField.stringValue,
+                    "sound": panel.soundBox.state == .on,
+                    "testNote": panel.testNote.stringValue,
+                    "shown": panel.isShown,
+                ] as [String: Any]))
+            }
+            answer()
+        }
+    }
+
+    // MARK: The login shell
+
+    /// test.loginShell -> { hasKey, hasAddress, ms }: whether the person's login shell has the
+    /// key, as the app would find out when started from Finder. Never the key itself.
+    private func registerLoginShell() {
+        controller.bridge.on("test.loginShell") { _, reply in
+            DispatchQueue.global(qos: .userInitiated).async {
+                let began = Date()
+                let found = LoginShell.read()
+                let took = Int(Date().timeIntervalSince(began) * 1000)
+                DispatchQueue.main.async {
+                    reply(.success([
+                        "hasKey": !(found[Credentials.keyName] ?? "").isEmpty,
+                        "hasAddress": !(found[Credentials.addressName] ?? "").isEmpty,
+                        "ms": took,
+                    ] as [String: Any]))
+                }
+            }
+        }
     }
 
     // MARK: The menu bar

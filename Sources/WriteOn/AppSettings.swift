@@ -10,9 +10,12 @@ final class AppSettings {
 
     private static let interfaceKey = "interface"
     private static let welcomedKey = "welcomed"
+    private static let addressKey = "ai.address"
+    private static let modelKey = "ai.model"
     private let defaults: UserDefaults?
     private var memory: [String: Any]
     private var welcomedInMemory: Bool
+    private var texts: [String: String] = [:]
 
     /// - Parameters:
     ///   - defaults: where to keep the settings; `nil` keeps them in memory only.
@@ -38,6 +41,32 @@ final class AppSettings {
             } else {
                 welcomedInMemory = newValue
             }
+        }
+    }
+
+    /// The address of the AI service, if Settings names one other than the usual.
+    var aiAddress: String? {
+        get { text(Self.addressKey) }
+        set { setText(newValue, Self.addressKey) }
+    }
+
+    /// The model to ask, if Settings names one other than the usual.
+    var aiModel: String? {
+        get { text(Self.modelKey) }
+        set { setText(newValue, Self.modelKey) }
+    }
+
+    private func text(_ key: String) -> String? {
+        let value = defaults != nil ? defaults?.string(forKey: key) : texts[key]
+        return (value ?? "").isEmpty ? nil : value
+    }
+
+    private func setText(_ value: String?, _ key: String) {
+        let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if let defaults {
+            if trimmed.isEmpty { defaults.removeObject(forKey: key) } else { defaults.set(trimmed, forKey: key) }
+        } else {
+            texts[key] = trimmed.isEmpty ? nil : trimmed
         }
     }
 

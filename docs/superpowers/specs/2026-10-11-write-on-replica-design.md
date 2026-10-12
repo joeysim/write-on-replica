@@ -714,30 +714,48 @@ Verified against the live gateway on 2026-10-11:
   with chat completions, streaming and JSON-schema output.
 - With default reasoning a five-word request takes 2–4 s and the answer arrives all at
   once at the end. With `"reasoning_effort": "low"` it takes 0.5–0.65 s. Alternatives
-  therefore use `low`. Lab passes start at `low` and are raised if quality testing during
-  implementation shows the cuts are poor.
-- Alternatives stream as one suggestion per line. Lab passes use JSON-schema output,
-  which was tested: a small trim request returned valid JSON in 1.4 s. At `low` it cut
-  about twice the requested amount and left one clumsy sentence, which is why Lab
-  reasoning is expected to go up and why the trim contract in §6.10 checks the result
-  rather than trusting it.
+  therefore use `low`. Live in the app: five words in 1.5–2.3 s, three versions of a
+  sentence in 1.2 s.
+- Alternatives stream as one suggestion per line. Lab passes use JSON-schema output;
+  without the schema the model's JSON took other shapes and could not be read. The
+  trim contract in §6.10 checks the result rather than trusting it.
+- What the model thinks before it answers is counted against `max_tokens` along with
+  the answer, and for a Lab pass it thinks a good deal even at `low`. Measured live: to
+  cut 570 words by a tenth it thought for 1,300 to 3,300 tokens, by 30% for 6,300; a
+  marking pass over 164 words for up to 400; alternatives for 1. Given only room for
+  the answer, a trim came back empty every time. So a Lab pass asks for its answer and
+  room to think besides (a trim 2,000 tokens and 15 a word; the other passes 1,000 and
+  4 a word), up to 32,000 in all.
+- Lab passes stay at `low`. Live, a slight trim cut 8–11% of the 164-word welcome piece
+  in 9–17 s, and 8–10% of a 570-word piece in 16–35 s, every cut a clean deletion. That
+  is slow beside the original, and it is the thinking: asked by proportion instead of
+  by word count the model answered in 5 s and cut 2–4%, and with thinking switched off
+  it cut nothing. Accuracy was chosen over speed. While it thinks the stream keeps
+  coming (the longest silence measured was 1.4 s), so the 20 s limit is on silence, not
+  on the answer.
 
 **Key lookup**, in order: a key saved in the Keychain from Settings; `LUNAROUTE_API_KEY`
 in the app's own environment; `LUNAROUTE_API_KEY` read once from the user's login shell
 (apps launched from Finder do not inherit shell variables, so a key set in `~/.zshrc`
 would otherwise go unfound). A key found in the environment is held in memory only and never written
-anywhere. Base URL and model follow the same pattern (`LUNAROUTE_BASE_URL`; default
-model `glm-5.3-flash`) and can be changed in Settings.
+anywhere. The address follows the same pattern (Settings, then `LUNAROUTE_BASE_URL`,
+then the default), and the model is `glm-5.3-flash` unless Settings names another. An
+address on this Mac may be plain `http`, for a model served locally.
 
-**Settings window** (⌘,): API key, base URL, model, a "Test connection" button that
-reports where the key came from, and the sound toggle. Nothing else.
+**Settings window** (⌘,): API key, address, model, a "Test connection" button, and the
+sound toggle. Nothing else. A key typed in is saved to the Keychain and the field
+emptied; a line under it says where the key in use comes from ("saved here", "from the
+app's environment", "from your login shell") and offers to remove a saved one. Test
+connection asks a one-word question and answers in a line: "Connected: glm-5.3-flash
+answered in 0.6 s, with the key from your login shell." or the reason it failed. The
+sound toggle reaches every open window at once.
 
 ## 8. Errors
 
 | Situation | Behaviour |
 | --- | --- |
 | No API key | AI commands show one line in place: "No LunaRoute key — add one in Settings (⌘,)". Nothing else is blocked. |
-| Network or gateway error, timeout (20 s) | The pending animation stops, a one-line reason shows for a few seconds, the document is untouched. |
+| Network or gateway error, timeout (20 s of silence) | The pending animation stops, a one-line reason shows for a few seconds, the document is untouched. The lines: "The key was not accepted (401). Check it in Settings (⌘,)."; "Too many requests, or out of quota (429). Try again in a moment."; "The AI service had a problem (503). Try again in a moment."; "The request was refused (400): …" with the service's own first line; "Could not reach the AI service. Check the network, and the address in Settings (⌘,)."; "The connection was lost before the answer was complete."; "The AI took too long to answer."; "The AI ran out of room before it finished its answer. Try again." A key the service quotes back is taken out before the line is shown. |
 | AI returns text it was not asked for | Lines that are empty, duplicate an existing variant, or (for Lab) do not occur verbatim in the document are discarded. If nothing usable remains it is treated as an error. |
 | File cannot be read or written | A standard alert with the system's reason. The document stays open and unsaved. |
 | File has a damaged metadata comment | Opens as plain Markdown; a one-line note says the alternatives could not be read. The file is not modified until the user saves. |

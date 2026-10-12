@@ -40,6 +40,8 @@ struct MainMenu {
         let menu = NSMenu(title: "Write_On")
         menu.addItem(item("About Write_On", #selector(NSApplication.orderFrontStandardAboutPanel(_:))))
         menu.addItem(.separator())
+        menu.addItem(item("Settings…", #selector(AppDelegate.showSettings(_:)), ","))
+        menu.addItem(.separator())
         let services = NSMenu(title: "Services")
         menu.addItem(submenu(services))
         NSApp.servicesMenu = services

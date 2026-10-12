@@ -7,6 +7,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
     private var settings = AppSettings.standard
     private(set) var store = FileStore()
     private var asking: Asking = Panels()
+    /// The key for the AI service: from Settings (the keychain), the environment or the login shell.
+    private(set) var credentials = Credentials(saved: KeychainSecret(service: "com.thesimhons.writeon", account: "LunaRoute API key"))
+    private lazy var client = AIClient(credentials: credentials, settings: settings)
+    private(set) lazy var settingsPanel = SettingsWindowController(settings: settings, credentials: credentials, client: client) { [weak self] on in
+        // Every open window hears that the sound was turned on or off.
+        self?.controllers.forEach { $0.bridge.emit("settings.changed", ["sound": on]) }
+    }
     private var launched = false
     /// Files handed over before the app was ready for them.
     private var waiting: [URL] = []
@@ -57,6 +64,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
             let answers = ScriptedAsking(folder: test.output)
             asking = answers
             UserDefaults.standard.setVolatileDomain(Self.typingDefaults, forName: UserDefaults.argumentDomain)
+            // The keychain is the person's: a scripted run keeps a saved key in memory. It
+            // uses the key in its environment only where it was sent: against the real
+            // service when it says it is a live run (`--ai live`), otherwise only against
+            // a service on this Mac. It asks the login shell for a key only when live.
+            var environment = ProcessInfo.processInfo.environment
+            let local = environment[Credentials.addressName].flatMap { URL(string: $0)?.host }.map { ["127.0.0.1", "localhost", "::1"].contains($0) } ?? false
+            if !test.aiLive, !local { environment[Credentials.keyName] = nil }
+            credentials = Credentials(saved: MemorySecret(), environment: environment, readShell: test.aiLive ? LoginShell.read : nil)
+            client = AIClient(credentials: credentials, settings: settings, idle: test.aiIdle ?? 20)
 
             let start = store.drafts().first.map { DocumentStart.recovered($0) } ?? untitledStart()
             guard let controller = openWindow(start, pageSize: test.pageSize) else { exit(70) }
@@ -118,7 +134,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
             return nil
         }
         let controller = DocumentWindowController(
-            webRoot: webRoot, settings: settings, store: store, asking: asking,
+            webRoot: webRoot, settings: settings, store: store, asking: asking, ai: client,
             start: start, pageSize: pageSize, scripted: scripted
         )
         controller.onClosed = { [weak self] closed in
@@ -191,6 +207,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
 
     @objc func showWelcome(_ sender: Any?) {
         openWindow(.welcome)
+    }
+
+    @objc func showSettings(_ sender: Any?) {
+        // A scripted run works the Settings controls without a window (test.settings).
+        if !scripted { settingsPanel.show() }
     }
 
     // What belongs to a document goes to the one in front.
