@@ -32,9 +32,21 @@ const typeAt = async (block, offset, text) => {
   t.equal([unsaved(), s.drafts.length, s.recents.length, s.windows.length], [false, 0, 0, 0], 'the Save icon is dim; nothing is kept anywhere');
 }
 
-// A change lights the Save icon at once, and the shell hears of it.
-await typeAt(5, 0, 'So. ');
-t.equal(unsaved(), true, 'the first change lights the Save icon');
+// The shell hears of a change at once. The Save icon follows what the document says a
+// moment after the last change (0.42 s in the clips), fading over 0.13 s.
+{
+  editor.focus();
+  editor.select({ block: 5, offset: 0 });
+  await t.settle();
+  const from = performance.now();
+  await t.call('test.key', { key: 'S', shift: true });
+  await t.frame();
+  t.equal([unsaved(), (await shell()).dirty], [false, true], 'a change does not light the Save icon at once, though the shell knows already');
+  await t.until(() => unsaved(), 1500, 'the change to light the Save icon');
+  t.near(performance.now() - from, 420, 90, 'about 0.42 s after the change');
+  t.equal(getComputedStyle($('#save')).transitionDuration, '0.13s', 'with a fade of 0.13 s');
+  await t.type('o. ');
+}
 await told((s) => s.dirty && s.edited, 'the shell to hear of the change');
 
 // Saving a document that has no file asks where, offering the heading as its name.
@@ -90,7 +102,7 @@ await t.until(() => !ui.get('panel'), 1500, 'the panel to close');
 
 // Saving a document that has a file writes it there, and asks nothing.
 await typeAt(2, 0, 'Now, ');
-t.equal(unsaved(), true, 'a change to it lights the icon');
+await t.until(() => unsaved(), 1500, 'a change to it to light the icon');
 await t.click(...t.center('#save'));
 await t.until(() => !unsaved(), 2500, 'the Save icon to save it');
 t.same(await onDisk('other.md'), asIs(), 'the file on disk is the document');
@@ -115,6 +127,7 @@ await typeAt(2, 0, 'Then ');
 await answer({ save: null });
 commands.run('save-as');
 await told(async () => (await asked()).length === 4, 'the panel to be asked');
+await t.until(() => unsaved(), 1500, 'the Save icon to light for the change');
 t.equal([unsaved(), (await shell()).file], [true, 'copy.md'], 'called off: still unsaved, still the same file');
 await answer({ save: 'no-such-folder/lost.md' });
 commands.run('save-as');
@@ -212,6 +225,7 @@ await told((s) => !s.dirty && s.drafts.length === 0, 'the document to be saved')
   await told(async () => (await asked()).length === before + 1, 'saving to ask about the changed file');
   t.equal((await asked()).at(-1), ['changed', 'copy.md', null], 'the question names the file');
   t.same(await onDisk('copy.md'), ELSEWHERE, 'Cancel leaves what the other editor wrote');
+  await t.until(() => unsaved(), 1500, 'the Save icon to light for the change');
   t.equal([unsaved(), (await shell()).dirty, (await shell()).file], [true, true, 'copy.md'], 'and leaves this window as it was: unsaved, on the same file');
 
   // The same on the way out of the window: Save there does not get past the question either.

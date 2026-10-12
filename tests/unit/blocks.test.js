@@ -15,6 +15,7 @@ import {
   locateGroup,
   setGroupText,
   showVariant,
+  carryCaret,
   marksAt,
   normaliseBlocks,
 } from '../../web/src/doc/blocks.js';
@@ -431,4 +432,44 @@ test('a line that comes to start with a heading mark is promoted though its neig
   const after = normaliseBlocks(typed, {}).blocks;
   assert.deepEqual(after[0], { kind: 'h', level: 1, runs: [{ text: 'Title' }] });
   assert.equal(after[1], first[1]);
+});
+
+// --- where the caret goes when a group's text is swapped ----------------------------------------
+// In the clips a caret inside the group ends up at the end of the new text; one elsewhere
+// in the paragraph stays among the words it was in (eight swaps of one word, the caret
+// resting in another).
+
+test('a caret inside a swapped group, or at its edge, goes to the end of the new text', () => {
+  const was = { block: 2, start: 10, end: 17, whole: false };
+  const end = { block: 2, offset: 18 };
+  for (const offset of [10, 13, 17]) assert.deepEqual(carryCaret({ block: 2, offset }, was, end, 1), end);
+});
+
+test('a caret after the group in the same paragraph stays with the words it was among', () => {
+  const was = { block: 2, start: 10, end: 17, whole: false };
+  assert.deepEqual(carryCaret({ block: 2, offset: 40 }, was, { block: 2, offset: 21 }, 4), { block: 2, offset: 44 });
+  assert.deepEqual(carryCaret({ block: 2, offset: 40 }, was, { block: 2, offset: 14 }, -3), { block: 2, offset: 37 });
+});
+
+test('a caret before the group, or in another paragraph, stays where it was', () => {
+  const was = { block: 2, start: 10, end: 17, whole: false };
+  const end = { block: 2, offset: 21 };
+  assert.deepEqual(carryCaret({ block: 2, offset: 3 }, was, end, 4), { block: 2, offset: 3 });
+  assert.deepEqual(carryCaret({ block: 0, offset: 30 }, was, end, 4), { block: 0, offset: 30 });
+  assert.deepEqual(carryCaret({ block: 5, offset: 0 }, was, end, 4), { block: 5, offset: 0 });
+});
+
+test('a caret just before the group does not end up inside it when the article before it shrinks', () => {
+  // "an |eraser" becoming "a |thumbtack": the group now starts one character sooner.
+  const was = { block: 0, start: 8, end: 14, whole: false };
+  assert.deepEqual(carryCaret({ block: 0, offset: 7 }, was, { block: 0, offset: 16 }, 2), { block: 0, offset: 7 });
+  assert.deepEqual(carryCaret({ block: 0, offset: 7 }, { block: 0, start: 8, end: 17, whole: false }, { block: 0, offset: 13 }, -4), { block: 0, offset: 7 });
+});
+
+test('every place in a paragraph group is inside it', () => {
+  const was = { block: 3, start: 0, end: 120, whole: true };
+  const end = { block: 3, offset: 80 };
+  assert.deepEqual(carryCaret({ block: 3, offset: 0 }, was, end, -40), end);
+  assert.deepEqual(carryCaret({ block: 3, offset: 60 }, was, end, -40), end);
+  assert.deepEqual(carryCaret({ block: 4, offset: 5 }, was, end, -40), { block: 4, offset: 5 });
 });

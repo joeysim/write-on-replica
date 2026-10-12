@@ -62,11 +62,13 @@ export function initTooltips() {
   window.addEventListener('focus', () => {
     if (note) count();
   });
-  // A press puts the label away, and a note with it; a label comes back the next time the
-  // pointer arrives.
+  // A press puts a note away. A control's own label stays for as long as the pointer rests
+  // on it, pressed or not, as in the clips.
   document.addEventListener('mousedown', (event) => {
-    unsay();
-    show(null);
+    if (note) {
+      unsay();
+      refresh();
+    }
     // Keep the caret and selection in the text while the chrome is used.
     if (event.target.closest?.('.control')) event.preventDefault();
   });

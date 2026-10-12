@@ -69,12 +69,14 @@ body.is-panel #panel {
   padding: 4.9px 20px 4.9px 40.4px;
   color: var(--dim-text);
   font: 400 15px/22px var(--mono);
-  cursor: text;
+  /* An arrow over the marker and beside the words; the text cursor over the words alone. */
+  cursor: default;
 }
 #panel .row.active {
   color: var(--text);
 }
 #panel .row .text {
+  cursor: text;
   min-height: 22px;
   outline: none;
   white-space: pre-wrap;

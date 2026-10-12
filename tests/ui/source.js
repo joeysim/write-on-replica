@@ -147,15 +147,46 @@ t.equal([ui.get('source'), open()], [false, false], 'Esc closes it');
 t.equal(document.activeElement, editor.root, 'and the page has the keyboard again');
 t.equal(editor.selection()?.start.block, 3, 'with its caret where it was');
 
+// It comes back as it was left: the same tab, at the same place. (In the clip it is put away
+// on Readable, part of the way down, and is there again when it is brought back.)
+await t.key('u', { ctrl: true });
+await t.click(...t.center(tabs()[1]));
+body.scrollTop += 150;
+await t.settle();
+const left = body.scrollTop;
+t.assert(left > 150, `it is some way down the file: ${left}`);
+await t.key('Escape');
 await t.click(...t.center('#open-source'));
 t.assert(ui.get('source'), 'the M↓ button opens it');
-t.equal(active(), 'As saved', 'on As saved, each time');
+t.equal([active(), body.scrollTop], ['Readable', left], 'on the tab it was left on, at the place it was left at');
 await t.click(...t.center('#open-source'));
 t.assert(!ui.get('source'), 'and closes it');
 
+// The controls around the card still answer to the pointer while it is up, and a press on one
+// does what that control does as well as putting the card away. (In the clip the Overflow
+// button shows its shortcut with the card up, and one click on it swaps the card for Overflow.)
+await t.key('u', { ctrl: true });
+{
+  const tip = $('#tooltip');
+  const [x, y] = t.center('#toggle-overflow');
+  await t.hover(x, y);
+  await t.until(() => tip.classList.contains('is-showing') && tip.textContent === 'Ctrl+Shift+D', 1500, 'the Overflow button to show its shortcut with the card up');
+  await t.click(x, y);
+  await t.wait(300);
+  t.equal([ui.get('source'), ui.get('overflow')], [false, true], 'one press on it puts the card away and opens Overflow');
+  await t.click(x, y);
+  await t.wait(300);
+  t.equal(ui.get('overflow'), false, 'Overflow shut again');
+}
+// A press on the page beside the card puts the card away and is a press on the page.
 await t.key('u', { ctrl: true });
 await t.click(60, 500);
 t.assert(!ui.get('source'), 'a click outside the card closes it');
+t.equal([document.activeElement, editor.selection()?.collapsed], [editor.root, true], 'and the caret is in the text, on the line it was level with');
+// Back on As saved, for what follows.
+await t.key('u', { ctrl: true });
+await t.click(...t.center(tabs()[0]));
+await t.key('Escape');
 await t.key('u', { ctrl: true });
 await t.key('u', { ctrl: true });
 t.assert(!ui.get('source'), 'and so does Ctrl+U again');
@@ -171,7 +202,10 @@ t.same(shown(), serialize(editor.getState()).replace(/\n$/, ''), 'which is the d
   // It is for reading: keys do not reach the page behind it, and nothing in it can be typed over.
   const before = editor.getState().html;
   await t.type('xyz');
-  t.equal(editor.getState().html, before, 'typing with it open changes nothing');
+  // (After a click on one of the controls WebKit would send the typing to the page all the
+  // same, where the selection still is. The page refuses it.)
+  t.same(editor.getState().html, before, 'typing with it open changes nothing');
+  t.equal(document.activeElement, body, 'and the keyboard stays with the card');
   t.equal(card.querySelector('[contenteditable]'), null, 'and it has nothing to type in');
   t.equal(getComputedStyle(body).webkitUserSelect, 'text', 'though its text can be selected');
 }

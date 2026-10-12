@@ -48,7 +48,7 @@ const decor = createDecor({ svg: document.getElementById('decor'), underlay: doc
 const sound = createSound({ enabled: () => ui.get('sound') });
 const explosions = createExplosions({ canvas: document.getElementById('fx') });
 const alternatives = createAlternatives({ editor, ui, decor, sound, explosions });
-const panel = createPanel({ editor, ui, alternatives, commands });
+const panel = createPanel({ editor, ui, alternatives, commands, decor });
 const menu = createContextMenu({ editor, ui, alternatives, commands });
 const cards = createCards({ editor });
 const ai = createAIClient(native);

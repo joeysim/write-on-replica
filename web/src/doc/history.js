@@ -61,6 +61,29 @@ export class History {
     return entry;
   }
 
+  /**
+   * Forgets the latest step if `match(meta)` says it is the one meant. For a step that was
+   * only ever the interface's and came to nothing, so that it never has to be undone.
+   * @returns {boolean} whether a step was dropped
+   */
+  dropLast(match) {
+    const last = this.#undo[this.#undo.length - 1];
+    if (!last || !match(last.meta)) return false;
+    this.#undo.pop();
+    this.#lastKey = null;
+    return true;
+  }
+
+  /**
+   * Forgets every step `match(meta)` picks out, whether it is waiting to be undone or
+   * redone. Only for steps that changed nothing in the document (see the editor's `mark`):
+   * the steps around such a one do not depend on it.
+   */
+  dropAll(match) {
+    this.#undo = this.#undo.filter((entry) => !match(entry.meta));
+    this.#redo = this.#redo.filter((entry) => !match(entry.meta));
+  }
+
   clear() {
     this.#undo.length = 0;
     this.#redo.length = 0;

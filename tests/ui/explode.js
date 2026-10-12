@@ -193,15 +193,17 @@ sounds();
   t.equal(sounds(), 'boom', 'with a boom');
   await t.key('z', { meta: true });
   await t.wait(500);
-  await t.key('z', { meta: true });
   t.equal(editor.groups.wb3nch1.variants.length, 3, 'undo puts it back');
   sounds();
 }
 // With a modifier held it is not this command.
 await away();
+editor.select({ block: 5, offset: 9 }); // in plain words, well away from the word under the pointer
+await t.settle();
 await hoverGroup('wb3nch1');
 await t.key('Backspace', { alt: true });
 t.equal(editor.groups.wb3nch1.variants.length, 3, 'Option+Backspace is left alone');
+t.equal(textOf(5).startsWith('Click the word'), false, `it deletes a word of the text: ${textOf(5).slice(0, 24)}`);
 await t.key('z', { meta: true });
 await away();
 

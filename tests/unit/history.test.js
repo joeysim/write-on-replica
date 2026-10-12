@@ -83,3 +83,41 @@ test('clear forgets everything', () => {
   h.clear();
   assert.equal(h.canUndo || h.canRedo, false);
 });
+
+// A step that was only ever the interface's (the panel's empty row) can be forgotten again
+// when nothing came of it, so that it never has to be undone.
+
+test('the latest step can be dropped if it is the one meant', () => {
+  const h = new History();
+  h.record('a', { meta: { label: 'edit' } });
+  h.record('b', { meta: { label: 'row', vid: 'x' } });
+  assert.equal(h.dropLast((meta) => meta?.label === 'row' && meta.vid === 'y'), false, 'not another one');
+  assert.equal(h.dropLast((meta) => meta?.label === 'row' && meta.vid === 'x'), true);
+  assert.deepEqual(h.undo('now'), { state: 'a', meta: { label: 'edit' } });
+  assert.equal(h.canUndo, false);
+});
+
+test('only the latest step can be dropped', () => {
+  const h = new History();
+  h.record('a', { meta: { label: 'row', vid: 'x' } });
+  h.record('b', { meta: { label: 'edit' } });
+  assert.equal(h.dropLast((meta) => meta?.label === 'row'), false);
+  assert.equal(h.dropLast(() => true), true);
+  assert.equal(h.dropLast(() => true), true);
+  assert.equal(h.dropLast(() => true), false, 'nothing left to drop');
+});
+
+test('steps that changed nothing can be dropped from anywhere, undone or not', () => {
+  const h = new History();
+  const row = (meta) => meta?.label === 'row';
+  h.record('a', { meta: { label: 'edit' } });
+  h.record('b', { meta: { label: 'row' } });
+  h.record('c', { meta: { label: 'edit' } });
+  h.record('d', { meta: { label: 'row' } });
+  assert.deepEqual(h.undo('e'), { state: 'd', meta: { label: 'row' } }); // one of them is now waiting to be redone
+  h.dropAll(row);
+  assert.equal(h.canRedo, false, 'the one that was undone is gone');
+  assert.deepEqual(h.undo('now'), { state: 'c', meta: { label: 'edit' } });
+  assert.deepEqual(h.undo('now'), { state: 'a', meta: { label: 'edit' } }, 'and the one between the edits');
+  assert.equal(h.canUndo, false);
+});

@@ -66,11 +66,15 @@ await until(async () => (await provider()).requests.length === 1, 'the request t
 // and then the suggestions come one after another.
 const arrivals = [];
 const seen = []; // the list as it stood at each arrival
+const dotsAt = []; // and, a frame later, the dots under the word in the page
+const dotsUnderWord = () => document.querySelectorAll(`#decor g[data-vid="${panel.target()}"] circle.dot`).length;
 const watcher = new MutationObserver(() => {
   const count = el.querySelectorAll('.row.arriving').length;
   while (arrivals.length < count) {
     arrivals.push(performance.now() - asked);
     seen.push({ texts: rowTexts(), asking: rows().findIndex((r) => r.classList.contains('asking')) });
+    const rowsNow = rows().length;
+    requestAnimationFrame(() => requestAnimationFrame(() => dotsAt.push([rowsNow, dotsUnderWord()])));
   }
 });
 watcher.observe(el, { childList: true, subtree: true });
@@ -84,6 +88,8 @@ t.equal(arrivals.length, 5, 'five of them');
 t.assert(arrivals.slice(1).every((at, i) => at - arrivals[i] >= 90), `one after another (${arrivals.map(Math.round).join(', ')})`);
 t.equal(seen[0], { texts: [...KEEPS, 'retains', '??'], asking: 4 }, 'each arrives as a row of its own, above the marks');
 t.equal(seen[2], { texts: [...KEEPS, 'retains', 'stores', 'guards', '??'], asking: 6 }, 'in the order they came');
+// The word in the page gains a dot with each row, the asking row's among them, as in the clip.
+t.assert(dotsAt.length >= 3 && dotsAt.every(([rowsThen, dots]) => dots >= rowsThen), `the dots under the word keep up with the list: ${JSON.stringify(dotsAt)}`);
 
 const WITH_AI = [...KEEPS, 'retains', 'stores', 'guards', 'saves', 'hoards'];
 t.equal(rowTexts(), WITH_AI, 'the suggestions are rows, cleaned of bullets, quotes and numbers; the repeat and the sixth are dropped');

@@ -35,6 +35,17 @@ await t.rightClick(wx, wy);
 t.assert(isOpen(), 'a right-click in the text opens the menu');
 t.equal(labels(), ['Alternatives for “corner”', 'AI alternatives for “corner”', 'Ghost it', 'Stash this in Overflow'], 'the four items name the word under the pointer');
 t.equal(keys(), KEYS, 'each with its shortcut');
+t.equal(current(), 0, 'the first item is lit as the menu opens, before the pointer is on any');
+{
+  // The item last pointed at stays lit when the pointer leaves the menu, as in the clip.
+  const third = items()[2].getBoundingClientRect();
+  await t.hover(third.left + 40, third.top + third.height / 2);
+  t.equal(current(), 2, 'the item under the pointer is lit');
+  const box = menu.getBoundingClientRect();
+  await t.hover(box.right + 60, box.bottom + 60);
+  t.equal(current(), 2, 'and stays lit when the pointer leaves the menu');
+  await t.hover(wx, wy);
+}
 {
   const caret = editor.selection();
   const word = docText(5).indexOf('corner');
@@ -146,10 +157,10 @@ editor.select({ block: 5, offset: 0 });
   const el = editor.elementFor('k33ps01').getBoundingClientRect();
   await t.rightClick(el.left + 8, el.top + 12);
   t.equal(labels()[0], 'Alternatives for “keeps”', 'a group is named by what it shows');
-  // Arrow keys walk the live items and Return chooses.
+  // Arrow keys walk the live items, from the first, which is lit already, and Return chooses.
+  t.equal(current(), 0, 'the first item is lit');
   await t.key('ArrowDown');
-  t.equal(current(), 0, 'Down lights the first item');
-  await t.key('ArrowDown');
+  t.equal(current(), 1, 'Down lights the next');
   await t.key('ArrowUp');
   t.equal(current(), 0, 'Up comes back');
   const before = html();

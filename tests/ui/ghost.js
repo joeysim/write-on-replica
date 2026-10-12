@@ -182,6 +182,8 @@ t.same(html(), before, 'and redo revives');
   alternatives.activate('s3ntgrp', 1);
   await t.settle();
   t.assert(html().includes(`<span data-ghost>too. </span><span data-vid="s3ntgrp">${OTHERWISE}</span>`), 'another variant of the sentence comes in undimmed');
+  // Which variant shows is not a step to undo, except where showing another loses something:
+  // here, the ghosting of words in the variant that was showing. That can be undone.
   editor.undo();
   t.equal(ghosts(), ['a plain word', 'too. ', 'It can be'], 'undo, and the sentence is half ghosted again');
 

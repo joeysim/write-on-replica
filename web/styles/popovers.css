@@ -46,16 +46,17 @@
 /* --- cards -------------------------------------------------------------------------------- */
 
 /* A card stands over the page as the clip's source view does: the page behind is not
-   dimmed, and a click anywhere off the card puts it away. The scrim is only there to take
-   that click. Edge, corners and shadow are measured from the clip. */
+   dimmed, and a click anywhere off the card puts it away. Under the source view the page
+   still answers to the pointer, as it does in the clip; the cards that are this app's own
+   (the shortcuts, the Lab's guide) have a scrim to take that click. Edge, corners and
+   shadow are measured from the clip. */
 #scrim {
   position: fixed;
   z-index: 50;
   inset: 0;
   visibility: hidden;
 }
-body.is-card #scrim,
-body.is-source #scrim {
+body.is-card #scrim {
   visibility: visible;
 }
 #card,

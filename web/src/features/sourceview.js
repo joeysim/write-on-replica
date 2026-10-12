@@ -13,8 +13,9 @@ export function createSourceView({ editor, ui, commands, native }) {
   const tabs = [...card.querySelectorAll('.tab')];
   const bytes = card.querySelector('.bytes');
   const copy = card.querySelector('.copy');
-  const scrim = document.getElementById('scrim');
   let view = 'saved';
+  // The card comes back as it was left: on the same tab, at the same place in the file.
+  let left = null; // { view, top, pad } from the last closing; null for a document not yet looked at
   let caret = null; // the page's selection, to give back on closing
   let relabel = 0;
 
@@ -30,7 +31,11 @@ export function createSourceView({ editor, ui, commands, native }) {
     return node;
   }
 
-  function show(next) {
+  /**
+   * Shows the file on tab `next`. Readable jumps to the recorded state; `at`, if given, is
+   * a place to go back to instead ({ top, pad } as left on closing).
+   */
+  function show(next, at = null) {
     view = next;
     for (const tab of tabs) tab.classList.toggle('active', tab.dataset.view === view);
     const state = editor.getState();
@@ -38,9 +43,9 @@ export function createSourceView({ editor, ui, commands, native }) {
     const size = new TextEncoder().encode(serialize(state)).length;
     bytes.textContent = `${size.toLocaleString('en-US')} bytes`;
     fit();
-    body.style.paddingTop = '';
-    body.scrollTop = 0;
-    const recorded = view === 'readable' ? body.querySelector('.meta') : null;
+    body.style.paddingTop = at?.pad ?? '';
+    body.scrollTop = at?.top ?? 0;
+    const recorded = view === 'readable' && !at ? body.querySelector('.meta') : null;
     if (!recorded) return;
     // Scrolling goes by whole pixels; the rest of the distance is made up above the text.
     const wanted = recorded.getBoundingClientRect().top - body.getBoundingClientRect().top - ABOVE;
@@ -68,12 +73,14 @@ export function createSourceView({ editor, ui, commands, native }) {
     if (ui.get('source')) return;
     caret = editor.selection();
     ui.set({ source: true, read: false });
-    show('saved');
+    if (left) show(left.view, left);
+    else show('saved');
     body.focus({ preventScroll: true }); // the keys now scroll the file, and none reach the page
   }
 
   function close() {
     if (!ui.get('source')) return;
+    left = { view, top: body.scrollTop, pad: body.style.paddingTop };
     ui.set({ source: false });
     editor.focus();
     if (caret) editor.select(caret.start, caret.end);
@@ -96,10 +103,21 @@ export function createSourceView({ editor, ui, commands, native }) {
   // The buttons work without taking the keyboard from the text.
   card.querySelector('header').addEventListener('mousedown', (event) => event.preventDefault());
 
-  scrim.addEventListener('mousedown', (event) => {
-    if (!ui.get('source')) return;
-    event.preventDefault();
-    close();
+  // A press anywhere off the card puts it away, and is still a press on whatever it landed
+  // on: in the clip the Overflow button answers to the pointer with the card up, and one
+  // click on it swaps the card for Overflow. (The card's own button is left to open and
+  // close it by itself.)
+  document.addEventListener(
+    'mousedown',
+    (event) => {
+      if (!ui.get('source') || card.contains(event.target) || event.target.closest?.('#open-source')) return;
+      close();
+    },
+    true,
+  );
+  // Another document is another file: it is looked at from the top.
+  editor.on('change', ({ label }) => {
+    if (label === 'load') left = null;
   });
   window.addEventListener(
     'keydown',

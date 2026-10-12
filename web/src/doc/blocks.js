@@ -356,6 +356,22 @@ export function showVariant(blocks, vid, text, { agreeArticle = false } = {}) {
   return { blocks: shown, end: { block: where.block, offset: start + text.length } };
 }
 
+/**
+ * Where a caret at `position` belongs after showVariant has swapped the text of a group.
+ * @param was  the group's place before the swap (from locateGroup)
+ * @param end  the end of its new text (showVariant's `end`)
+ * @param grew by how much the group's block is longer than it was
+ * A caret in the group, or at either edge of it, goes to the end of the new text. One
+ * later in the same block stays among the words it was in. One before the group, or in
+ * another block, stays where it was.
+ */
+export function carryCaret(position, was, end, grew) {
+  if (position.block !== was.block) return position;
+  if (was.whole || (position.offset >= was.start && position.offset <= was.end)) return end;
+  if (position.offset > was.end) return { block: position.block, offset: position.offset + grew };
+  return position;
+}
+
 // --- normalising ------------------------------------------------------------------------------
 
 function promoteHeading(block) {

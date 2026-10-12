@@ -62,6 +62,8 @@ export function createContextMenu({ editor, ui, alternatives, commands }) {
     menu.style.top = `${Math.max(MARGIN, Math.min(top, innerHeight - MARGIN - height))}px`;
     menu.classList.add('is-open');
     open = true;
+    // The first item is lit as the menu opens, before the pointer is on any.
+    light(rows().find(live) ?? null);
   }
 
   function close() {
@@ -103,11 +105,11 @@ export function createContextMenu({ editor, ui, alternatives, commands }) {
   // --- while open -----------------------------------------------------------------------------
 
   menu.addEventListener('mousedown', (event) => event.preventDefault()); // the selection stays in the text
+  // The item last pointed at stays lit, also when the pointer leaves the menu.
   menu.addEventListener('mouseover', (event) => {
     const row = event.target.closest('.item');
-    light(row && live(row) ? row : null);
+    if (row && live(row)) light(row);
   });
-  menu.addEventListener('mouseleave', () => light(null));
   menu.addEventListener('click', (event) => choose(event.target.closest('.item')));
   menu.addEventListener('contextmenu', (event) => event.preventDefault());
 

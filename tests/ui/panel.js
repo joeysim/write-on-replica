@@ -255,10 +255,35 @@ await t.click(...t.pointOfText('second'));
   t.assert(vid && vid !== 'tens10n', 'a click on a word in the page retargets the panel');
   t.equal(heard(), '', 'silently');
   t.equal(rowTexts(), ['second', ''], 'its text and an empty row');
+  {
+    // In the clip the rows of a new target come up from dark over about 0.13 s.
+    const fading = el.querySelector('.rows').getAnimations();
+    t.equal(fading.length, 1, 'the list of the new target fades in');
+    t.near(fading[0]?.effect.getComputedTiming().duration ?? 0, 130, 1, 'over 130ms');
+    // The pointer is a text cursor over a row's words and an arrow beside them.
+    const row = rows()[0];
+    t.equal([getComputedStyle(row).cursor, getComputedStyle(row.querySelector('.text')).cursor, getComputedStyle(row.querySelector('.marker')).cursor], ['default', 'text', 'default'], 'the pointer is an I-beam over a row’s text only');
+  }
   t.equal([activeRow(), focusedRow()], [0, 1], 'the caret waits in the empty row');
   t.equal(editor.groups[vid], { scope: 'word', variants: ['second'], active: 0 }, 'the word is a group while it is the target');
   await t.settle();
   t.assert(document.querySelector(`#decor g[data-vid="${vid}"] path.line`) !== null, 'and is underlined like one');
+  {
+    // In the clips the word in the page has a dot for every row of the panel's list, the
+    // empty row among them: two under a new target, a third when Return opens another row.
+    const dots = () => [...document.querySelectorAll(`#decor g[data-vid="${vid}"] circle.dot`)].map((dot) => dot.classList.contains('active'));
+    t.equal(dots(), [true, false], 'a dot for the word and one for the empty row');
+    await t.type('next');
+    await t.settle();
+    t.equal([rowTexts(), dots()], [['second', 'next'], [false, true]], 'typed in, the row is an alternative, and its dot the filled one');
+    await t.key('Enter');
+    await t.settle();
+    t.equal([rowTexts(), dots()], [['second', 'next', ''], [false, true, false]], 'Return opens a row, and a dot with it');
+    await t.key('Backspace');
+    for (let i = 0; i < 4; i++) await t.key('Backspace');
+    await t.settle();
+    t.equal([rowTexts(), dots()], [['second', ''], [true, false]], 'emptied again, it is as it was');
+  }
   t.equal(alpha(editor.blockElement(P2)), 0.66, 'its paragraph comes forward');
   t.near(alpha(editor.blockElement(P1)), 0.36, 0.01, 'the one before steps back');
   t.assert(editor.groups.tens10n.variants.length >= 8, 'the group left behind keeps its alternatives');
@@ -302,6 +327,83 @@ await t.click(...t.pointOfText('second'));
   const long = rows()[0].getBoundingClientRect();
   t.assert(long.right <= 280 && long.height > 60, `a long variant wraps (${Math.round(long.height)}px tall)`);
   t.near(rows()[1].getBoundingClientRect().top, long.bottom, 0.5, 'and the next row starts below it');
+}
+
+// --- undo, as in the clip -------------------------------------------------------------------------
+// He asks for suggestions for a word, tries three of them, and undoes. One undo takes the
+// whole batch away and leaves the word and the empty row, with the caret in it. A second
+// takes the empty row and nothing else: the word stays underlined, the panel stays on it, and
+// what was typed in the page before is untouched.
+{
+  await t.key('Escape');
+  await t.until(() => !ui.get('panel'), 1500, 'the panel to close');
+  editor.focus();
+  editor.select({ block: P2, offset: 0 });
+  await t.settle();
+  await t.type('Well. ');
+  await t.wait(800); // the typing is a step of its own
+  const typed = docText(P2);
+  const steps = () => {
+    let n = 0;
+    while (editor.canUndo && n < 50) {
+      editor.undo();
+      n += 1;
+    }
+    for (let i = 0; i < n; i++) editor.redo();
+    return n;
+  };
+  const before = steps();
+
+  editor.select({ block: P2, offset: docText(P2).indexOf('caret') + 2 });
+  await t.settle();
+  await t.key('a', { ctrl: true, shift: true });
+  await t.until(() => ui.get('panel') && rowTexts().length === 2, 1500, 'the panel to open on the word');
+  const vid = panel.target();
+  t.equal([rowTexts(), focusedRow()], [['caret', ''], 1], 'the word, and an empty row with the caret in it');
+
+  await t.call('test.ai', { set: { chunks: ['cursor\n', 'pointer\n', 'mark\n', 'point\n', 'bar\n'], firstMs: 30, everyMs: 20 } });
+  await t.type('??');
+  await t.until(() => editor.groups[vid]?.variants.length === 6, 5000, 'five suggestions to arrive');
+  await t.settle();
+  t.equal(rowTexts(), ['caret', 'cursor', 'pointer', 'mark', 'point', 'bar'], 'the batch is in');
+  // Trying them: three rows, one after another.
+  for (const index of [2, 4, 3]) {
+    await t.click(...t.center(rows()[index].querySelector('.text')));
+    await t.wait(120);
+  }
+  t.equal([showing(vid), docText(P2).includes('visit. It') && docText(P2).includes('the mark to')], ['mark', true], 'the last one tried is showing in the page');
+
+  await t.key('z', { meta: true });
+  await t.settle();
+  t.equal([rowTexts(), focusedRow()], [['caret', ''], 1], 'one undo takes the whole batch: the word and the empty row are left, with the caret in the row');
+  t.equal(docText(P2), typed, 'and the page reads as it did');
+
+  await t.key('z', { meta: true });
+  await t.settle();
+  t.equal([rowTexts(), ui.get('panel'), panel.target()], [['caret'], true, vid], 'a second takes the empty row and nothing else: the panel stays on the word');
+  t.assert(document.querySelector(`#decor g[data-vid="${vid}"] path.line`) !== null, 'which is still underlined');
+  t.equal(docText(P2), typed, 'and what was typed in the page before is untouched');
+
+  await t.key('z', { meta: true, shift: true });
+  await t.settle();
+  t.equal(rowTexts(), ['caret', ''], 'redo brings the empty row back');
+  await t.key('z', { meta: true });
+  await t.settle();
+
+  // Leaving a word nothing was added to leaves nothing to undo for it.
+  await t.key('Escape');
+  await t.until(() => !ui.get('panel'), 1500, 'the panel to close');
+  t.equal(editor.groups[vid], undefined, 'the word is plain text again');
+  t.equal(steps(), before, 'and no step of the panel’s is left behind');
+  await t.key('z', { meta: true });
+  t.assert(!docText(P2).startsWith('Well. '), 'the next undo is of the typing');
+  heard();
+
+  // Back on a group, for what follows.
+  editor.select({ block: P2, offset: docText(P2).indexOf('second') + 2 });
+  await t.settle();
+  await t.key('a', { ctrl: true, shift: true });
+  await t.until(() => ui.get('panel'), 1500, 'the panel to open again');
 }
 
 // --- closing ------------------------------------------------------------------------------------

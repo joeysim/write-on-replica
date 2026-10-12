@@ -1,6 +1,6 @@
 // The Lab's trims (design spec 6.10): the model says what could go, by fading it where it
 // stands; nothing is cut until the writer says so.
-const { editor, ui } = window.writeOn;
+const { editor, ui, lab } = window.writeOn;
 ui.set({ read: false });
 await document.fonts.ready;
 
@@ -43,10 +43,20 @@ const choose = async (name) => {
   await openMenu();
   await t.click(...t.center(level(name)));
 };
-/** What the model is made to answer, and how soon. */
-const answer = (paragraphs, { firstMs = 60, error = null } = {}) =>
-  t.call('test.ai', { set: error ? { error, firstMs } : { chunks: [JSON.stringify({ paragraphs }).slice(0, 40), JSON.stringify({ paragraphs }).slice(40)], firstMs, everyMs: 20 } });
+/**
+ * What the model is made to answer, and how soon. The Lab keeps what it has been told about
+ * a piece, level by level, so a new answer is only heard once what was kept is forgotten.
+ */
+const answer = (paragraphs, { firstMs = 60, error = null } = {}) => {
+  lab.forget();
+  return t.call('test.ai', { set: error ? { error, firstMs } : { chunks: [JSON.stringify({ paragraphs }).slice(0, 40), JSON.stringify({ paragraphs }).slice(40)], firstMs, everyMs: 20 } });
+};
+/** The same, leaving what the Lab has kept for the edit under test to deal with. */
+const answerQuietly = (paragraphs, { firstMs = 60 } = {}) =>
+  t.call('test.ai', { set: { chunks: [JSON.stringify({ paragraphs }).slice(0, 40), JSON.stringify({ paragraphs }).slice(40)], firstMs, everyMs: 20 } });
 const asked = async () => (await t.call('test.ai')).requests;
+/** The levels the model has been asked about since `from` requests ago, as the percentages named in the questions. */
+const askedAbout = async (from = 0) => (await asked()).slice(from).map((request) => Number(/about (\d+)%/.exec(request.messages.map((m) => m.content).join('\n'))?.[1]));
 
 const P1 = 'Much of the trouble, in my view, comes from wanting every line to stay. It rarely works out that way.';
 const P3 = 'A last paragraph that the trim leaves alone.';
@@ -298,10 +308,49 @@ await t.until(() => faded().length > 0, 4000, 'the second proposal');
 t.equal(faded(), ['that '], 'with only what the new answer would cut');
 t.equal(title(), summary('Tighten more', 1), 'under its own name');
 t.near(card.getBoundingClientRect().width, 608.5, 0.01, 'on a card one letter wider');
-t.assert(/about 20%/.test((await asked()).pop().messages.map((m) => m.content).join('\n')), 'having asked for 20%');
+t.assert((await askedAbout()).includes(20), 'having asked for 20%');
 // Original puts it away.
 await choose('Original');
 t.equal([faded().length, shown(card), ui.get('lab')], [0, false, false], 'Original puts the proposal away and closes the popover');
+
+// --- levels are kept ------------------------------------------------------------------------------
+// In the clip "Tighten more" is chosen some seconds after "Slight trim" was read, and its
+// card is there at once, numbers and all: no reading, no line through the text. The Lab
+// reads the level asked for, then the others quietly, one at a time, and keeps what it is
+// told for as long as the piece does not change.
+{
+  await answer(SLIGHT, { firstMs: 120 });
+  const before = (await asked()).length;
+  await choose('Slight trim');
+  t.equal(title(), 'Slight trim Reading…', 'the level asked for is read');
+  await t.until(() => faded().length > 0, 4000, 'its proposal');
+  t.equal((await askedAbout(before))[0], 10, 'the model was asked about that level first');
+  await t.until(async () => (await asked()).length === before + 4, 4000, 'the other three levels to be read quietly');
+  t.equal(await askedAbout(before), [10, 20, 30, 50], 'one after another, from the one asked for outwards');
+  t.equal([title(), shown(scan)], [summary('Slight trim', 14), false], 'while the proposal that was asked for stays as it is');
+
+  await choose('Tighten more');
+  t.equal([title(), shown(scan), faded().length > 0], [summary('Tighten more', 14), false, true], 'another level is there at once: no reading, no line, its cuts faded');
+  await act('Done');
+  await choose('Slight trim');
+  t.equal([title(), faded().length > 0], [summary('Slight trim', 14), true], 'and so is the first again, after Done');
+  await choose('Cut in half');
+  t.equal(title(), summary('Cut in half', 14), 'and the deepest');
+  t.equal((await asked()).length, before + 4, 'none of which asked the model anything more');
+
+  // What is kept is about the piece as it was: a change to it and the model is asked afresh.
+  await act('Done');
+  editor.focus();
+  editor.select({ block: 7, offset: 0 });
+  await t.type('z');
+  await answerQuietly(SLIGHT, { firstMs: 300 });
+  await choose('Tighten more');
+  t.equal(title(), 'Tighten more Reading…', 'after an edit a level is read again');
+  await t.until(() => faded().length > 0, 4000, 'the new proposal');
+  await act('Done');
+  await t.key('z', { meta: true });
+  await load();
+}
 
 // An edit, an undo or a redo makes a proposal stale, so it goes.
 for (const [what, change] of [

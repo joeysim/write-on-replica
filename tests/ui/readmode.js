@@ -41,9 +41,10 @@ t.near(wc.top + wc.height / 2, 32, 0.6, 'word count sits on the top row');
 
 // Clicking it turns the rest on.
 await t.click(...center(wordcount));
-await t.until(() => CHROME.every((id) => shown($(id))), 1500, 'the chrome to fade in');
 t.assert(!ui.get('read'), 'clicking the word count leaves read mode');
-await t.until(marksShow, 1500, 'alternative marks to show');
+// In the clip every icon and mark is at full strength in the frame after the click.
+t.assert(CHROME.every((id) => shown($(id))), 'the chrome is all there at once: nothing fades in');
+t.assert(marksShow(), 'and so are the marks of the alternatives');
 
 // Where the drawings are, on the 1548x976 page of the clips. Each is placed by the middle
 // of what is drawn, given here in the drawing's own coordinates.
@@ -86,15 +87,22 @@ await t.snap('chrome');
 // The shortcut toggles it back and forth.
 await t.key('r', { ctrl: true, shift: true });
 t.assert(ui.get('read'), 'Ctrl+Shift+R enters read mode');
-await t.until(() => CHROME.every((id) => hidden($(id))), 1500, 'the chrome to fade out');
+t.assert(CHROME.every((id) => hidden($(id))), 'and the chrome goes at once');
 await t.key('r', { ctrl: true, shift: true });
 t.assert(!ui.get('read'), 'and leaves it again');
-await t.until(() => shown($('#save')), 1500, 'the chrome to return');
+t.assert(shown($('#save')), 'and the chrome is back at once');
 
 // With a selection the count is of the selection.
 editor.select({ block: 1, offset: 0 }, { block: 1, offset: 8 });
 await t.settle();
 t.equal(wordcount.textContent, '2 words 8 chars selected', 'a selection is counted on its own');
+// One of a thing is not "1 words": the clips read "1 word 5 chars selected" and "1 word 1 char selected".
+editor.select({ block: 1, offset: 0 }, { block: 1, offset: 5 });
+await t.settle();
+t.equal(wordcount.textContent, '1 word 5 chars selected', 'one word is a word');
+editor.select({ block: 1, offset: 0 }, { block: 1, offset: 1 });
+await t.settle();
+t.equal(wordcount.textContent, '1 word 1 char selected', 'and one character is a char');
 editor.select({ block: 1, offset: 0 });
 await t.settle();
 t.equal(wordcount.textContent, `${words} words ${chars} chars`, 'and the document count returns');
@@ -136,6 +144,22 @@ await t.snap('tooltip');
 await t.hover(600, 500);
 await t.until(() => Number(getComputedStyle(tip).opacity) < 0.01, 1500, 'the tooltip to go');
 t.assert(!document.querySelector('.is-hovered'), 'nothing stays lit once the pointer has left');
+
+// A press on a control does not put its label away: in the clips it stays for as long as
+// the pointer rests there.
+{
+  const [x, y] = center($('#toggle-overflow'));
+  await t.hover(x, y);
+  await t.until(() => Number(getComputedStyle(tip).opacity) > 0.99, 1500, 'the label of the Overflow button');
+  await t.click(x, y);
+  await t.wait(300);
+  t.assert(ui.get('overflow'), 'the press did what the button does');
+  t.equal([tip.classList.contains('is-showing'), tip.textContent], [true, 'Ctrl+Shift+D'], 'and its label is still there');
+  await t.click(x, y);
+  await t.wait(300);
+  await t.hover(600, 500);
+  await t.until(() => Number(getComputedStyle(tip).opacity) < 0.01, 1500, 'the label to go when the pointer leaves');
+}
 
 // Icons at the top have no room above them, so their tooltip goes below.
 {

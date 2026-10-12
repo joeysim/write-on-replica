@@ -5,7 +5,7 @@
 import { ToneSession } from '../doc/tone.js';
 import { newId } from '../doc/ids.js';
 import { makeGroup, addVariant, setActive, setVariantText, removeVariant } from '../doc/model.js';
-import { showVariant, clearGroup, wrapInline, setBlockGroup } from '../doc/blocks.js';
+import { showVariant, clearGroup, wrapInline, setBlockGroup, locateGroup, lengthOf, carryCaret } from '../doc/blocks.js';
 import { resolveTarget } from '../doc/target.js';
 
 const HOVER_IDLE_MS = 1750; // a pause this long ends a run of arrow presses
@@ -52,8 +52,16 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
 
   /**
    * Shows variant `index` of group `vid`: the text swaps and blurs in, and a tick plays.
+   *
+   * Which variant shows is the state of the document, not an edit to it, so this is not a
+   * step to undo: in the clip three versions are tried after a batch of suggestions, and
+   * one undo then takes the batch away. (It is a step in the one case where it loses
+   * something: see `loses` below.)
+   *
    * @param session the tone session the change belongs to; hovering's own by default
-   * @param focus   put the caret at the end of the new text (not wanted while the panel has it)
+   * @param focus   the keyboard is the text's: a caret in the group, or none at all, goes to
+   *   the end of the new text, and one elsewhere stays among the words it was in (not
+   *   wanted while the panel has the keyboard)
    * @returns {boolean} whether anything changed
    */
   function activate(vid, index, { session = hoverSession, focus = true } = {}) {
@@ -61,6 +69,12 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
     if (!group || !Number.isInteger(index) || index < 0 || index >= group.variants.length || index === group.active) return false;
     const from = group.variants[group.active];
     const to = group.variants[index];
+    const caret = focus ? editor.selection() : null;
+    const was = locateGroup(editor.blocks, vid);
+    const length = was ? lengthOf(editor.blocks[was.block]) : 0;
+    // The one case in which showing another variant loses something: words of this one are
+    // ghosted, and a variant is only its words. Then it is a step, so that undo has them back.
+    const loses = Boolean(was) && editor.blocks[was.block].runs.some((piece) => piece.ghost && (was.whole || piece.vid === vid));
     if (focus) editor.focus();
     editor.change(
       'alternative',
@@ -68,9 +82,15 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
         setActive(draft.groups[vid], index);
         const shown = showVariant(draft.blocks, vid, to, { agreeArticle: agrees(group) });
         draft.blocks = shown.blocks;
-        if (focus && shown.end) draft.selection = { start: shown.end };
+        if (!focus || !shown.end) return;
+        if (!caret) {
+          draft.selection = { start: shown.end };
+          return;
+        }
+        const grew = lengthOf(shown.blocks[was.block]) - length;
+        draft.selection = { start: carryCaret(caret.start, was, shown.end, grew), end: carryCaret(caret.end, was, shown.end, grew) };
       },
-      { coalesceKey: `alternative:${vid}` },
+      { record: loses },
     );
     blurIn(vid);
     sound.tick(session.change(from, to));
@@ -156,9 +176,10 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
    * with text `show` if there is one, otherwise the next. The last variant cannot be removed.
    * @param session if given, a change of what shows ticks through it
    * @param explode it is being blown up (see blowUp); undo and redo then come with their bursts
+   * @param record  false when the variant was never the writer's alternative (see the panel's `??`)
    * @returns the removed text, or null if nothing was removed
    */
-  function remove(vid, index, { session = null, show = null, explode = false } = {}) {
+  function remove(vid, index, { session = null, show = null, explode = false, record = true } = {}) {
     const group = editor.groups[vid];
     if (!group || group.variants.length < 2 || !Number.isInteger(index) || index < 0 || index >= group.variants.length) return null;
     const removed = group.variants[index];
@@ -172,7 +193,7 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
         if (show !== null && kept.variants.includes(show)) setActive(kept, kept.variants.indexOf(show));
         draft.blocks = showVariant(draft.blocks, vid, kept.variants[kept.active], { agreeArticle: agrees(kept) }).blocks;
       },
-      { meta: { label: 'remove alternative', vid, removed, explode } },
+      { meta: { label: 'remove alternative', vid, removed, explode }, record },
     );
     if (wasShowing) {
       blurIn(vid, explode ? RISE_IN : SWAP_IN);

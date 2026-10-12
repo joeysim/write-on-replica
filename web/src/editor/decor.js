@@ -99,6 +99,11 @@ export function createDecor({ svg, underlay, editor }) {
   let queued = false;
   let serial = 0;
   let hovered = null; // id of the group to tint
+  // The group the panel is working on has a dot for every row of the panel's list, which
+  // can be longer than the group: the empty row, the row that is asking, suggestions
+  // arriving. In the clips the dots under the word keep step with that list.
+  let listed = { vid: null, rows: 0 };
+  const dotsFor = (vid, model) => (vid === listed.vid ? Math.max(model.variants.length, listed.rows) : model.variants.length);
 
   /** The page has two fonts for text, a heading's and a paragraph's. */
   function ascentOf(element) {
@@ -124,28 +129,28 @@ export function createDecor({ svg, underlay, editor }) {
     group.append(gradient, el('path', { class: 'line', d, stroke: `url(#${id})` }));
   }
 
-  /** One dot per variant at `place(index)`, moved onto whole pixels; the showing one is filled. */
-  function dots(group, model, grid, place) {
-    model.variants.forEach((_, index) => {
+  /** `count` dots at `place(index)`, moved onto whole pixels; the showing variant's is filled. */
+  function dots(group, model, count, grid, place) {
+    for (let index = 0; index < count; index++) {
       const active = index === model.active;
       const [cx, cy] = place(index);
       group.append(el('circle', { class: active ? 'dot active' : 'dot', cx: grid.x(cx), cy: grid.y(cy), r: active ? grid.filled : grid.ring }));
-    });
+    }
   }
 
-  function drawWord(group, model, vid, lines, ascent, grid) {
+  function drawWord(group, model, vid, lines, ascent, grid, count) {
     lines.forEach((line, index) => {
       stroke(group, { from: line.left, to: line.right - 0.5, across: line.top + ascent + WORD.line, seed: `${vid}:${index}`, lead: WORD.lead, trail: WORD.trail });
     });
     // Dots sit in 5px cells, the row of cells centred under the last line of the word.
     const last = lines[lines.length - 1];
-    const first = (last.left + last.right) / 2 - (model.variants.length * DOT_PITCH) / 2 + DOT_SIZE / 2;
-    dots(group, model, grid, (index) => [first + index * DOT_PITCH, last.top + ascent + WORD.dots]);
+    const first = (last.left + last.right) / 2 - (count * DOT_PITCH) / 2 + DOT_SIZE / 2;
+    dots(group, model, count, grid, (index) => [first + index * DOT_PITCH, last.top + ascent + WORD.dots]);
   }
 
-  function drawSentence(group, model, vid, lines, ascent, grid) {
+  function drawSentence(group, model, vid, lines, ascent, grid, count) {
     // The dots take the end of the last line; the underline stops short of them.
-    const reserved = model.variants.length * DOT_PITCH;
+    const reserved = count * DOT_PITCH;
     lines.forEach((line, index) => {
       const final = index === lines.length - 1;
       stroke(group, {
@@ -160,16 +165,16 @@ export function createDecor({ svg, underlay, editor }) {
     });
     const last = lines[lines.length - 1];
     const first = last.right - reserved + DOT_SIZE / 2;
-    dots(group, model, grid, (index) => [first + index * DOT_PITCH, last.top + ascent + SENTENCE.dots]);
+    dots(group, model, count, grid, (index) => [first + index * DOT_PITCH, last.top + ascent + SENTENCE.dots]);
   }
 
-  function drawParagraph(group, model, vid, lines, ascent, grid) {
+  function drawParagraph(group, model, vid, lines, ascent, grid, count) {
     const x = lines.reduce((left, line) => Math.min(left, line.left), Infinity) - PARAGRAPH.left;
     const top = lines[0].top + ascent - PARAGRAPH.above;
     const bottom = lines[lines.length - 1].top + ascent + PARAGRAPH.below;
     stroke(group, { from: top, to: bottom, across: x, seed: vid, lead: PARAGRAPH.lead, trail: PARAGRAPH.trail, vertical: true, amp: 0.4 });
-    const first = (top + bottom) / 2 + PARAGRAPH.dotsDown - ((model.variants.length - 1) * DOT_PITCH) / 2;
-    dots(group, model, grid, (index) => [x - PARAGRAPH.dots, first + index * DOT_PITCH]);
+    const first = (top + bottom) / 2 + PARAGRAPH.dotsDown - ((count - 1) * DOT_PITCH) / 2;
+    dots(group, model, count, grid, (index) => [x - PARAGRAPH.dots, first + index * DOT_PITCH]);
   }
 
   // One range for every measurement: a live Range costs each later change to the text
@@ -195,9 +200,10 @@ export function createDecor({ svg, underlay, editor }) {
 
   function mark(vid, model, { scope, lines, ascent }, grid) {
     const group = el('g', { class: `mark ${scope}`, 'data-vid': vid, 'data-scope': scope });
-    if (scope === 'paragraph') drawParagraph(group, model, vid, lines, ascent, grid);
-    else if (scope === 'sentence') drawSentence(group, model, vid, lines, ascent, grid);
-    else drawWord(group, model, vid, lines, ascent, grid);
+    const count = dotsFor(vid, model);
+    if (scope === 'paragraph') drawParagraph(group, model, vid, lines, ascent, grid, count);
+    else if (scope === 'sentence') drawSentence(group, model, vid, lines, ascent, grid, count);
+    else drawWord(group, model, vid, lines, ascent, grid, count);
     return group;
   }
 
@@ -261,7 +267,7 @@ export function createDecor({ svg, underlay, editor }) {
       const layout = target && layoutOf(target, model, origin);
       if (!layout) continue;
       present.add(vid);
-      const key = `${layout.scope}|${model.variants.length}|${model.active}|${fixed(layout.ascent)}|${seating}|${layout.lines.map((line) => `${fixed(line.left)},${fixed(line.right)},${fixed(line.top)}`).join(';')}`;
+      const key = `${layout.scope}|${dotsFor(vid, model)}|${model.active}|${fixed(layout.ascent)}|${seating}|${layout.lines.map((line) => `${fixed(line.left)},${fixed(line.right)},${fixed(line.top)}`).join(';')}`;
       const was = drawn.get(vid);
       if (!was || was.key !== key) {
         const node = mark(vid, model, layout, grid);
@@ -320,6 +326,16 @@ export function createDecor({ svg, underlay, editor }) {
       const font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
       const boxes = lineBoxes(rectsOf(target));
       return boxes.map((box) => (boxes.length === 1 ? { ...box, font, text: target.textContent } : { ...box, font }));
+    },
+
+    /**
+     * The panel's list for group `vid` has `rows` rows: the group is given as many dots.
+     * Null when the panel has let go.
+     */
+    setRows(vid, rows = 0) {
+      if (vid === listed.vid && rows === listed.rows) return;
+      listed = { vid, rows };
+      schedule();
     },
 
     /** Tints the group with this id, as under the pointer; null for none. */

@@ -203,6 +203,13 @@ export function createEditor(root) {
   }
 
   function onBeforeInput(event) {
+    // WebKit sends typing to wherever the selection is, and the selection can still be in
+    // the text when the keyboard has been given to something else (the source view, over
+    // the page). Nothing is typed into the page unless the page has the keyboard.
+    if (document.activeElement !== root) {
+      event.preventDefault();
+      return;
+    }
     if (composing || event.isComposing) return; // an input method owns the text until it commits
     const type = event.inputType;
     if (type === 'historyUndo' || type === 'historyRedo') {
@@ -335,14 +342,30 @@ export function createEditor(root) {
     if (state.selection) select(state.selection.start, state.selection.end);
   }
 
+  /**
+   * Makes a step to undo out of something that is not a change to the document: the
+   * panel opening an empty row in its list. `meta` says what; whoever it belongs to hears
+   * of it in `history` and says so by setting `claim.taken`.
+   */
+  function mark(meta) {
+    history.record(snapshot(), { meta: { ...meta, mark: true } });
+  }
+
   function travel(direction) {
-    const entry = direction === 'undo' ? history.undo(snapshot()) : history.redo(snapshot());
-    if (!entry) return false;
-    emit('travel', { direction, meta: entry.meta }); // the page still shows what is about to change
-    restore(entry.state);
-    emit('history', { direction, meta: entry.meta });
-    emit('change', { label: direction });
-    return true;
+    let moved = false;
+    for (;;) {
+      const entry = direction === 'undo' ? history.undo(snapshot()) : history.redo(snapshot());
+      if (!entry) return moved;
+      moved = true;
+      emit('travel', { direction, meta: entry.meta }); // the page still shows what is about to change
+      restore(entry.state);
+      // A step that was only the interface's has to be taken by what made it. If that is
+      // no longer there, the step means nothing now, and this press goes on to the next.
+      const claim = { taken: !entry.meta?.mark };
+      emit('history', { direction, meta: entry.meta, claim });
+      emit('change', { label: direction });
+      if (claim.taken) return true;
+    }
   }
   const undo = () => travel('undo');
   const redo = () => travel('redo');
@@ -415,6 +438,11 @@ export function createEditor(root) {
     replace,
     undo,
     redo,
+    mark,
+    /** Forgets the latest step if `match(meta)` says it is the one meant (see History.dropLast). */
+    forget: (match) => history.dropLast(match),
+    /** Forgets every mark that `match(meta)` picks out (see History.dropAll). */
+    unmark: (match) => history.dropAll((meta) => Boolean(meta?.mark) && match(meta)),
 
     selection: () => readSelection(root),
     select,

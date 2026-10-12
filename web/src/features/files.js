@@ -5,7 +5,10 @@
 import { serialize, parse, suggestedName } from '../doc/format.js';
 import { sampleState, blankState } from '../sample.js';
 
-const SETTLE_MS = 250; // after the last change, before working out whether it is still one
+// After the last change, before working out whether there is anything to save and letting
+// the Save icon say so. In the clips the icon follows the document, both ways, 0.42 s after
+// each change.
+const SETTLE_MS = 420;
 const DRAFT_MS = 3000; // how often, at most, unsaved work is copied aside
 const RECOVERED = 'Recovered after Write_On quit unexpectedly. Save it to keep it.';
 
@@ -23,9 +26,13 @@ export function createFiles({ editor, ui, commands, native, tooltips }) {
 
   const asIs = () => serialize(editor.getState());
 
-  /** The Save icon and the shell both show whether there are unsaved changes. */
-  function tell() {
+  /** The Save icon says whether there is anything to save. */
+  function light() {
     saveButton.classList.toggle('is-on', dirty);
+  }
+
+  /** The shell knows at once whether there are unsaved changes: it may be asked to close. */
+  function tell() {
     const state = {
       dirty,
       name: suggestedName(editor.blocks),
@@ -43,6 +50,7 @@ export function createFiles({ editor, ui, commands, native, tooltips }) {
   // saved leaves nothing to save.
   function settle() {
     dirty = asIs() !== saved;
+    light();
     tell();
   }
 
@@ -85,6 +93,7 @@ export function createFiles({ editor, ui, commands, native, tooltips }) {
     // Recovered work is unsaved whatever it says: nothing on disk is known to match it.
     saved = start.kind === 'recovered' ? null : asIs();
     dirty = start.kind === 'recovered';
+    light();
     tell();
     if (start.kind === 'recovered') tooltips.say(saveButton, RECOVERED, 8000);
     else if (from?.note) tooltips.say(openButton, from.note, 8000);

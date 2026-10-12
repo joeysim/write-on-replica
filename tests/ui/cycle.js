@@ -45,13 +45,17 @@ t.equal(alternatives.hovered(), 'wb3nch1', 'the group under the pointer is the h
   t.near(box.bottom, base + 9.3, 0.4, 'tint reaches just under the underline');
 }
 
+// With no caret anywhere, as in the clip's first flip.
+getSelection().removeAllRanges();
+document.activeElement?.blur?.();
+await t.settle();
 await t.key('ArrowRight');
 t.equal(showing('wb3nch1'), 'easel', 'Right shows the next variant');
 t.assert(textOf(PARA).endsWith('Think of it as an easel for sentences.'), `the article follows the word: ${textOf(PARA).slice(-40)}`);
 t.equal(heard(), 'high', 'a change ticks high');
 {
   const caret = editor.selection();
-  t.assert(caret.collapsed && caret.start.block === PARA && caret.start.offset === textOf(PARA).indexOf('easel') + 5, 'the caret lands at the end of the swapped text');
+  t.assert(caret.collapsed && caret.start.block === PARA && caret.start.offset === textOf(PARA).indexOf('easel') + 5, 'with no caret in the text before, it lands at the end of the swapped text');
   t.equal(document.activeElement, editor.root, 'and the text has the focus');
   const running = editor.elementFor('wb3nch1').getAnimations();
   t.equal(running.length, 1, 'the new text blurs in');
@@ -87,13 +91,48 @@ await t.key('ArrowLeft');
 t.equal(showing('wb3nch1'), 'easel', 'out and back after a pause');
 t.equal(heard(), 'high high low', 'the variant showing after the pause is home now');
 
-// One undo step takes a burst of presses back; the article comes with it.
+// Which variant shows is not something to undo. In the clip three versions are tried after
+// a batch of suggestions, and one undo then takes the whole batch away: the trying was no
+// step of its own.
 await t.key('ArrowRight');
 t.assert(textOf(PARA).includes('as a sketchpad for'), 'showing the third again');
 heard();
+t.equal(editor.canUndo, false, 'flipping through the versions leaves nothing to undo');
 await t.key('z', { meta: true });
-t.assert(textOf(PARA).includes('as an easel for') || textOf(PARA).includes('as a workbench for'), `undo steps back through the variants: ${textOf(PARA).slice(-40)}`);
-t.equal(showing('wb3nch1'), textOf(PARA).includes('easel') ? 'easel' : 'workbench', 'group and text agree after undo');
+t.assert(textOf(PARA).includes('as a sketchpad for'), 'and undo leaves the version that is showing');
+
+// Where the caret is afterwards. In the group, it goes to the end of the new text; anywhere
+// else it stays among the words it was in (in the clip, eight flips of one word leave the
+// caret resting in another word of the same paragraph).
+{
+  const at = (word) => textOf(PARA).indexOf(word);
+  const flip = async () => { await hoverGroup('wb3nch1'); await t.key('ArrowRight'); };
+  t.equal(showing('wb3nch1'), 'sketchpad', 'the third version is showing');
+
+  editor.select({ block: PARA, offset: at('sketchpad') + 3 });
+  await t.settle();
+  await flip();
+  t.equal([showing('wb3nch1'), editor.selection().start], ['workbench', { block: PARA, offset: at('workbench') + 9 }], 'a caret inside the word goes to the end of the new one');
+
+  editor.select({ block: PARA, offset: at('sentences') + 4 });
+  await t.settle();
+  await flip();
+  t.equal([showing('wb3nch1'), editor.selection().start], ['easel', { block: PARA, offset: at('sentences') + 4 }], 'a caret later in the paragraph stays in its word, though the text before it changed length');
+
+  editor.select({ block: PARA, offset: at('paragraph') + 2 });
+  await t.settle();
+  await flip();
+  t.equal([showing('wb3nch1'), editor.selection().start], ['sketchpad', { block: PARA, offset: at('paragraph') + 2 }], 'a caret earlier in the paragraph stays where it was');
+
+  editor.select({ block: 5, offset: 7 });
+  await t.settle();
+  await flip();
+  t.equal([showing('wb3nch1'), editor.selection().start], ['workbench', { block: 5, offset: 7 }], 'and so does one in another paragraph');
+  t.equal(document.activeElement, editor.root, 'with the keyboard still in the text');
+  alternatives.activate('wb3nch1', 2);
+  await away();
+  heard();
+}
 
 // --- whose the arrow keys are ---------------------------------------------------------------------
 
@@ -229,6 +268,8 @@ await hoverGroup('t1tle01');
   t.near(box.right, rect.right - 1, 0.3, 'and ends with it');
   t.near(box.bottom, base + 13, 0.4, 'and reaches under the lower underline');
 }
+editor.select({ block: 1, offset: 5 }); // a caret in the heading, as after a click on it
+await t.settle();
 await t.key('ArrowRight');
 t.equal(textOf(1), 'Say it more than one way', 'the heading shows its next version');
 t.equal(editor.blocks[1].kind, 'h', 'and is still a heading');
@@ -251,6 +292,8 @@ await away();
   t.near(box.right, r.right, 0.3, 'to its right');
   t.near(box.top, r.top, 0.3, 'from its top');
   t.near(box.bottom, r.bottom, 0.3, 'to its bottom');
+  editor.select({ block: index, offset: 12 }); // a caret in the paragraph, as after a click in it
+  await t.settle();
   await t.key('ArrowDown');
   t.assert(textOf(index).startsWith('Unsure about a line?'), 'Down shows the next version of the paragraph');
   t.equal(editor.selection().start, { block: index, offset: textOf(index).length }, 'with the caret at the end of the paragraph');

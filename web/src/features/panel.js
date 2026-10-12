@@ -13,7 +13,7 @@ import { locateGroup } from '../doc/blocks.js';
 const ROBOT =
   '<svg viewBox="20 -11 13 12" aria-hidden="true"><rect x="22.4" y="-6" width="8.2" height="6" rx="1.6" /><path d="M26.4 -8.5V-6" /><circle class="solid" cx="26.4" cy="-8.5" r=".8" /><circle class="solid" cx="24.9" cy="-3.1" r=".75" /><circle class="solid" cx="27.9" cy="-3.1" r=".75" /></svg>';
 
-export function createPanel({ editor, ui, alternatives, commands }) {
+export function createPanel({ editor, ui, alternatives, commands, decor }) {
   const root = document.getElementById('panel');
   const list = root.querySelector('.rows');
   const tabs = [...root.querySelectorAll('.tab')];
@@ -23,10 +23,15 @@ export function createPanel({ editor, ui, alternatives, commands }) {
   const session = new ToneSession({ idleMs: Infinity });
 
   let vid = null; // the target group
+  let heldId = null; // the group now held for the panel (the target, until it is let go)
   let spot = null; // where in the text the target was asked for; tabs retarget around it
   let draft = false; // there is an empty row at the end that is not a variant yet
   let before = null; // the text that was showing before the active variant
   let own = false; // the change to the document now under way is the panel's own
+  // An empty row is a step to undo, as it is in the original: undo takes the row away and
+  // nothing else. These tell the empty row's own step from any other being undone.
+  const isRowStep = (meta, of = vid) => Boolean(meta?.mark) && meta.label === 'row' && meta.vid === of;
+  let rowStep = false; // the step now being undone or redone is an empty row's
   // The AI's part of the list (see features/ai-alternatives.js): the empty row asking with
   // its `??`, and suggestions that have arrived but are not variants until the batch is in.
   let asking = false;
@@ -87,6 +92,7 @@ export function createPanel({ editor, ui, alternatives, commands }) {
     if (!model) return;
     const count = model.variants.length;
     const wanted = count + arrived.length + (draft ? 1 : 0);
+    decor.setRows(vid, wanted); // the word in the page has a dot for each row
     while (list.children.length < wanted) list.append(makeRow());
     while (list.children.length > wanted) list.lastElementChild.remove();
     rows().forEach((row, index) => {
@@ -161,8 +167,14 @@ export function createPanel({ editor, ui, alternatives, commands }) {
     const index = row ? indexOf(row) : -1;
     if (index >= 0 && model.variants.length === 1) return; // the only variant is not a request
     act(() => {
-      // A moment ago the row was a variant reading "?".
-      if (index >= 0) alternatives.remove(vid, index, { session, show: before });
+      if (index >= 0) {
+        // A moment ago the row was a variant reading "?". If that is all it ever was (the
+        // first of the two marks typed into the empty row), it was never an alternative:
+        // it goes without a step, and the step that made it is forgotten, so that undo
+        // after the answer does not bring a "?" into the page.
+        const passing = model.variants[index] === '?' && editor.forget((meta) => meta?.label === 'add alternative');
+        alternatives.remove(vid, index, { session, show: before, record: !passing });
+      }
       draft = true;
       asking = true;
     });
@@ -228,16 +240,34 @@ export function createPanel({ editor, ui, alternatives, commands }) {
 
   // --- targets --------------------------------------------------------------------------------
 
+  /**
+   * Lets go of the target. One that nothing was added to is plain text again. The steps its
+   * empty rows made go with the list they were rows of: looking at a word leaves nothing
+   * to undo.
+   */
+  function letGo() {
+    const id = heldId;
+    heldId = null;
+    if (id) editor.unmark((meta) => isRowStep(meta, id));
+    quietly(() => alternatives.release());
+  }
+
   /** Takes `target` as the group to work on and puts the caret in its list. */
   function take(target) {
     callOff();
+    letGo();
     vid = quietly(() => alternatives.adopt(target));
+    heldId = vid;
     const model = group();
     session.begin(model.variants[model.active]);
     before = null;
     draft = model.variants.length === 1; // a new target waits for its first alternative
+    if (draft) editor.mark({ label: 'row', vid });
+    const moved = list.children.length > 0; // the panel was showing another target
     list.replaceChildren();
     sync();
+    // The rows of the next target come up out of the dark, as in the clip.
+    if (moved) list.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 130, easing: 'linear' });
     focusRow(draft ? model.variants.length : model.active);
   }
 
@@ -269,7 +299,8 @@ export function createPanel({ editor, ui, alternatives, commands }) {
     spot = null;
     draft = false;
     session.end();
-    quietly(() => alternatives.release());
+    letGo();
+    decor.setRows(null);
     focusStyle.textContent = '';
     list.replaceChildren();
     ui.set({ panel: false });
@@ -282,7 +313,7 @@ export function createPanel({ editor, ui, alternatives, commands }) {
     const model = group();
     if (!model || !spot || model.scope === scope) return;
     // A target nothing was added to gives way; a real group stays the answer inside itself.
-    quietly(() => alternatives.release());
+    letGo();
     const target = alternatives.targetAt(spot, scope) ?? alternatives.targetAt(spot);
     if (target) take(target);
     else close();
@@ -319,6 +350,7 @@ export function createPanel({ editor, ui, alternatives, commands }) {
       event.preventDefault();
       if (!draft) {
         draft = true;
+        editor.mark({ label: 'row', vid });
         sync();
       }
       focusRow(rows().length - 1);
@@ -350,16 +382,30 @@ export function createPanel({ editor, ui, alternatives, commands }) {
     take(target);
   });
 
+  // Undo and redo of the empty row's own step: the row goes, or comes back, and nothing else.
+  editor.on('history', ({ direction, meta, claim }) => {
+    rowStep = Boolean(vid) && isRowStep(meta);
+    if (!rowStep) return;
+    claim.taken = true;
+    draft = direction === 'redo';
+  });
+
   // The document changed some other way: undo, an edit in the page, cycling under the pointer.
-  editor.on('change', () => {
+  editor.on('change', ({ label }) => {
     if (!vid || own) return;
     if (!group()) {
       close();
       return;
     }
+    // Undo that leaves the target with nothing but itself (a batch of suggestions taken
+    // back) leaves it as it was when it was taken: waiting, with an empty row.
+    const travelled = label === 'undo' || label === 'redo';
+    if (travelled && !rowStep && group().variants.length === 1) draft = true;
     const focused = rows().findIndex((row) => row.contains(document.activeElement));
     sync(true);
-    if (focused >= 0) focusRow(Math.min(focused, rows().length - 1));
+    if (travelled && rowStep) focusRow(draft ? rows().length - 1 : group().active);
+    else if (focused >= 0) focusRow(Math.min(focused, rows().length - 1));
+    rowStep = false;
   });
 
   // Read mode is just the text: going into it puts the panel away.

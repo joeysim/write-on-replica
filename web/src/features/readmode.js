@@ -31,13 +31,16 @@ export function initReadMode({ editor, ui, commands }) {
     whole = { words, chars };
   }
 
+  // "1 word 1 char selected", as the clips have it; "0 words".
+  const some = (count, one) => `${count} ${one}${count === 1 ? '' : 's'}`;
+
   function show() {
     const selection = editor.selection();
     if (selection && !selection.collapsed) {
       const text = extractText(editor.blocks, selection.start, selection.end);
-      wordcount.textContent = `${countWords(text)} words ${text.replace(/\n/g, '').length} chars selected`;
+      wordcount.textContent = `${some(countWords(text), 'word')} ${some(text.replace(/\n/g, '').length, 'char')} selected`;
     } else {
-      wordcount.textContent = `${whole.words} words ${whole.chars} chars`;
+      wordcount.textContent = `${some(whole.words, 'word')} ${some(whole.chars, 'char')}`;
     }
   }
 

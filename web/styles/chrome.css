@@ -13,10 +13,7 @@
   color: var(--dim-icon);
   font: inherit;
   cursor: pointer;
-  transition:
-    color 150ms ease,
-    opacity 200ms ease,
-    visibility 0s linear 0s;
+  transition: color 150ms ease;
 }
 /* A kinder target than the drawing itself. */
 .control::after {
@@ -37,15 +34,12 @@ body.is-booting .control {
   visibility: hidden;
 }
 
-/* Read mode: everything but the word count steps back. */
+/* Read mode: everything but the word count steps back, and comes back, at once. In the
+   clip the controls are at full strength in the frame after the click on the word count. */
 body.is-read .chrome {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition:
-    color 150ms ease,
-    opacity 200ms ease,
-    visibility 0s linear 200ms;
 }
 
 .control svg {
@@ -109,6 +103,8 @@ body.is-read .chrome {
 #save {
   left: 21px;
   bottom: 22px;
+  /* Lit while there is something to save; it changes over 0.13 s, as in the clips. */
+  transition: color 130ms linear;
 }
 #open {
   left: 55px;
