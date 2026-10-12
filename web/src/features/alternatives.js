@@ -33,9 +33,13 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
   const hoverSession = new ToneSession({ idleMs: HOVER_IDLE_MS });
   let hovered = null; // id of the group under the pointer
   let pointer = null; // where the pointer last was in the window, or null when it has left
-  // Keys act on the hovered group only if the pointer came onto it since the last click
-  // or typed character, so clicking into a group to edit it leaves the caret keys alone.
-  let armed = false;
+  // The arrows are the hovered group's while the pointer is what the writer last used: it
+  // has moved or pressed since the last character was typed. The group is tinted for as long.
+  let live = false;
+  // Delete is more careful. It removes a variant only while the writer is looking through
+  // them: the pointer has come onto the group, or an arrow has just flipped it, and there
+  // has been no press and no typing since.
+  let browsing = false;
   // A group needs two variants, except the one the panel is looking at, which starts with
   // only the text that was there. This is its id.
   let held = null;
@@ -312,12 +316,23 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
 
   // --- under the pointer -----------------------------------------------------------------------
 
-  function attend(vid) {
-    if (vid === hovered) return;
-    hovered = vid;
-    armed = vid !== null;
-    hoverSession.end();
-    decor.setHover(vid);
+  /** The pointer is on group `vid`, or on none: it has moved there, or pressed there. */
+  function point(vid) {
+    if (vid !== hovered) {
+      hovered = vid;
+      hoverSession.end();
+      browsing = vid !== null;
+      if (vid) sound.prepare?.(); // an arrow, and its tick, may be next
+    }
+    live = vid !== null;
+    decor.setHover(live ? hovered : null);
+  }
+
+  /** The keyboard is at work in the text: the keys are the text's until the pointer moves. */
+  function yieldKeys() {
+    live = false;
+    browsing = false;
+    decor.setHover(null);
   }
 
   function groupUnder(node) {
@@ -326,25 +341,61 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
     return editor.groups[element.dataset.vid] ? element.dataset.vid : null;
   }
 
+  const groupAt = (event) => (ui.get('read') ? null : groupUnder(event.target));
+
   document.addEventListener('mousemove', (event) => {
+    // WebKit repeats the last move when the page changes under a pointer at rest. Only a
+    // move that goes somewhere is the pointer at work; a shorter variant can leave the
+    // pointer beside its word, and the keys are still the word's.
+    if (pointer && pointer.x === event.clientX && pointer.y === event.clientY) return;
     pointer = { x: event.clientX, y: event.clientY };
-    attend(ui.get('read') ? null : groupUnder(event.target));
+    point(groupAt(event));
   });
+
+  // The page can also scroll under a pointer at rest. What was under it is no longer. What
+  // has come under it was not pointed at, so the keys are not its own until the pointer
+  // moves: walking the caret down a long piece must not start flipping whatever passes
+  // under a pointer left on the page. Scrolling with the pointer's own wheel is different:
+  // that is the pointer at work, and what it brings under itself is pointed at.
+  const WHEEL_MS = 250; // a scroll this soon after the wheel turned is the wheel's
+  let wheeled = -Infinity;
+  let looking = false;
+  document.addEventListener('wheel', () => { wheeled = performance.now(); }, { passive: true });
+  document.getElementById('scroll').addEventListener(
+    'scroll',
+    () => {
+      if (!pointer || looking) return;
+      looking = true;
+      requestAnimationFrame(() => {
+        looking = false;
+        if (!pointer) return;
+        const under = ui.get('read') ? null : groupUnder(document.elementFromPoint(pointer.x, pointer.y));
+        if (performance.now() - wheeled < WHEEL_MS) {
+          point(under);
+        } else if (under !== hovered) {
+          hovered = under;
+          hoverSession.end();
+          yieldKeys();
+        }
+      });
+    },
+    { passive: true },
+  );
   document.documentElement.addEventListener('mouseleave', () => {
     pointer = null;
-    attend(null);
+    point(null);
   });
-  document.addEventListener('mousedown', () => {
-    armed = false;
+  document.addEventListener('mousedown', (event) => {
+    pointer = { x: event.clientX, y: event.clientY };
+    point(groupAt(event));
+    browsing = false;
   });
-  editor.root.addEventListener('beforeinput', () => {
-    armed = false;
-  });
+  editor.root.addEventListener('beforeinput', yieldKeys);
   ui.on((flags) => {
-    if (flags.read) attend(null);
+    if (flags.read) point(null);
   });
   editor.on('change', () => {
-    if (hovered && !editor.groups[hovered]) attend(null);
+    if (hovered && !editor.groups[hovered]) point(null);
   });
 
   document.addEventListener(
@@ -352,22 +403,27 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
     (event) => {
       const direction = STEP[event.key];
       const destroys = event.key === 'Delete' || event.key === 'Backspace';
-      if ((!direction && !destroys) || !hovered || !armed || ui.get('read')) return;
+      if ((!direction && !destroys) || !hovered || ui.get('read')) return;
+      if (direction ? !live : !browsing) return;
       // While something else has the focus (a panel row, a dialog) the keys are its own.
       const focus = document.activeElement;
       if (focus && focus !== document.body && focus !== editor.root) return;
-      // With a modifier held, or with text selected, the key is the text's: it extends the
-      // selection, moves by a word, closes the selection up, deletes what is selected. Like a
-      // typed character it also means the writer is at work in the text, so the word under
-      // the pointer is left alone until the pointer comes back onto it.
+      // With a modifier held the key is the text's: it extends the selection, moves by a
+      // word, deletes one. That is the keyboard at work in the text, as typing is.
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {
+        yieldKeys();
+        return;
+      }
+      // With text selected the key is the text's too, this once: it closes the selection
+      // up, or deletes what is selected.
       const selection = editor.selection();
-      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey || (selection && !selection.collapsed)) {
-        armed = false;
+      if (selection && !selection.collapsed) {
+        browsing = false;
         return;
       }
       event.preventDefault();
       if (destroys) blowUp(hovered);
-      else cycle(hovered, direction);
+      else if (cycle(hovered, direction) >= 0) browsing = true;
     },
     true,
   );
@@ -388,7 +444,7 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
     dissolveIfSingle,
     /** The id of the group under the pointer, or null. */
     hovered: () => hovered,
-    /** Whether keys act on the hovered group just now. */
-    armed: () => armed && hovered !== null,
+    /** Whether the arrow keys act on the hovered group just now. */
+    armed: () => live && hovered !== null,
   };
 }

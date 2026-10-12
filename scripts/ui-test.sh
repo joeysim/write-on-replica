@@ -2,6 +2,7 @@
 # Run one UI scenario from tests/ui through the built app's harness, in the real web view.
 #   scripts/ui-test.sh <scenario> [--zoom 2] [--size 1548x976] [--ai mock] [--timeout 60]
 # Snapshots and result.json land in build/ui/<scenario>/. Exit status is the scenario's.
+# WRITEON_APP names the bundle to run, if not build/Write_On.app.
 # A scenario can ask for launch options of its own on its first line:
 #   // launch: --setting read=false
 set -euo pipefail
@@ -9,7 +10,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT" # so that a scenario's launch options can name paths in the project
 NAME="${1:?usage: ui-test.sh <scenario> [options]}"
 shift
-BIN="$ROOT/build/Write_On.app/Contents/MacOS/WriteOn"
+BIN="${WRITEON_APP:-$ROOT/build/Write_On.app}/Contents/MacOS/WriteOn"
 SCENARIO="$ROOT/tests/ui/$NAME.js"
 [ -x "$BIN" ] || { echo "ui-test: build the app first (scripts/build-app.sh)" >&2; exit 2; }
 [ -f "$SCENARIO" ] || { echo "ui-test: no scenario $SCENARIO" >&2; exit 2; }

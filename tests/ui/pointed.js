@@ -1,9 +1,10 @@
 // What the Alternatives shortcuts act on (design spec 6.5). They go by the caret or the
 // selection, as in the clip, where the pointer rests on one word, the caret is in another, and
-// the panel opens on the caret's. When the text has neither caret nor selection (a window just
-// opened, or the keyboard is somewhere else), they go by the pointer: the group, or the word,
-// it is resting on. (Reported from the first real use: with the pointer on an underlined word
-// and no caret in the text, the shortcut did nothing.)
+// the panel opens on the caret's. When the caret is on no word (a window just opened has it
+// on the blank first line), or the text has no caret at all (the keyboard is somewhere else),
+// they go by the pointer: the group, or the word, it is resting on. (Reported from the first
+// real use: with the pointer on an underlined word and no caret in a word, the shortcut did
+// nothing.)
 const { editor, ui } = window.writeOn;
 ui.set({ read: false });
 await document.fonts.ready;
@@ -23,12 +24,20 @@ const noCaret = async () => {
   await t.settle();
 };
 
-t.equal(editor.selection(), null, 'in a window just opened there is no caret in the text');
+t.equal(editor.selection()?.start, { block: 0, offset: 0 }, 'in a window just opened the caret is on the blank first line, on no word');
 
 // The pointer on a word that has alternatives.
 await onGroup();
 await t.key('a', { ctrl: true, shift: true });
 await t.until(() => ui.get('panel'), 1500, 'Ctrl+Shift+A to open the panel on the word under the pointer');
+t.equal(rows(), ['keeps', 'remembers', 'holds on to'], 'with its alternatives');
+await shut();
+
+// The same with no caret in the text at all.
+await noCaret();
+await onGroup();
+await t.key('a', { ctrl: true, shift: true });
+await t.until(() => ui.get('panel'), 1500, 'Ctrl+Shift+A to open the panel on the word under the pointer, with no caret');
 t.equal(rows(), ['keeps', 'remembers', 'holds on to'], 'with its alternatives');
 await shut();
 

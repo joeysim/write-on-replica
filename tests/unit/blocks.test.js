@@ -374,3 +374,61 @@ test('showing a variant of a group that is not in the document changes nothing',
   assert.equal(blocks, start);
   assert.equal(end, null);
 });
+
+// --- what normalising leaves alone ------------------------------------------------------------
+// A block that needed nothing comes back as the same object. What is kept per block (how it
+// renders, its word count, an undo step's copy of it) then lasts across an edit elsewhere.
+
+test('a block that was in order already comes back as the same object', () => {
+  const groups = { aaaaaaa: word('word', ['term']), ppppppp: para('Para.', ['Other.']) };
+  const first = normaliseBlocks(B('<p>Plain.</p><p><br></p><p>A <span data-vid="aaaaaaa">word</span>.</p><p data-vid="ppppppp">Para.</p><p># Heading</p>'), groups).blocks;
+  const again = normaliseBlocks([...first], groups).blocks;
+  assert.equal(again.length, first.length);
+  again.forEach((block, index) => assert.equal(block, first[index], `block ${index} is the same object`));
+});
+
+test('an edit to one block leaves the others the same objects', () => {
+  const groups = { aaaaaaa: word('word', ['term']) };
+  const first = normaliseBlocks(B('<p>One.</p><p>A <span data-vid="aaaaaaa">word</span>.</p><p>Three.</p>'), groups).blocks;
+  const edited = [...first];
+  edited[2] = { kind: 'p', runs: [{ text: 'Three!' }] };
+  const after = normaliseBlocks(edited, groups).blocks;
+  assert.equal(after[0], first[0]);
+  assert.equal(after[1], first[1]);
+  assert.notEqual(after[2], first[2]);
+  assert.equal(textOf(after[2]), 'Three!');
+});
+
+test('a block that is put in order is a new one, and the one handed in is not changed', () => {
+  const unmerged = { kind: 'p', runs: [{ text: 'Two ' }, { text: 'pieces.' }] };
+  const { blocks } = normaliseBlocks([unmerged], {});
+  assert.deepEqual(blocks, [{ kind: 'p', runs: [{ text: 'Two pieces.' }] }]);
+  assert.deepEqual(unmerged, { kind: 'p', runs: [{ text: 'Two ' }, { text: 'pieces.' }] });
+});
+
+test('blocks left alone before do not hide a second copy of a group later', () => {
+  const groups = { aaaaaaa: word('word', ['term']) };
+  const first = normaliseBlocks(B('<p>Plain.</p><p>A <span data-vid="aaaaaaa">word</span>.</p><p>More.</p>'), groups);
+  // As after a line is split in the middle of the group and its second half typed over.
+  const copied = [...first.blocks, { kind: 'p', runs: [{ text: 'word', vid: 'aaaaaaa' }] }];
+  const after = normaliseBlocks(copied, first.groups);
+  assert.equal(after.blocks[1], first.blocks[1], 'the first place keeps the group');
+  assert.deepEqual(after.blocks[3], { kind: 'p', runs: [{ text: 'word' }] }, 'the later copy loses its mark');
+  assert.deepEqual(Object.keys(after.groups), ['aaaaaaa']);
+});
+
+test('a group that is gone takes its mark with it from a block that was in order', () => {
+  const groups = { aaaaaaa: word('word', ['term']) };
+  const first = normaliseBlocks(B('<p>A <span data-vid="aaaaaaa">word</span>.</p>'), groups).blocks;
+  const after = normaliseBlocks([...first], {});
+  assert.deepEqual(after.blocks, [{ kind: 'p', runs: [{ text: 'A word.' }] }]);
+  assert.deepEqual(after.groups, {});
+});
+
+test('a line that comes to start with a heading mark is promoted though its neighbours are left alone', () => {
+  const first = normaliseBlocks(B('<p>Title</p><p>Text.</p>'), {}).blocks;
+  const typed = [{ kind: 'p', runs: [{ text: '# Title' }] }, first[1]];
+  const after = normaliseBlocks(typed, {}).blocks;
+  assert.deepEqual(after[0], { kind: 'h', level: 1, runs: [{ text: 'Title' }] });
+  assert.equal(after[1], first[1]);
+});

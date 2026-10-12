@@ -75,6 +75,9 @@ export function createFiles({ editor, ui, commands, native, tooltips }) {
     editor.setState(from?.state ?? (start.kind === 'welcome' ? sampleState() : blankState()));
     loading = false;
     scroller.scrollTop = 0;
+    // The keyboard is in the text from the start: a window just opened can be typed in.
+    editor.focus();
+    editor.select({ block: 0, offset: 0 });
     clearTimeout(settling);
     clearTimeout(drafting);
     drafting = 0;

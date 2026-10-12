@@ -6,6 +6,9 @@
   overflow-x: hidden;
   overflow-y: auto;
   scrollbar-width: none;
+  /* When the page scrolls to keep the caret in view, it keeps it on lines that can be read:
+     a line clear of the fade at the top, two at the bottom. */
+  scroll-padding-block: 132px 168px;
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 0,
@@ -104,11 +107,12 @@ body:not(.is-alternates) #decor {
 #decor .paragraph .line {
   stroke-width: 2;
 }
-/* One dot per variant: a ring, filled for the one that is showing. */
+/* One dot per variant: a ring, filled for the one that is showing. The ring's line is one
+   pixel of the display, which editor/decor.js works out. */
 #decor .dot {
   fill: none;
   stroke: var(--ring);
-  stroke-width: 0.5;
+  stroke-width: var(--ring-line, 0.5);
 }
 #decor .dot.active {
   fill: var(--dot);

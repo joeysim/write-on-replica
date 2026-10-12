@@ -174,6 +174,28 @@ final class UITestHarness {
             try self?.sendKey(params)
             return nil
         })
+        // test.timed { key, … } or { type, x, y, … } -> { ms }: sends the key or mouse event
+        // and answers when WebKit has presented the frame that shows what it did, with how
+        // long that took, by this process's clock. For measuring, not for checking.
+        bridge.on("test.timed") { [weak self] params, reply in
+            guard let self else { return }
+            let began = CACurrentMediaTime()
+            do {
+                if params["key"] != nil { try self.sendKey(params) } else { try self.sendMouse(params) }
+            } catch {
+                return reply(.failure(error as? Bridge.Failure ?? Bridge.Failure(error.localizedDescription)))
+            }
+            self.afterPresentation { reply(.success(["ms": (CACurrentMediaTime() - began) * 1000] as [String: Any])) }
+        }
+        // test.presented -> {}: answers once WebKit has presented the page as it is now.
+        bridge.on("test.presented") { [weak self] _, reply in
+            self?.afterPresentation { reply(.success([:] as [String: Any])) }
+        }
+        // test.metrics -> { app, web?, gpu?, network?, sinceLaunchMs, readyMs }: memory and
+        // processor time of this process and of WebKit's processes working for it.
+        bridge.on("test.metrics", sync: { [weak self] _ in
+            self?.metrics()
+        })
         bridge.on("test.writeFile", sync: { [weak self] params in
             guard let self, let name = params["name"] as? String, let base64 = params["base64"] as? String,
                   let data = Data(base64Encoded: base64), !name.contains("/")
@@ -610,6 +632,57 @@ final class UITestHarness {
         }
     }
 
+    // MARK: Measuring
+
+    /// Runs `done` when the web process has drawn the page as it now is and this process
+    /// has taken that drawing in: the last step that is WebKit's before the window server.
+    private func afterPresentation(_ done: @escaping () -> Void) {
+        let selector = NSSelectorFromString("_doAfterNextPresentationUpdate:")
+        guard controller.webView.responds(to: selector) else { return DispatchQueue.main.async(execute: done) }
+        let block: @convention(block) () -> Void = done
+        controller.webView.perform(selector, with: unsafeBitCast(block, to: AnyObject.self))
+    }
+
+    private func usage(of pid: pid_t) -> [String: Any]? {
+        guard pid > 0 else { return nil }
+        var info = rusage_info_v4()
+        let result = withUnsafeMutablePointer(to: &info) { pointer in
+            pointer.withMemoryRebound(to: rusage_info_t?.self, capacity: 1) { proc_pid_rusage(pid, RUSAGE_INFO_V4, $0) }
+        }
+        guard result == 0 else { return nil }
+        var timebase = mach_timebase_info_data_t()
+        mach_timebase_info(&timebase)
+        let nanoseconds = Double(info.ri_user_time + info.ri_system_time) * Double(timebase.numer) / Double(timebase.denom)
+        return ["pid": Int(pid), "footprintMB": Double(info.ri_phys_footprint) / 1_048_576, "cpuMs": nanoseconds / 1_000_000]
+    }
+
+    private func metrics() -> [String: Any] {
+        func pid(_ object: NSObject, _ name: String) -> pid_t {
+            guard object.responds(to: NSSelectorFromString(name)) else { return 0 }
+            return (object.value(forKey: name) as? NSNumber)?.int32Value ?? 0
+        }
+        let webView = controller.webView
+        var found: [String: Any] = [
+            "sinceLaunchMs": Date().timeIntervalSince(Self.launched) * 1000,
+            "readyMs": (controller.readyAt ?? Date()).timeIntervalSince(Self.launched) * 1000,
+        ]
+        found["app"] = usage(of: ProcessInfo.processInfo.processIdentifier)
+        found["web"] = usage(of: pid(webView, "_webProcessIdentifier"))
+        found["gpu"] = usage(of: pid(webView, "_gpuProcessIdentifier"))
+        found["network"] = usage(of: pid(webView.configuration.websiteDataStore, "_networkProcessIdentifier"))
+        return found
+    }
+
+    /// When this process started, as nearly as it can tell.
+    static let launched: Date = {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var name: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, ProcessInfo.processInfo.processIdentifier]
+        guard sysctl(&name, 4, &info, &size, nil, 0) == 0 else { return Date() }
+        let began = info.kp_proc.p_starttime
+        return Date(timeIntervalSince1970: Double(began.tv_sec) + Double(began.tv_usec) / 1_000_000)
+    }()
+
     // MARK: Native input
 
     private func modifiers(_ params: [String: Any]) -> NSEvent.ModifierFlags {
@@ -634,6 +707,21 @@ final class UITestHarness {
         let x = number(params["x"]), y = number(params["y"])
         let inView = NSPoint(x: x, y: webView.isFlipped ? y : Double(webView.bounds.height) - y)
         let location = webView.convert(inView, to: nil)
+
+        if type == "wheel" {
+            // A turn of the wheel by `dy` px (positive scrolls the page down), with the
+            // pointer at x, y. An event made this way belongs to no window, and AppKit then
+            // reads its place as one on the first screen, counted from the top: so that is
+            // where the place in the window is written. WebKit's own test runner does the same.
+            guard let made = CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: Int32(-number(params["dy"])), wheel2: 0, wheel3: 0) else {
+                throw Bridge.Failure("could not build the wheel event")
+            }
+            let screenHeight = NSScreen.screens.first?.frame.height ?? 0
+            made.location = CGPoint(x: location.x, y: screenHeight - location.y)
+            guard let event = NSEvent(cgEvent: made) else { throw Bridge.Failure("could not build the wheel event") }
+            webView.scrollWheel(with: event)
+            return
+        }
 
         let eventType: NSEvent.EventType
         switch (type, button) {
@@ -660,11 +748,16 @@ final class UITestHarness {
         ) else { throw Bridge.Failure("could not build the mouse event") }
 
         // Handed straight to the web view: a locked Mac has no key window for events to go
-        // through. Presses, releases and drags arrive in the page this way. Plain moves do
-        // not (WebKit drops them in this state), so scenarios hover with DOM events instead;
-        // see `hover` in tests/ui/_harness.js.
+        // through. Presses, releases and drags arrive in the page this way. A plain move
+        // does not: WebKit drops it unless the pointer really is over the view. Its own
+        // test runner's way in does deliver it, and from there on it is a real move: WebKit
+        // finds what is under it, keeps :hover and the cursor, and remembers where the
+        // pointer is for the moves it repeats when the page changes beneath it.
         switch eventType {
-        case .mouseMoved: webView.mouseMoved(with: event)
+        case .mouseMoved:
+            let simulate = NSSelectorFromString("_simulateMouseMove:")
+            guard webView.responds(to: simulate) else { throw Bridge.Failure("this WebKit cannot be sent a pointer move") }
+            webView.perform(simulate, with: event)
         case .leftMouseDragged: webView.mouseDragged(with: event)
         case .leftMouseDown: webView.mouseDown(with: event)
         case .leftMouseUp: webView.mouseUp(with: event)

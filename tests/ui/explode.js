@@ -180,6 +180,23 @@ sounds();
   t.equal(textOf(PARA), before, 'which undo restores');
   t.equal(sounds(), '', 'without a thump: that undo was not of a blown-up alternative');
 }
+// Flipping the word with an arrow is looking through its alternatives again, and Backspace
+// then removes the one that shows.
+{
+  const r = editor.elementFor('wb3nch1').getClientRects()[0];
+  await t.click(r.left + 14, r.top + r.height / 2);
+  await t.key('ArrowDown');
+  const flipped = editor.groups.wb3nch1.variants[editor.groups.wb3nch1.active];
+  sounds();
+  await t.key('Backspace');
+  t.equal(editor.groups.wb3nch1.variants.includes(flipped), false, 'after an arrow has flipped the word, Backspace removes the alternative showing');
+  t.equal(sounds(), 'boom', 'with a boom');
+  await t.key('z', { meta: true });
+  await t.wait(500);
+  await t.key('z', { meta: true });
+  t.equal(editor.groups.wb3nch1.variants.length, 3, 'undo puts it back');
+  sounds();
+}
 // With a modifier held it is not this command.
 await away();
 await hoverGroup('wb3nch1');

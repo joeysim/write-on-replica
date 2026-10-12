@@ -10,13 +10,13 @@ const SVG = 'http://www.w3.org/2000/svg';
 
 // Measured from the clips, in px. Heights are from the text baseline, downwards.
 const DOT_PITCH = 5; // a 3px dot and 2px of air
-const DOT = 1.5; // radius of the filled dot
-const RING = 1.25; // radius of a ring's centre line; the stroke brings it to 3px across
+const DOT_SIZE = 3; // across, for the filled dot and for a ring with its line
+const RING_LINE = 0.5; // one pixel of the display the clips were made on
 // `lead` and `trail` are the lengths over which a stroke fades in and out, like a pen
 // touching down and lifting off.
 const WORD = { line: 3.8, dots: 7.9, lead: 6, trail: 7 };
 const SENTENCE = { line: 9.8, dots: 9.05, gap: 2.2, lead: 18, trail: 2 };
-const PARAGRAPH = { left: 19.1, above: 18.2, below: 3.85, dots: 5.65, dotsDown: 0.6, dot: 1.6, lead: 7, trail: 7 };
+const PARAGRAPH = { left: 19.1, above: 18.2, below: 3.85, dots: 5.65, dotsDown: 0.6, lead: 7, trail: 7 };
 // The tint under a hovered group: how far it reaches past the text at each end, above and
 // below the baseline, and the lengths over which its ends fade.
 const TINT = {
@@ -29,6 +29,26 @@ const el = (name, attributes = {}) => {
   for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, String(value));
   return node;
 };
+
+/**
+ * Where dots go on a display with `ratio` pixels to the px, for marks drawn from `origin`.
+ * A dot is three px across. Drawn between the display's pixels it is smeared into its
+ * neighbours, and on a display with one pixel to the px it can hardly be seen; so each dot
+ * is seated with its edges on pixel edges, and a ring's line is never thinner than a pixel.
+ */
+function dotGrid(origin, ratio) {
+  const whole = (length) => Math.max(1, Math.round(length * ratio)) / ratio;
+  const size = whole(DOT_SIZE);
+  const line = Math.max(RING_LINE, 1 / ratio);
+  const seat = (centre, from) => Math.round((from + centre - size / 2) * ratio) / ratio + size / 2 - from;
+  return {
+    line,
+    filled: size / 2,
+    ring: (size - line) / 2, // radius of the ring's centre line
+    x: (centre) => seat(centre, origin.left),
+    y: (centre) => seat(centre, origin.top),
+  };
+}
 
 /** How far below the top of an inline box its text baseline sits, for an element's font. */
 function measureAscent(source) {
@@ -71,14 +91,19 @@ function lineBoxes(rects) {
  * the text and the underlay below it.
  */
 export function createDecor({ svg, underlay, editor }) {
-  const ascents = new Map(); // font -> ascent
+  const ascents = new Map(); // kind of line -> ascent
+  // The marks as they stand, by group: { key, node }. A mark is drawn again only when its
+  // key changes, which is everything its shape depends on. Most keystrokes move nothing.
+  const drawn = new Map();
+  let tintKey = '';
   let queued = false;
   let serial = 0;
   let hovered = null; // id of the group to tint
 
+  /** The page has two fonts for text, a heading's and a paragraph's. */
   function ascentOf(element) {
-    const style = getComputedStyle(element);
-    const key = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    const line = element.tagName === 'P' ? element : element.closest('p');
+    const key = line?.hasAttribute('data-h') ? 'heading' : 'text';
     if (!ascents.has(key)) ascents.set(key, measureAscent(element));
     return ascents.get(key);
   }
@@ -99,26 +124,26 @@ export function createDecor({ svg, underlay, editor }) {
     group.append(gradient, el('path', { class: 'line', d, stroke: `url(#${id})` }));
   }
 
-  /** One dot per variant at `place(index)`; the showing one is filled. */
-  function dots(group, model, place, filled = DOT) {
+  /** One dot per variant at `place(index)`, moved onto whole pixels; the showing one is filled. */
+  function dots(group, model, grid, place) {
     model.variants.forEach((_, index) => {
       const active = index === model.active;
       const [cx, cy] = place(index);
-      group.append(el('circle', { class: active ? 'dot active' : 'dot', cx, cy, r: active ? filled : RING }));
+      group.append(el('circle', { class: active ? 'dot active' : 'dot', cx: grid.x(cx), cy: grid.y(cy), r: active ? grid.filled : grid.ring }));
     });
   }
 
-  function drawWord(group, model, vid, lines, ascent) {
+  function drawWord(group, model, vid, lines, ascent, grid) {
     lines.forEach((line, index) => {
       stroke(group, { from: line.left, to: line.right - 0.5, across: line.top + ascent + WORD.line, seed: `${vid}:${index}`, lead: WORD.lead, trail: WORD.trail });
     });
     // Dots sit in 5px cells, the row of cells centred under the last line of the word.
     const last = lines[lines.length - 1];
-    const first = (last.left + last.right) / 2 - (model.variants.length * DOT_PITCH) / 2 + DOT;
-    dots(group, model, (index) => [first + index * DOT_PITCH, last.top + ascent + WORD.dots]);
+    const first = (last.left + last.right) / 2 - (model.variants.length * DOT_PITCH) / 2 + DOT_SIZE / 2;
+    dots(group, model, grid, (index) => [first + index * DOT_PITCH, last.top + ascent + WORD.dots]);
   }
 
-  function drawSentence(group, model, vid, lines, ascent) {
+  function drawSentence(group, model, vid, lines, ascent, grid) {
     // The dots take the end of the last line; the underline stops short of them.
     const reserved = model.variants.length * DOT_PITCH;
     lines.forEach((line, index) => {
@@ -134,31 +159,33 @@ export function createDecor({ svg, underlay, editor }) {
       });
     });
     const last = lines[lines.length - 1];
-    const first = last.right - reserved + DOT;
-    dots(group, model, (index) => [first + index * DOT_PITCH, last.top + ascent + SENTENCE.dots]);
+    const first = last.right - reserved + DOT_SIZE / 2;
+    dots(group, model, grid, (index) => [first + index * DOT_PITCH, last.top + ascent + SENTENCE.dots]);
   }
 
-  function drawParagraph(group, model, vid, lines, ascent) {
+  function drawParagraph(group, model, vid, lines, ascent, grid) {
     const x = lines.reduce((left, line) => Math.min(left, line.left), Infinity) - PARAGRAPH.left;
     const top = lines[0].top + ascent - PARAGRAPH.above;
     const bottom = lines[lines.length - 1].top + ascent + PARAGRAPH.below;
     stroke(group, { from: top, to: bottom, across: x, seed: vid, lead: PARAGRAPH.lead, trail: PARAGRAPH.trail, vertical: true, amp: 0.4 });
     const first = (top + bottom) / 2 + PARAGRAPH.dotsDown - ((model.variants.length - 1) * DOT_PITCH) / 2;
-    dots(group, model, (index) => [x - PARAGRAPH.dots, first + index * DOT_PITCH], PARAGRAPH.dot);
+    dots(group, model, grid, (index) => [x - PARAGRAPH.dots, first + index * DOT_PITCH]);
   }
+
+  // One range for every measurement: a live Range costs each later change to the text
+  // something until it is collected, and this is asked many times a second.
+  let probe = null;
 
   /** The boxes the browser reports for a group's text: of its span, or of all the text in its paragraph. */
   function rectsOf(target) {
     if (target.tagName !== 'P') return target.getClientRects();
-    const range = document.createRange();
-    range.selectNodeContents(target);
-    return range.getClientRects();
+    probe ??= document.createRange();
+    probe.selectNodeContents(target);
+    return probe.getClientRects();
   }
 
   /** Where a group's text is: its lines, relative to `origin`, and how to read them. */
-  function layoutOf(vid, model, origin) {
-    const target = editor.elementFor(vid);
-    if (!target) return null;
+  function layoutOf(target, model, origin) {
     const block = target.tagName === 'P';
     const lines = lineBoxes(rectsOf(target)).map((line) => ({ left: line.left - origin.left, right: line.right - origin.left, top: line.top - origin.top }));
     if (lines.length === 0) return null;
@@ -166,25 +193,19 @@ export function createDecor({ svg, underlay, editor }) {
     return { target, scope, lines, ascent: ascentOf(target) };
   }
 
-  function mark(vid, model, { scope, lines, ascent }) {
+  function mark(vid, model, { scope, lines, ascent }, grid) {
     const group = el('g', { class: `mark ${scope}`, 'data-vid': vid, 'data-scope': scope });
-    if (scope === 'paragraph') drawParagraph(group, model, vid, lines, ascent);
-    else if (scope === 'sentence') drawSentence(group, model, vid, lines, ascent);
-    else drawWord(group, model, vid, lines, ascent);
+    if (scope === 'paragraph') drawParagraph(group, model, vid, lines, ascent, grid);
+    else if (scope === 'sentence') drawSentence(group, model, vid, lines, ascent, grid);
+    else drawWord(group, model, vid, lines, ascent, grid);
     return group;
   }
 
-  function tint({ target, scope, lines, ascent }, origin) {
-    const piece = (name, box, fades = {}) => {
-      const div = document.createElement('div');
-      div.className = `tint ${name}`;
-      Object.assign(div.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.right - box.left}px`, height: `${box.bottom - box.top}px` });
-      for (const [key, value] of Object.entries(fades)) div.style.setProperty(`--${key}`, `${value}px`);
-      return div;
-    };
+  /** The boxes to tint for a group, relative to `origin`, each with the lengths its ends fade over. */
+  function tintBoxes({ target, scope, lines, ascent }, origin) {
     if (scope === 'paragraph') {
       const box = target.getBoundingClientRect();
-      return [piece('paragraph', { left: box.left - origin.left, right: box.right - origin.left, top: box.top - origin.top, bottom: box.bottom - origin.top })];
+      return [{ name: 'paragraph', left: box.left - origin.left, right: box.right - origin.left, top: box.top - origin.top, bottom: box.bottom - origin.top, lead: 0, trail: 0 }];
     }
     // One piece per line; only the outer ends of the whole run fade.
     const shape = TINT[scope];
@@ -192,25 +213,75 @@ export function createDecor({ svg, underlay, editor }) {
       const first = index === 0;
       const last = index === lines.length - 1;
       const baseline = line.top + ascent;
-      const box = { left: line.left - (first ? shape.before : 0), right: line.right + (last ? shape.after : 0), top: baseline - shape.above, bottom: baseline + shape.below };
-      return piece(scope, box, { lead: first ? shape.lead : 0, trail: last ? shape.trail : 0 });
+      return {
+        name: scope,
+        left: line.left - (first ? shape.before : 0),
+        right: line.right + (last ? shape.after : 0),
+        top: baseline - shape.above,
+        bottom: baseline + shape.below,
+        lead: first ? shape.lead : 0,
+        trail: last ? shape.trail : 0,
+      };
     });
   }
 
+  function tintPiece(box) {
+    const div = document.createElement('div');
+    div.className = `tint ${box.name}`;
+    Object.assign(div.style, { left: `${box.left}px`, top: `${box.top}px`, width: `${box.right - box.left}px`, height: `${box.bottom - box.top}px` });
+    if (box.name !== 'paragraph') {
+      div.style.setProperty('--lead', `${box.lead}px`);
+      div.style.setProperty('--trail', `${box.trail}px`);
+    }
+    return div;
+  }
+
+  const fixed = (value) => value.toFixed(2);
+
   function draw() {
     queued = false;
-    serial = 0;
     const origin = svg.getBoundingClientRect();
-    const marks = [];
+    const ratio = window.devicePixelRatio || 1;
+    const grid = dotGrid(origin, ratio);
+    if (svg.style.getPropertyValue('--ring-line') !== String(grid.line)) svg.style.setProperty('--ring-line', String(grid.line));
+    // Where the dots are seated depends on where the page lies on the display's pixels.
+    const part = (value) => fixed((((value * ratio) % 1) + 1) % 1);
+    const seating = `${ratio}|${part(origin.left)}|${part(origin.top)}`;
+
+    // One pass over the page finds the element of every group.
+    const targets = new Map();
+    for (const element of editor.root.querySelectorAll('[data-vid]')) {
+      if (!targets.has(element.dataset.vid)) targets.set(element.dataset.vid, element);
+    }
+
+    const present = new Set();
     let tinted = [];
     for (const [vid, model] of Object.entries(editor.groups)) {
-      const layout = layoutOf(vid, model, origin);
+      const target = targets.get(vid);
+      const layout = target && layoutOf(target, model, origin);
       if (!layout) continue;
-      marks.push(mark(vid, model, layout));
-      if (vid === hovered) tinted = tint(layout, origin);
+      present.add(vid);
+      const key = `${layout.scope}|${model.variants.length}|${model.active}|${fixed(layout.ascent)}|${seating}|${layout.lines.map((line) => `${fixed(line.left)},${fixed(line.right)},${fixed(line.top)}`).join(';')}`;
+      const was = drawn.get(vid);
+      if (!was || was.key !== key) {
+        const node = mark(vid, model, layout, grid);
+        if (was) was.node.replaceWith(node);
+        else svg.append(node);
+        drawn.set(vid, { key, node });
+      }
+      if (vid === hovered) tinted = tintBoxes(layout, origin);
     }
-    svg.replaceChildren(...marks);
-    underlay.replaceChildren(...tinted);
+    for (const [vid, was] of drawn) {
+      if (present.has(vid)) continue;
+      was.node.remove();
+      drawn.delete(vid);
+    }
+
+    const key = tinted.map((box) => `${box.name}|${fixed(box.left)}|${fixed(box.right)}|${fixed(box.top)}|${fixed(box.bottom)}|${box.lead}|${box.trail}`).join(';');
+    if (key !== tintKey) {
+      tintKey = key;
+      underlay.replaceChildren(...tinted.map(tintPiece));
+    }
   }
 
   /** Redraws before the next frame; any number of calls make one drawing. */
@@ -222,11 +293,17 @@ export function createDecor({ svg, underlay, editor }) {
 
   editor.on('change', schedule);
   window.addEventListener('resize', schedule);
-  new ResizeObserver(schedule).observe(editor.root);
+  // When the text is laid out afresh for any other reason, the marks follow in the same
+  // frame: an observer hears of it after layout and before anything is painted.
+  new ResizeObserver(draw).observe(editor.root);
   document.fonts.addEventListener('loadingdone', () => {
     ascents.clear();
     schedule();
   });
+  // The window can be moved to a display with other pixels, and the dots must follow.
+  (function watchPixels() {
+    matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`).addEventListener('change', () => { schedule(); watchPixels(); }, { once: true });
+  })();
   schedule();
 
   return {

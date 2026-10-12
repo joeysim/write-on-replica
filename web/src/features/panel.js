@@ -64,12 +64,9 @@ export function createPanel({ editor, ui, alternatives, commands }) {
 
   function caretToEnd(element) {
     element.focus({ preventScroll: true });
-    const range = document.createRange();
-    range.selectNodeContents(element);
-    range.collapse(false);
     const selection = getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
+    selection.selectAllChildren(element);
+    selection.collapseToEnd();
   }
 
   // --- rows -----------------------------------------------------------------------------------
@@ -250,9 +247,12 @@ export function createPanel({ editor, ui, alternatives, commands }) {
    * @returns {boolean} false if there is nothing there to work on
    */
   function open() {
-    // The caret or the selection says what is meant. With neither in the text (a window
-    // just opened, the keyboard somewhere else) the pointer does: the group or word under it.
-    const target = alternatives.target() ?? (editor.selection() ? null : alternatives.pointed());
+    // The caret or the selection says what is meant. When the caret is on no word (the
+    // blank first line of a window just opened), or the text has no caret (the keyboard is
+    // somewhere else), the pointer does: the group or word under it. A selection that
+    // cannot be used is still what was meant, and nothing is done.
+    const selection = editor.selection();
+    const target = alternatives.target() ?? (selection && !selection.collapsed ? null : alternatives.pointed());
     if (!target) return false;
     spot = { block: target.block, offset: target.start };
     ui.set({ panel: true, read: false });

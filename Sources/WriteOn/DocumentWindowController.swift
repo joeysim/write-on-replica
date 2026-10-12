@@ -86,6 +86,8 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     let bridge = Bridge()
 
     private(set) var pageIsReady = false
+    /// When the page said it was ready, for measuring how long opening takes.
+    private(set) var readyAt: Date?
     var onPageReady: (() -> Void)?
     var onPageLog: ((_ level: String, _ message: String) -> Void)?
     var onClosed: ((DocumentWindowController) -> Void)?
@@ -233,16 +235,35 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         webView.load(URLRequest(url: AssetSchemeHandler.indexURL))
     }
 
+    /// A window asked for before its page had anything to show is put up when it has.
+    private var waitsToShow = false
+    /// The longest a window waits for its page before being put up without it.
+    private static let longestWaitToShow: TimeInterval = 1
+
     func show() {
         if scripted {
             window.orderBack(nil)
             window.makeFirstResponder(webView)
             NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: window)
             NotificationCenter.default.post(name: NSWindow.didBecomeMainNotification, object: window)
+        } else if pageIsReady || window.isVisible {
+            present()
         } else {
-            window.makeKeyAndOrderFront(nil)
-            window.makeFirstResponder(webView)
+            // A new window arrives with its page in it, not as an empty frame that fills in
+            // a moment later. The page is usually ready in a tenth of a second.
+            waitsToShow = true
+            DispatchQueue.main.asyncAfter(deadline: .now() + Self.longestWaitToShow) { [weak self] in self?.presentIfWaiting() }
         }
+    }
+
+    private func present() {
+        waitsToShow = false
+        window.makeKeyAndOrderFront(nil)
+        window.makeFirstResponder(webView)
+    }
+
+    private func presentIfWaiting() {
+        if waitsToShow { present() }
     }
 
     private static func fit(_ size: NSSize, to screen: NSScreen?) -> NSSize {
@@ -266,6 +287,8 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         bridge.on("app.ready", sync: { [weak self] _ in
             guard let self, !self.pageIsReady else { return nil }
             self.pageIsReady = true
+            self.readyAt = Date()
+            self.presentIfWaiting()
             self.onPageReady?()
             return nil
         })

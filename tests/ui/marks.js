@@ -38,6 +38,10 @@ const dotAt = (circle) => {
   return { x: o.left + circle.cx.baseVal.value, y: o.top + circle.cy.baseVal.value, r: circle.r.baseVal.value + edge };
 };
 const weight = (path) => parseFloat(getComputedStyle(path).strokeWidth);
+// A dot is moved onto the display's pixels, so it can be up to half of one from where the
+// clips have it.
+const dpr = window.devicePixelRatio;
+const SNAP = 0.5 / dpr;
 
 t.equal(decor.querySelectorAll('g[data-vid]').length, Object.keys(editor.groups).length, 'one mark per group');
 
@@ -57,9 +61,9 @@ t.equal(decor.querySelectorAll('g[data-vid]').length, Object.keys(editor.groups)
   const dots = [...g.querySelectorAll('circle.dot')].map(dotAt);
   t.equal(dots.length, 3, 'one dot per variant');
   t.equal([...g.querySelectorAll('circle.dot')].map((d) => d.classList.contains('active')), [true, false, false], 'the showing variant is the filled dot');
-  t.near(dots[0].y, base + 7.9, 0.2, 'word dots sit 7.9px under the baseline');
+  t.near(dots[0].y, base + 7.9, 0.2 + SNAP, 'word dots sit 7.9px under the baseline');
   // Each dot is a 3px disc in a 5px cell; the cells are centred under the word.
-  t.near(dots[0].x, rect.left + rect.width / 2 - 7.5 + 1.5, 0.2, 'word dots are centred under the word');
+  t.near(dots[0].x, rect.left + rect.width / 2 - 7.5 + 1.5, 0.2 + SNAP, 'word dots are centred under the word');
   t.near(dots[1].x - dots[0].x, 5, 0.01, 'dot pitch');
   t.near(dots[2].x - dots[1].x, 5, 0.01, 'dot pitch');
   t.near(dots[0].r * 2, 3, 0.1, 'filled dot diameter');
@@ -80,10 +84,10 @@ t.equal(decor.querySelectorAll('g[data-vid]').length, Object.keys(editor.groups)
   t.near(weight(line), 1.2, 0.01, 'sentence underline weight');
   const dots = [...g.querySelectorAll('circle.dot')].map(dotAt);
   t.equal(dots.length, 3, 'one dot per variant');
-  t.near(dots[2].x + 1.5, rect.right - 2, 0.2, 'sentence dots end 2px before the end of the text');
+  t.near(dots[2].x + 1.5, rect.right - 2, 0.2 + SNAP, 'sentence dots end 2px before the end of the text');
   t.near(dots[1].x - dots[0].x, 5, 0.01, 'dot pitch');
-  t.near(dots[0].x - 1.5 - at.right, 2.2, 0.3, 'the line stops short of the dots');
-  t.near(dots[0].y, base + 9.05, 0.2, 'sentence dots ride just above the line');
+  t.near(dots[0].x - 1.5 - at.right, 2.2, 0.3 + SNAP, 'the line stops short of the dots');
+  t.near(dots[0].y, base + 9.05, 0.2 + SNAP, 'sentence dots ride just above the line');
 }
 
 // --- a paragraph ----------------------------------------------------------------------------
@@ -103,10 +107,55 @@ t.equal(decor.querySelectorAll('g[data-vid]').length, Object.keys(editor.groups)
   t.near(weight(bar), 2, 0.01, 'bar weight');
   const dots = [...g.querySelectorAll('circle.dot')].map(dotAt);
   t.equal(dots.length, 3, 'one dot per variant');
-  t.near(dots[0].x, at.midX - 5.65, 0.4, 'dots sit 6px left of the bar');
-  t.near((dots[0].y + dots[2].y) / 2, (at.top + at.bottom) / 2 + 0.6, 0.6, 'stacked around the bar’s middle');
+  t.near(dots[0].x, at.midX - 5.65, 0.4 + SNAP, 'dots sit 6px left of the bar');
+  t.near((dots[0].y + dots[2].y) / 2, (at.top + at.bottom) / 2 + 0.6, 0.6 + SNAP, 'stacked around the bar’s middle');
   t.near(dots[1].y - dots[0].y, 5, 0.01, 'dot pitch');
   t.assert(g.querySelector('circle.dot').classList.contains('active'), 'top dot is the first variant');
+}
+
+// --- dots on the display's own pixels -----------------------------------------------------------
+// A dot is three pixels across on an ordinary display. Drawn between pixels it is smeared
+// into its neighbours and all but disappears, so each one is seated on whole pixels: its
+// edges on pixel edges, and a ring's line at least one pixel thick.
+{
+  const onGrid = (value) => Math.abs(value * dpr - Math.round(value * dpr)) < 0.02;
+  const ring = [108, 104, 121]; // --ring
+  await t.until(() => getComputedStyle(decor).opacity === '1', 2000, 'the marks to finish fading in');
+  for (const vid of Object.keys(editor.groups)) {
+    const circles = [...mark(vid).querySelectorAll('circle.dot')];
+    for (const [index, circle] of circles.entries()) {
+      const dot = dotAt(circle);
+      t.assert(onGrid(dot.x - dot.r) && onGrid(dot.y - dot.r), `${vid} dot ${index} sits on whole pixels: left ${(dot.x - dot.r).toFixed(2)}, top ${(dot.y - dot.r).toFixed(2)}`);
+      t.assert(onGrid(dot.r * 2), `${vid} dot ${index} is a whole number of pixels across: ${(dot.r * 2).toFixed(2)}`);
+      if (circle.classList.contains('active')) continue;
+      t.assert(parseFloat(getComputedStyle(circle).strokeWidth) * dpr >= 0.99, `${vid} ring ${index} is drawn with a line at least a pixel thick`);
+    }
+    // What is painted: a ring shows its own colour, at full strength, on at least four pixels.
+    const hollow = circles.find((circle) => !circle.classList.contains('active'));
+    const dot = dotAt(hollow);
+    const box = hollow.getBoundingClientRect();
+    if (box.top < 110 || box.bottom > innerHeight - 110) continue; // the page fades its edges
+    const seen = await t.pixels(dot.x - dot.r, dot.y - dot.r, dot.r * 2, dot.r * 2, { near: ring, within: 36 });
+    t.assert(seen.matching >= 4, `${vid}: a ring can be seen, ${seen.matching} of its ${seen.width * seen.height} pixels in its colour`);
+  }
+}
+
+// A keystroke that moves no mark leaves every mark as it is: nothing in the layer is drawn again.
+{
+  const drawn = Object.keys(editor.groups).map(mark);
+  const last = editor.blocks.length - 1;
+  editor.focus();
+  editor.select({ block: last, offset: editor.blocks[last].runs.reduce((n, r) => n + r.text.length, 0) });
+  await t.type('x');
+  await t.settle();
+  t.assert(Object.keys(editor.groups).map(mark).every((node, i) => node === drawn[i]), 'typing where it moves no mark draws none of them again');
+  await t.key('z', { meta: true });
+  await t.settle();
+  t.assert(Object.keys(editor.groups).map(mark).every((node, i) => node === drawn[i]), 'nor does taking it back');
+  // The page followed the caret down; put it back for what comes next.
+  editor.select({ block: 0, offset: 0 });
+  document.getElementById('scroll').scrollTop = 0;
+  await t.settle();
 }
 
 // The same line is drawn the same way every time.
@@ -161,9 +210,9 @@ t.assert(mark('k33ps01') !== null, 'and gets it back on undo');
   t.near(lines[0].midY, rects[0].top + (baselineOf(el) - rects[0].top) + 9.8, 0.45, 'first underline under the first line');
   t.near(lines[1].midY - lines[0].midY, 36, 0.5, 'second underline one line lower');
   const dots = [...g.querySelectorAll('circle.dot')].map(dotAt);
-  t.near(dots[1].x + 1.5, rects[1].right - 2, 0.2, 'dots at the end of the last line');
-  t.near(dots[0].y, lines[1].midY - 0.75, 0.5, 'on the last underline');
-  t.near(dots[0].x - 1.5 - lines[1].right, 2.2, 0.3, 'which stops short of them');
+  t.near(dots[1].x + 1.5, rects[1].right - 2, 0.2 + SNAP, 'dots at the end of the last line');
+  t.near(dots[0].y, lines[1].midY - 0.75, 0.5 + SNAP, 'on the last underline');
+  t.near(dots[0].x - 1.5 - lines[1].right, 2.2, 0.3 + SNAP, 'which stops short of them');
   await t.key('z', { meta: true });
   document.getElementById('scroll').scrollTop = 0;
   await t.settle();

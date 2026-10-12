@@ -11,14 +11,24 @@ export function initReadMode({ editor, ui, commands }) {
   const wordcount = document.getElementById('wordcount');
   const alternates = document.getElementById('toggle-alternates');
   let whole = { words: 0, chars: 0 };
+  // A block is never changed once made, so its count is taken once. A keystroke makes one
+  // new block; the rest of a long piece is not counted again.
+  const counted = new WeakMap();
 
   // Words are whitespace-separated; characters include spaces but not line breaks.
   function countDocument() {
-    whole = { words: 0, chars: 0 };
+    let words = 0;
+    let chars = 0;
     for (const block of editor.blocks) {
-      whole.words += countWords(textOf(block));
-      whole.chars += lengthOf(block);
+      let count = counted.get(block);
+      if (!count) {
+        count = { words: countWords(textOf(block)), chars: lengthOf(block) };
+        counted.set(block, count);
+      }
+      words += count.words;
+      chars += count.chars;
     }
+    whole = { words, chars };
   }
 
   function show() {

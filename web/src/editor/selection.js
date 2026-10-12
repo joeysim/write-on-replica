@@ -7,6 +7,23 @@ function blockOf(root, node) {
   return el ?? null;
 }
 
+// One range does all the measuring here. The browser keeps every live Range in step with
+// each change to the text until the range is collected, so making one per question would
+// leave thousands behind and make every keystroke pay for them.
+let measure = null;
+
+// Where each <p> was last found among its siblings. Most questions are about the paragraph
+// just asked about, and looking there first saves counting through a long piece.
+const lastIndex = new WeakMap();
+
+function indexOfBlock(root, p) {
+  const hint = lastIndex.get(p);
+  if (hint !== undefined && root.children[hint] === p) return hint;
+  const index = Array.prototype.indexOf.call(root.children, p);
+  lastIndex.set(p, index);
+  return index;
+}
+
 /** The position of a DOM point, or null if it is outside the editor. */
 export function positionOf(root, node, offset) {
   if (node === root) {
@@ -23,10 +40,10 @@ export function positionOf(root, node, offset) {
   // Just after its contents are replaced, WebKit can still report a point by an offset
   // the node no longer has.
   const length = node.nodeType === Node.TEXT_NODE ? node.data.length : node.childNodes.length;
-  const range = document.createRange();
-  range.setStart(p, 0);
-  range.setEnd(node, Math.min(offset, length));
-  return { block: Array.prototype.indexOf.call(root.children, p), offset: range.toString().length };
+  measure ??= document.createRange();
+  measure.setStart(p, 0);
+  measure.setEnd(node, Math.min(offset, length));
+  return { block: indexOfBlock(root, p), offset: measure.toString().length };
 }
 
 /** The DOM point for a position. At the join of two text nodes it is the end of the first. */

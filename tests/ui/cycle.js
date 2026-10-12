@@ -95,35 +95,104 @@ await t.key('z', { meta: true });
 t.assert(textOf(PARA).includes('as an easel for') || textOf(PARA).includes('as a workbench for'), `undo steps back through the variants: ${textOf(PARA).slice(-40)}`);
 t.equal(showing('wb3nch1'), textOf(PARA).includes('easel') ? 'easel' : 'workbench', 'group and text agree after undo');
 
-// --- the guard against accidents ----------------------------------------------------------------
+// --- whose the arrow keys are ---------------------------------------------------------------------
 
-// Clicking into the word to edit it gives ordinary caret keys.
+// The text can change under a pointer at rest: a shorter variant leaves the pointer beside
+// the word. The keys stay the word's until the pointer itself moves.
+{
+  await away();
+  alternatives.activate('wb3nch1', 0);
+  await t.settle();
+  heard();
+  const r = editor.elementFor('wb3nch1').getClientRects()[0];
+  t.equal(showing('wb3nch1'), 'workbench', 'starting from the longest');
+  await t.hover(r.right - 6, r.top + r.height / 2);
+  await t.key('ArrowRight');
+  t.equal(showing('wb3nch1'), 'easel', 'Right from the end of the long word shows the short one');
+  t.assert(editor.elementFor('wb3nch1').getClientRects()[0].right < r.right - 6, 'which ends before the pointer');
+  await t.wait(300);
+  await t.key('ArrowRight');
+  t.equal(showing('wb3nch1'), 'sketchpad', 'and Right goes on swapping');
+  await t.key('ArrowRight');
+  t.equal(showing('wb3nch1'), 'workbench', 'round to the first');
+  await away();
+}
+// A click on the word leaves the arrows the word's: the pointer is still on it.
 {
   const r = editor.elementFor('wb3nch1').getClientRects()[0];
   await t.click(r.left + 14, r.top + r.height / 2);
-  const before = { shown: showing('wb3nch1'), caret: editor.selection().start.offset };
-  await t.key('ArrowRight');
-  t.equal(showing('wb3nch1'), before.shown, 'after a click, Right does not swap the word');
-  t.equal(editor.selection().start.offset, before.caret + 1, 'it moves the caret');
-  t.equal(tints().length, 1, 'the word is still tinted under the pointer');
-  // Leaving and coming back arms it again.
+  const before = showing('wb3nch1');
+  t.equal(tints().length, 1, 'the clicked word is tinted');
+  await t.key('ArrowDown');
+  t.assert(showing('wb3nch1') !== before, 'after a click on the word, Down still swaps it');
+  await t.key('ArrowUp');
+  t.equal(showing('wb3nch1'), before, 'and Up swaps it back');
   await away();
   t.equal(tints().length, 0, 'the tint goes when the pointer leaves');
-  await hoverGroup('wb3nch1');
-  await t.key('ArrowRight');
-  t.assert(showing('wb3nch1') !== before.shown, 'after the pointer leaves and returns, Right swaps again');
 }
-// Typing does the same.
+// Typing gives the arrows back to the caret, and the tint goes, until the pointer moves.
 {
   await hoverGroup('wb3nch1');
   editor.select({ block: 5, offset: 0 });
   await t.type('x');
+  t.equal(tints().length, 0, 'typing takes the tint away');
+  t.equal(alternatives.armed(), false, 'and the keys from the word');
   const shown = showing('wb3nch1');
   await t.key('ArrowRight');
   t.equal(showing('wb3nch1'), shown, 'after typing, Right does not swap the word');
+  t.equal(editor.selection().start, { block: 5, offset: 2 }, 'it moves the caret');
+  // The smallest move of the pointer, still on the word, gives them back.
+  const r = editor.elementFor('wb3nch1').getClientRects()[0];
+  await t.hover(r.left + Math.min(20, r.width / 2) + 2, r.top + r.height / 2 + 1);
+  t.equal(tints().length, 1, 'a move of the pointer on the word tints it again');
+  await t.key('ArrowRight');
+  t.assert(showing('wb3nch1') !== shown, 'and Right swaps again');
   await t.key('z', { meta: true });
-  t.assert(textOf(5).startsWith('Click the word count'), `the typing is undone: ${textOf(5).slice(0, 24)}`);
+  await t.key('z', { meta: true });
+  t.equal(showing('wb3nch1'), shown, 'undo takes the swap back');
+  t.assert(textOf(5).startsWith('Click the word count'), `and the typing: ${textOf(5).slice(0, 24)}`);
   await away();
+}
+// The page can scroll under a pointer at rest. What was under it is no longer, and what
+// comes under it has not been pointed at: the arrows are the caret's until the pointer moves.
+{
+  const scroller = document.getElementById('scroll');
+  const group = () => editor.elementFor('k33ps01').getClientRects()[0];
+  const at = [group().left + 10, group().top + 18];
+  await t.hover(...at);
+  t.equal([alternatives.hovered(), tints().length], ['k33ps01', 1], 'the pointer is on a word');
+  // As when the caret is walked down the page and the page follows it.
+  scroller.scrollTop += 108;
+  await t.until(() => alternatives.hovered() === null, 1500, 'the word that scrolled away to stop being the hovered one');
+  await t.settle();
+  t.equal(tints().length, 0, 'its tint goes with it');
+  const shown = showing('k33ps01');
+  editor.select({ block: 5, offset: 3 });
+  await t.key('ArrowRight');
+  t.equal([showing('k33ps01'), editor.selection().start.offset], [shown, 4], 'and the arrows are the caret’s');
+  scroller.scrollTop -= 108;
+  await t.until(() => alternatives.hovered() === 'k33ps01', 1500, 'the word that scrolled back under the pointer to be the hovered one');
+  await t.settle();
+  t.equal([alternatives.armed(), tints().length], [false, 0], 'but it was not pointed at: no tint, and the keys are not its own');
+  await t.key('ArrowRight');
+  t.equal([showing('k33ps01'), editor.selection().start.offset], [shown, 5], 'the arrow still moves the caret');
+  await t.hover(at[0] + 2, at[1]);
+  t.equal([alternatives.armed(), tints().length], [true, 1], 'until the pointer moves on it');
+  await away();
+
+  // Scrolled with the pointer's own wheel, the word that arrives under it is pointed at.
+  const below = editor.elementFor('wb3nch1').getClientRects()[0];
+  const over = [below.left + 10, below.top + 18];
+  await t.hover(over[0], over[1] - 108); // three lines above the word, on plain text
+  t.equal(alternatives.hovered(), null, 'the pointer is on plain text, three lines above a word');
+  await t.wheel(over[0], over[1] - 108, 108);
+  await t.until(() => alternatives.hovered() === 'wb3nch1', 1500, 'the wheel to bring the word under the pointer');
+  await t.settle();
+  t.equal([alternatives.armed(), tints().length], [true, 1], 'and with the wheel that is pointing at it: it is tinted, and the arrows are its own');
+  await t.wheel(over[0], over[1] - 108, -108);
+  await t.until(() => scroller.scrollTop === 0, 1500, 'the wheel to bring the page back');
+  await away();
+  heard();
 }
 // With the pointer elsewhere the arrows are the caret's.
 {
@@ -139,6 +208,7 @@ t.equal(showing('wb3nch1'), textOf(PARA).includes('easel') ? 'easel' : 'workbenc
   const shown = showing('wb3nch1');
   await t.key('ArrowRight', { shift: true });
   t.equal(showing('wb3nch1'), shown, 'Shift+Right selects; it does not swap');
+  t.equal(tints().length, 0, 'and the keyboard has the keys now: the tint goes');
   // With text selected the arrows are the text's (tests/ui/explode.js has the whole of that);
   // the selection is closed up before the pointer goes to the next word.
   await away();

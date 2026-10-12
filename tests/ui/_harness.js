@@ -15,7 +15,6 @@
   const mods = (o = {}) => ({ ctrl: !!o.ctrl, shift: !!o.shift, alt: !!o.alt, meta: !!o.meta });
   const failures = [];
   const logs = [];
-  let hoverTarget = null;
 
   const t = {
     call,
@@ -82,30 +81,15 @@
     },
     // Input. Coordinates are CSS pixels in the page.
     //
-    // Presses, releases, drags and keys are native events sent through the app's window.
-    // Hovering is the exception: on a locked Mac WebKit drops native pointer moves that have
-    // no button held, so `hover` dispatches the DOM events a real move would produce. The
-    // page's own handlers run exactly as they would; only CSS :hover does not apply.
+    // Presses, releases, drags, moves and keys are native events sent through the app's
+    // window, so WebKit itself finds what is under the pointer, as it does for a person.
     async hover(x, y) {
-      const target = document.elementFromPoint(x, y) || document.documentElement;
-      const previous = hoverTarget && hoverTarget.isConnected ? hoverTarget : null;
-      const init = { bubbles: true, cancelable: true, composed: true, view: window, clientX: x, clientY: y, screenX: x, screenY: y };
-      if (previous !== target) {
-        const chain = (el) => {
-          const list = [];
-          for (let node = el; node && node.nodeType === 1; node = node.parentElement) list.push(node);
-          return list;
-        };
-        const leaving = chain(previous).filter((el) => !el.contains(target));
-        const entering = chain(target).filter((el) => !previous || !el.contains(previous)).reverse();
-        if (previous) previous.dispatchEvent(new MouseEvent('mouseout', { ...init, relatedTarget: target }));
-        for (const el of leaving) el.dispatchEvent(new MouseEvent('mouseleave', { ...init, bubbles: false, relatedTarget: target }));
-        target.dispatchEvent(new MouseEvent('mouseover', { ...init, relatedTarget: previous }));
-        for (const el of entering) el.dispatchEvent(new MouseEvent('mouseenter', { ...init, bubbles: false, relatedTarget: previous }));
-      }
-      target.dispatchEvent(new PointerEvent('pointermove', { ...init, pointerType: 'mouse', isPrimary: true }));
-      target.dispatchEvent(new MouseEvent('mousemove', init));
-      hoverTarget = target;
+      await call('test.mouse', { type: 'move', x, y });
+      await t.settle();
+    },
+    /** Turns the wheel by `dy` px with the pointer at x, y; positive scrolls the page down. */
+    async wheel(x, y, dy) {
+      await call('test.mouse', { type: 'wheel', x, y, dy });
       await t.settle();
     },
     async click(x, y, o = {}) {

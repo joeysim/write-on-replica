@@ -134,6 +134,9 @@ Opacity states: ghost text 11%; paragraphs other than the panel's target 35%.
 - The text is masked near the top and bottom edges of the page so lines dissolve rather
   than collide with the chrome: invisible within 53 px of either edge, rising linearly to
   full strength at 96 px.
+- The caret is never left in that fade. When the page scrolls to follow it (arrowing,
+  typing past the bottom), it stops with the caret's line clear of the faded bands: at
+  least 132 px from the top of the window and 168 px from the bottom.
 - The top row of chrome is centred 32 px from the top; the bottom row 32 px from the bottom.
 
 | Element | Position (1548×976) | Notes |
@@ -218,11 +221,21 @@ Spelling and grammar checking, autocorrect, smart quotes and smart dashes are of
 default (the demo shows typed straight apostrophes preserved, and no squiggles). The
 standard Edit ▸ Spelling and Substitutions menus are present to turn them on.
 
+The keyboard is in the text from the moment a window opens, with the caret at the start
+of the piece, so a new window can be typed in without a click. A press on the bare page
+beside the column or below the piece goes to the text: the caret lands at the nearer end
+of the line the press is level with, at the end of the piece from below it, at its start
+from above.
+
 ### 5.3 Undo
 
 One history for the whole document: text, groups, ghost runs and overflow together.
 Typing is coalesced into bursts. Each command is one step: adding an AI batch, deleting an
 alternative, ghosting, stashing, making trim cuts. ⌘Z / ⇧⌘Z, and Ctrl+Z / Ctrl+Shift+Z.
+
+A paragraph an edit did not touch is the same object before and after it. A step
+therefore holds only the paragraphs that changed, and whatever is worked out per
+paragraph (how it is drawn, its word count) is worked out once, however long the piece.
 
 ## 6. Features
 
@@ -252,7 +265,12 @@ Each scope has its own mark, so the three can sit near each other without confus
 | Active dot | Filled `accent` | Filled `sentence-dot` | Filled `paragraph-dot` |
 
 - One dot per variant, in variant order. 3 px diameter, 5 px pitch. The active one is
-  filled; the rest are rings 0.5 px thick in `ring`.
+  filled; the rest are rings in `ring`, their line one pixel of the display thick: 0.5 px
+  on the 2x display of the clips, 1 px on a display with one pixel to the px.
+- Each dot is seated on the display's own pixels, its edges on pixel edges. The positions
+  below are where the clips have them; a dot is drawn at the nearest such seat, at most
+  half a display pixel away. (Drawn between pixels a 3 px dot is smeared into its
+  neighbours; on a 1x display the rings could not be seen at all.)
 - Each dot sits at the start of a 5 px cell (3 px of dot, 2 px of air). A word's row of
   cells is centred under the word, so the dots themselves sit 1 px left of centre; a
   sentence's row ends at the end of its text, so the last dot ends 2 px before it.
@@ -280,13 +298,24 @@ Each scope has its own mark, so the three can sit near each other without confus
 - **Article agreement.** For word scope, an "a" or "an" directly before the group follows
   the new variant: "like a thumbtack" becomes "like an eraser". Capitalisation of the
   article is preserved. A short exception list covers silent h and "you"-sounds.
-- **Guard against accidents.** Arrows and Delete act on a hovered group only when the
-  pointer moved onto it since the last click or typed character. Clicking into a group to
-  edit its text therefore gives normal caret keys until the pointer leaves and returns.
-  With text selected, or a modifier held, the keys are the text's whatever the pointer
-  rests on: they extend the selection, close it up, delete what is selected. That, too,
-  counts as the writer at work in the text, and the keys stay the text's until the
-  pointer leaves the group and returns.
+- **Whose the keys are.** The arrows belong to the group under the pointer for as long as
+  the pointer is what the writer last used: it has moved, pressed, or turned its wheel
+  since the last character was typed. A click on the group leaves them the group's; so
+  does text changing under a pointer at rest (a shorter variant can leave the pointer
+  beside its word, and the next arrow still flips it). Typing, and any key with a modifier
+  held, gives the arrows back to the caret until the pointer moves again, however little.
+  The tint says which it is: a tinted group will flip, and the tint goes when the keys do.
+- **The page moving under the pointer.** When the page scrolls under a pointer at rest
+  (the caret walked down a long piece, a line typed past the bottom), what was under the
+  pointer is no longer hovered, and what arrives under it is not armed until the pointer
+  moves: the arrows stay the caret's. Scrolling with the pointer's own wheel is the pointer
+  at work, and what it brings under itself is hovered and armed.
+- **Delete is more careful.** Delete and Backspace blow up a variant only while the writer
+  is looking through them: the pointer has come onto the group, or an arrow has just
+  flipped it, with no press and no typing since. After a click into the text they delete
+  text, as anywhere.
+- With text selected the keys are the text's for that press, whatever the pointer rests
+  on: an arrow closes the selection up, Delete removes what is selected.
 
 ### 6.4 The two tones
 
@@ -316,9 +345,9 @@ icons stay in view over it. Going into Read mode closes it.
 - **Opening.** Right-click ▸ "Alternatives for selection" / "Alternatives for “word”", or
   Ctrl+Shift+A. With no selection the target is the word at the caret, whatever the
   pointer is on: in the clip the pointer rests on "tension", the caret is in "obvious",
-  and the panel opens on "obvious". With no caret in the text either (a window just
-  opened, or the keyboard somewhere else), the target is the group or the word the
-  pointer is resting on. Ctrl+Shift+G goes by the same rule.
+  and the panel opens on "obvious". When the caret is on no word (the blank first line a
+  window opens on), or the text has no caret (the keyboard is somewhere else), the target
+  is the group or the word the pointer is resting on. Ctrl+Shift+G goes by the same rule.
 - **Scope of a selection.** A whole multi-sentence paragraph is `paragraph`; one or more
   complete sentences (including a heading) is `sentence`; anything else is `word`, which
   also covers short phrases such as "tough stuff". A selection that crosses paragraphs
@@ -800,7 +829,7 @@ go another way.
 | 11 | Scope of a selection | The rules in §6.5. |
 | 12 | Suggestions per AI request | Five for words (observed), three for sentences and paragraphs. |
 | 13 | Groups do not nest | §5.1. |
-| 14 | Hover guard | §6.3; the original may cycle on any hover. |
+| 14 | Whose the keys are | §6.3. The clips show hovering and arrowing, and the arrows going on working after the pointer hides. That typing gives the arrows back to the caret, that a scroll under a resting pointer does not arm what arrives, and Delete's stricter rule are decisions made here; the original may flip on any hover. |
 | 15 | Heading entry | Typing `# ` converts the line; the marker is hidden. Only the hidden marker is observed. |
 | 16 | Spelling, autocorrect, smart quotes | Off by default. |
 | 17 | Several windows | ⌘N opens another window; each window is one document. The original shows one. |
@@ -835,7 +864,9 @@ go another way.
 | 47 | Trims, in detail | A click on a faded passage keeps it and a second click lets it go again. Choosing another level, or "Original", puts a pending proposal away first. If the request fails the card keeps the trim's name, gives the reason in one line and offers only "Done"; the same if the answer holds nothing that is the text with words deleted ("The AI found nothing it could cut without rewording."), or nothing at all ("The AI found nothing to cut."). A paragraph that came back reworded is left alone while the others are proposed. Going into Read mode puts the popover and any pass away. Arrow keys are not needed in the popover; Esc and a click elsewhere close it. |
 | 48 | Post to X, in detail | The clip only hovers the X icon, so everything past "opens X's compose window" is a choice: the address (`x.com/intent/post`), the text sent (the page as it reads: no heading mark, nothing ghosted, nothing from Overflow, nothing of the other versions), the two limits and the clipboard fallback, the wording and behaviour of the note, and doing nothing for an empty page. |
 | 49 | Documents and windows | Where a file opens (the window that has it, else one nobody has written in, else its own); a new window being blank and the welcome piece shown once; unsaved work coming back after a crash as an unsaved document rather than being offered in a dialog; one question at a time; Undo and Redo in the menu being the document's; which commands the menus hold and what they are called. |
-| 50 | A shortcut with no caret | With neither a caret nor a selection in the text, Alternatives and AI alternatives act on what the pointer is resting on: the group, or the word. The clip only shows the case with a caret, which wins over the pointer. |
+| 50 | A shortcut with the caret on no word | With the caret on no word, or no caret in the text, Alternatives and AI alternatives act on what the pointer is resting on: the group, or the word. The clip only shows the case with the caret in a word, which wins over the pointer. |
+| 51 | Where the caret is | A window opens with the caret at the start of the piece; a press on the bare page beside or below the text lands in the text; and the page never scrolls the caret into its faded edges (§4.3, §5.2). None of it is shown in the clips. |
+| 52 | Dots on a 1x display | The clips are of a 2x display. On a display with one pixel to the px the dots are seated on whole pixels and a ring's line is one pixel (§6.2). |
 | 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
 
 ## 10. Verification
@@ -855,9 +886,10 @@ go another way.
    scenario checks this on every run, and the harness fails any run that came to the
    front or took the keyboard. Inside, WebKit
    is told to treat the page as visible and focused, so runs behave the same whether the
-   Mac is in use, locked or unattended. For a window that is not really in front, WebKit
-   discards pointer moves that have no button held, so scenarios hover by dispatching the
-   DOM events a move would produce. Scenarios follow the clips:
+   Mac is in use, locked or unattended. Pointer moves and turns of the wheel are native
+   events too, sent the way WebKit's own test runner sends them, so WebKit itself finds
+   what is under the pointer, keeps `:hover`, and repeats the pointer's place when the
+   page scrolls beneath it, as it does for a person. Scenarios follow the clips:
    read mode, each scope's marks, hover-cycling, the panel, `??`, ghost, overflow, the
    context menu, the Lab popover, a trim, the source view. Snapshots are compared with
    the corresponding frames for position, size and colour. The reference frames stay out
@@ -866,7 +898,13 @@ go another way.
    used on the clips. Pass: tick frequencies within 5 Hz, envelope times within 20%.
 4. **Live AI smoke test** against LunaRoute for alternatives at each scope and for one
    trim, plus the same flows against a canned provider so tests run without a network.
-5. **Hands-on pass** with a real mouse and keyboard, following the main clip from start
+5. **Measurements.** `scripts/bench.sh` runs the scenarios in `tests/perf` the same way,
+   out of sight: how long a keystroke takes to reach the frame that shows it in pieces of
+   up to 50,000 words, how long the app's gestures take, what the app costs standing
+   still, and whether WebAssembly would help. `tests/perf/native-baseline.swift` measures
+   the same typing in AppKit's own text view as a yardstick, and
+   `tests/perf/doc.bench.mjs` the document's functions on their own.
+6. **Hands-on pass** with a real mouse and keyboard, following the main clip from start
    to finish. The page is driven this way in a browser during development. The built app
    comes with a short checklist for the things only a person at the Mac can confirm:
    real hover in the app window, pointer hiding, drag from Overflow, the LinkedIn chase,

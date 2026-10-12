@@ -90,18 +90,33 @@ const SOUNDS = {
  * @param enabled whether sounds should play just now (View ▸ Sound Effects)
  * @param context makes the audio context to play into; called once, at the first sound
  */
-export function createSound({ enabled = () => true, context = () => new AudioContext() } = {}) {
+export function createSound({ enabled = () => true, context = () => new AudioContext(), restAfterMs = 30000 } = {}) {
   let audio = null;
+  let resting = 0;
 
-  function play(name) {
-    if (!enabled()) return;
+  /**
+   * Has the sound running, so that the next one plays at once. Starting the Mac's sound
+   * from nothing takes long enough to hear, so this is called when a sound is likely (the
+   * pointer comes onto a word with alternatives), and the sound is put to rest again when
+   * none has played for a while.
+   */
+  function prepare() {
+    if (!enabled()) return false;
     audio ??= context();
     // A context made before any click starts out suspended; one being rendered offline cannot be resumed.
     if (audio.state === 'suspended') audio.resume?.().catch(() => {});
+    clearTimeout(resting);
+    resting = setTimeout(() => audio?.suspend?.().catch(() => {}), restAfterMs);
+    return true;
+  }
+
+  function play(name) {
+    if (!prepare()) return;
     SOUNDS[name].build(audio, audio.destination, audio.currentTime);
   }
 
   return {
+    prepare: () => void prepare(),
     /** The tick of a change of variant: 'low' on landing back home, otherwise 'high'. */
     tick: (tone) => play(tone === 'low' ? 'tick-low' : 'tick-high'),
     boom: () => play('boom'),

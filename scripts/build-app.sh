@@ -1,10 +1,12 @@
 #!/bin/bash
 # Build build/Write_On.app with SwiftPM and the Command Line Tools (no Xcode needed).
 #   scripts/build-app.sh [release|debug]
+# WRITEON_APP names another place for the bundle, so that a copy can be built and tested
+# while the one in build/ is open.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="${1:-release}"
-APP="$ROOT/build/Write_On.app"
+APP="${WRITEON_APP:-$ROOT/build/Write_On.app}"
 
 swift build -c "$CONFIG" --package-path "$ROOT"
 BIN="$(swift build -c "$CONFIG" --package-path "$ROOT" --show-bin-path)/WriteOn"

@@ -368,6 +368,20 @@ function promoteHeading(block) {
   return heading;
 }
 
+// Blocks that have been through normaliseBlocks and carry no group: in order already, and
+// nothing elsewhere in the document can put them out of it.
+const settled = new WeakSet();
+
+function sameBlock(a, b) {
+  if (a.kind !== b.kind || a.level !== b.level || a.vid !== b.vid || a.runs.length !== b.runs.length) return false;
+  for (let i = 0; i < a.runs.length; i++) {
+    const one = a.runs[i];
+    const other = b.runs[i];
+    if (one.text !== other.text || one.vid !== other.vid || Boolean(one.ghost) !== Boolean(other.ghost)) return false;
+  }
+  return true;
+}
+
 /**
  * Puts the document back in order after any edit:
  *  - a paragraph beginning "# " becomes a heading;
@@ -376,12 +390,21 @@ function promoteHeading(block) {
  *  - groups do not nest, and a mark with no group, or of the wrong kind, is removed;
  *  - each group's showing variant is re-read from its text;
  *  - groups with no text left in the document are forgotten.
+ *
+ * A block that was in order already comes back as the same object, so whatever is kept
+ * per block (how it renders, its word count, an undo step's copy of it) is kept across
+ * the edit, and an edit to one paragraph of a long piece costs little more than that
+ * paragraph.
  */
 export function normaliseBlocks(blocks, groups) {
   const seen = new Map(); // vid -> its text
   const out = [];
 
   for (const original of blocks) {
+    if (settled.has(original)) {
+      out.push(original);
+      continue;
+    }
     let block = promoteHeading(original);
     let blockVid = block.vid;
     if (blockVid) {
@@ -408,7 +431,9 @@ export function normaliseBlocks(blocks, groups) {
       cleaned.vid = blockVid;
       seen.set(blockVid, textOf(cleaned));
     }
-    out.push(cleaned);
+    const kept = sameBlock(cleaned, original) ? original : cleaned;
+    if (!kept.vid && !kept.runs.some((piece) => piece.vid)) settled.add(kept);
+    out.push(kept);
   }
 
   const kept = {};

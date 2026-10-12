@@ -148,7 +148,7 @@ export function createEditor(root) {
     const key = pending?.key ?? null;
     pending = null;
 
-    const structureIntact = root.children.length === blocks.length && [...root.children].every((el) => el.tagName === 'P');
+    const structureIntact = root.children.length === blocks.length && root.querySelector(':scope > :not(p)') === null;
     let selection = readSelection(root);
     let next;
     if (structureIntact) {
