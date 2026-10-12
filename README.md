@@ -33,7 +33,7 @@ off. Every window after the first starts blank; Help ▸ The Welcome Piece bring
 | Shortcut | What it does |
 | --- | --- |
 | Ctrl+Shift+R, or click the word count | Read mode: just the text |
-| Ctrl+Shift+A | Alternatives for the selection, or the word at the caret; with no caret in the text, the word under the pointer |
+| Ctrl+Shift+A | Alternatives for the selection, or the word at the caret; with the caret on no word, the word under the pointer |
 | Ctrl+Shift+G | AI alternatives, for the same |
 | Ctrl+/ | Ghost it, or revive it |
 | Ctrl+Shift+X | Stash the selection (or the paragraph) in Overflow |
@@ -106,9 +106,10 @@ These need someone at the Mac:
    in front. Click the Dock icon with no window open: one new blank window.
 2. **Real hover.** With the tools on, the icons light and show their shortcuts under the
    pointer. Rest the pointer on an underlined word and press the arrow keys: the word flips
-   through its versions, with the ticks.
-3. **The pointer and typing.** Type with the pointer resting on an underlined word: the
-   arrow keys move the caret, not the word. Move the pointer and they flip it again.
+   through its versions, with the ticks. Click the word first and they still do.
+3. **The pointer and typing.** Type with the pointer resting on an underlined word: its
+   tint goes and the arrow keys move the caret, not the word. Move the pointer and the
+   tint is back and they flip it again.
 4. **Shortcuts once.** Ctrl+Shift+R turns the tools off, and again on: once per press, not
    twice. (Each Control shortcut is also a menu item; the page is meant to get the key
    first.) The same for Ctrl+Shift+D and Ctrl+U.
@@ -136,14 +137,16 @@ These need someone at the Mac:
 
 ## Decisions the clips do not settle
 
-The full list, 49 items with the reasoning, is §9 of the spec. In short:
+The full list, 52 items with the reasoning, is §9 of the spec. In short:
 
 **Alternatives.** Groups do not nest: making a larger group over smaller ones turns the
 smaller ones back into text (undo restores them). A selection's scope follows what it
 covers: a whole paragraph of several sentences is a paragraph group, one or more whole
 sentences a sentence group, anything else a word group. Under the pointer → and ↓ go
-forward, ← and ↑ back, and they wrap; the keys act on the text under the pointer only if
-the pointer has moved onto it since the last click or typed character. Five AI suggestions
+forward, ← and ↑ back, and they wrap. The arrows are the underlined text's while the
+pointer is what you last used: it has moved, clicked or scrolled since you last typed.
+The text is tinted while that is so. Typing gives the arrows back to the caret until the
+pointer moves again. Which version shows is not a step to undo. Five AI suggestions
 for a word, three for a sentence or paragraph. In the panel, ↑ and ↓ do not wrap, an
 emptied row removes its version, and the last version cannot be removed.
 
@@ -173,7 +176,14 @@ autocorrection and smart punctuation are off by default.
 - Lines are 36 px apart, not 36.4, and Overflow's 22, not 22.5: WebKit sets lines of text a
   whole number of pixels apart, and the original runs in a browser that does not.
 - A selection that runs past the end of a line is drawn a little differently by WebKit.
-- The Lab's trims take much longer (see [The AI](#the-ai)).
+- The Lab's trims take much longer (see [The AI](#the-ai)): about twenty seconds for a
+  short piece against two in the clip. Nearly all of that is the model thinking before it
+  answers, so the cuts, which are faded as they arrive, come in the last second of it.
+  Once a level has been read the others are read quietly, one at a time, and going to one
+  that has been read is immediate, as it is in the clip. Each is a request to the service.
+- Two things the original does when it scrolls are not copied, because they look like
+  slips: closing the panel jumps the page to the top, and the wheel scrolls the page
+  behind the source view once the view reaches its end.
 - The proposal card's width for "Even sharper" and "Cut in half" is extrapolated; the clips
   show only the first two levels.
 
@@ -186,6 +196,7 @@ scripts/check.sh             # everything: unit tests, a build, every UI scenari
 scripts/ui-test.sh files     # one scenario from tests/ui, in the app's own web view
 scripts/ui-test.sh smoke --zoom 2
 scripts/launch-check.sh      # start the real app once, hidden, and see that it comes up
+scripts/bench.sh typing      # one measurement from tests/perf, out of sight (see Speed)
 scripts/dev-server.sh        # serve the page at http://127.0.0.1:4173 for work in a browser
 swift scripts/make-icon.swift  # draw packaging/AppIcon.icns again
 ```
@@ -231,14 +242,48 @@ came to the front, took the keyboard or changed the saved settings. Inside, the 
 makes WebKit treat the page as visible and focused, so scenarios run the same whether the
 Mac is in use, locked or unattended. They do need a window server session (someone logged
 in at the console, even if locked), because WebKit will not lay out a page without one.
-Hovering is simulated with DOM events, because WebKit discards button-less pointer moves
-for a window that is not really in front.
+Pointer moves and turns of the wheel are native events too, sent the way WebKit's own
+test runner sends them, so WebKit itself finds what is under the pointer and repeats the
+pointer's place when the page scrolls beneath it, as it does for a person.
+
+`WRITEON_APP=build/dev/Write_On.app` in front of `scripts/build-app.sh`, `check.sh`,
+`ui-test.sh` or `bench.sh` builds and tests a second copy, so the one in `build/` can stay
+open while you work.
 
 One scenario does ask the real service, and steps aside unless told to run:
 
 ```sh
 scripts/ui-test.sh ai-live --ai live   # five words, three sentences and a trim, with your key
 ```
+
+### Speed
+
+`scripts/bench.sh <name>` runs a measurement from `tests/perf` the way a scenario is run,
+with nothing on screen, and prints what it found:
+
+| | |
+| --- | --- |
+| `typing` | From a key being sent to the frame that shows the letter, in pieces of up to 50,000 words |
+| `interact` | The same for the tint under the pointer, flipping a word, moving the caret, Return; and whether every frame of the panel sliding and of the page scrolling is drawn |
+| `launch` | How long opening takes, the memory the app and WebKit's processes hold, and what five idle seconds cost |
+| `wasm` | The same word count three ways: as the app does it, as a plain loop, and in WebAssembly |
+
+`node tests/perf/doc.bench.mjs` times the document's own functions away from any browser,
+and `swift -O tests/perf/native-baseline.swift` does the typing measurement in AppKit's own
+text view, as a yardstick. On a Mac mini (M4 Pro) with a 1x display at 60 Hz:
+
+| Piece | Key to frame, this app | AppKit text view |
+| --- | --- | --- |
+| The welcome piece | 1.9 ms | 0.9 ms |
+| 5,000 words | 2.2 ms | 1.1 ms |
+| 50,000 words | 3.3 ms | 1.2 ms |
+
+A display at 60 Hz shows a new frame every 16.7 ms. The app is ready 0.3 s after it is
+started. With a caret in the text it and WebKit's processes hold about 210 MB, of which
+120 MB is WebKit's graphics process; a page with nothing on it but a caret holds the same.
+The document's own work is a few hundredths of a millisecond a keystroke, which is why
+WebAssembly has nothing to offer here: in the trial a WebAssembly loop is no faster than
+the same loop in JavaScript, and three times slower once the text has been handed to it.
 
 ### Fonts and reference material
 

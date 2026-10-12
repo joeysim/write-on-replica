@@ -9,7 +9,7 @@
 // replica's reading of what the popover promises (spec section 9, items 2 to 5).
 
 import { TRIM_LEVELS, labRequest } from '../ai/prompts.js';
-import { parseLabResponse } from '../ai/parse.js';
+import { parseLabResponse, arrivedSoFar } from '../ai/parse.js';
 import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes } from '../doc/proposal.js';
 import { percentChange } from '../doc/trim.js';
 
@@ -194,7 +194,9 @@ export function createLab({ editor, ui, ai, commands, cards }) {
 
     if (mode === 'reading') {
       state.textContent = 'Reading…';
-      if (sort === 'trim') buttons = [['Make the cuts', makeCuts], ['Done', dismiss]];
+      // "Walk through" joins the others with the first cuts, as in the clip; none of them
+      // does anything until the whole answer is in.
+      if (sort === 'trim') buttons = pass.arriving ? [['Make the cuts', makeCuts], ['Walk through', walk], ['Done', dismiss]] : [['Make the cuts', makeCuts], ['Done', dismiss]];
     } else if (mode === 'failed') {
       hint.textContent = pass.reason;
     } else if (sort === 'trim') {
@@ -451,16 +453,18 @@ export function createLab({ editor, ui, ai, commands, cards }) {
   function readTrim(level, paragraphs) {
     const known = trims.levels.get(level.id);
     if (known) return known.settled;
-    let answer = '';
     const offer = paragraphs.map(({ n, text }) => ({ n, text }));
+    // `answer` is what has come so far; `heard` is told each time more of it comes.
+    const entry = { request: null, outcome: undefined, settled: null, answer: '', heard: null };
     const request = ai.start(labRequest('trim', offer, { percent: level.percent }), (text) => {
-      answer += text;
+      entry.answer += text;
+      entry.heard?.();
     });
-    const entry = { request, outcome: undefined, settled: null };
+    entry.request = request;
     entry.settled = request.done.then(
       () => {
         try {
-          const { items, rejected } = parseLabResponse('trim', answer, paragraphs);
+          const { items, rejected } = parseLabResponse('trim', entry.answer, paragraphs);
           entry.outcome = items.length === 0 ? (rejected ? NOTHING.rewritten : NOTHING.trim) : { proposal: makeProposal(paragraphs, items) };
         } catch (error) {
           entry.outcome = error.message;
@@ -513,8 +517,31 @@ export function createLab({ editor, ui, ai, commands, cards }) {
       }
       pass = { kind: 'trim', name: level.label, mode: 'proposal', level, proposal: outcome.proposal, kept: new Set() };
       stopSweep();
+      unwrap(); // what was faded as the answer came gives way to the whole of it
       show(passages(), 'trim');
       report();
+    };
+    // The answer is every paragraph over again and takes a while to come. The cuts in
+    // the paragraphs that have arrived whole are faded meanwhile, as in the clip.
+    let arrived = 0;
+    const hear = () => {
+      if (pass !== mine) return;
+      const whole = arrivedSoFar(trims.levels.get(level.id)?.answer ?? '');
+      if (whole.length <= arrived) return;
+      arrived = whole.length;
+      let items;
+      try {
+        ({ items } = parseLabResponse('trim', JSON.stringify({ paragraphs: whole }), paragraphs));
+      } catch {
+        return;
+      }
+      if (items.length === 0) return;
+      unwrap();
+      show(makeProposal(paragraphs, items).cuts, 'trim');
+      if (!pass.arriving) {
+        pass.arriving = true;
+        report();
+      }
     };
     const known = trims.levels.get(level.id);
     if (known && known.outcome !== undefined) {
@@ -523,7 +550,10 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     }
     report();
     startSweep();
-    readTrim(level, paragraphs).then(
+    const reading = readTrim(level, paragraphs);
+    trims.levels.get(level.id).heard = hear;
+    hear(); // a level being read quietly may have some of its answer already
+    reading.then(
       (outcome) => {
         settle(outcome);
         readAhead(level, paragraphs, text);
@@ -641,5 +671,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     pass: () => pass?.mode ?? null,
     /** Forgets what the model has said about the trims of this piece: the next one asks afresh. */
     forget: forgetTrims,
+    /** The ids of the trim levels whose answers are kept. */
+    kept: () => [...trims.levels].filter(([, entry]) => entry.outcome !== undefined).map(([id]) => id),
   };
 }

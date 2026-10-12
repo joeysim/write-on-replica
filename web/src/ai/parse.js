@@ -118,6 +118,46 @@ function list(data, key) {
   return data[key].filter((item) => item !== null && typeof item === 'object');
 }
 
+/**
+ * The items of the answer's list that have arrived whole, from an answer still on its way.
+ * A long answer (a trim sends every paragraph back) takes seconds to arrive, and what is
+ * there can be shown meanwhile. Reads the objects of the first list in `rawText`, leaving
+ * out the one still being written; anything else in the list is passed over.
+ */
+export function arrivedSoFar(rawText) {
+  const items = [];
+  const from = rawText.indexOf('[');
+  if (from < 0) return items;
+  let depth = 0; // of braces, inside the list
+  let start = -1;
+  let quoted = false;
+  for (let i = from + 1; i < rawText.length; i++) {
+    const ch = rawText[i];
+    if (quoted) {
+      if (ch === '\\') i += 1;
+      else if (ch === '"') quoted = false;
+    } else if (ch === '"') {
+      quoted = true;
+    } else if (ch === '{') {
+      if (depth === 0) start = i;
+      depth += 1;
+    } else if (ch === '}') {
+      depth -= 1;
+      if (depth === 0 && start >= 0) {
+        try {
+          items.push(JSON.parse(rawText.slice(start, i + 1)));
+        } catch {
+          // not an item after all
+        }
+        start = -1;
+      }
+    } else if (ch === ']' && depth === 0) {
+      break;
+    }
+  }
+  return items;
+}
+
 const plainQuotes = (text) => text.replace(/[’‘]/g, "'").replace(/[“”]/g, '"');
 
 /** Finds `quote` in `text` at or after `from`, also matching straight quotes to curly. */

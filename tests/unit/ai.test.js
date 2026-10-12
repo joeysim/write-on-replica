@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { alternativesRequest, labRequest, LAB_KINDS, TRIM_LEVELS } from '../../web/src/ai/prompts.js';
-import { LineStream, cleanSuggestion, suggestionFilter, acceptSuggestions, parseLabResponse } from '../../web/src/ai/parse.js';
+import { LineStream, cleanSuggestion, suggestionFilter, acceptSuggestions, parseLabResponse, arrivedSoFar } from '../../web/src/ai/parse.js';
 
 const PARAGRAPH = 'Most of the tension in a first draft comes from wanting every sentence to be final. It never ends.';
 
@@ -247,4 +247,36 @@ test('a Lab pass leaves the model room to think, as well as to answer', () => {
 test('however long the piece, a Lab pass asks for no more than a model will give', () => {
   const long = Array.from({ length: 600 }, (_, i) => ({ n: i + 1, text: Array.from({ length: 84 }, () => 'word').join(' ') })); // 50,400 words
   for (const kind of LAB_KINDS) assert.ok(labRequest(kind, long).maxTokens <= 32000, kind);
+});
+
+// --- an answer still on its way ---------------------------------------------------------------
+// A trim's answer is a list of paragraphs, and it can be long. The ones that have arrived
+// whole can be shown while the rest is still coming.
+
+test('the items of a list that have arrived whole are read from an answer cut short', () => {
+  const whole = JSON.stringify({ paragraphs: [{ n: 1, text: 'One.' }, { n: 3, text: 'Three.' }, { n: 5, text: 'Five.' }] });
+  assert.deepEqual(arrivedSoFar(''), []);
+  assert.deepEqual(arrivedSoFar(whole.slice(0, 16)), [], 'nothing whole yet');
+  assert.deepEqual(arrivedSoFar(whole.slice(0, whole.indexOf('{"n":3'))), [{ n: 1, text: 'One.' }]);
+  assert.deepEqual(arrivedSoFar(whole.slice(0, whole.indexOf('Three') + 3)), [{ n: 1, text: 'One.' }], 'the second is not whole yet');
+  assert.deepEqual(arrivedSoFar(whole.slice(0, -2)), [{ n: 1, text: 'One.' }, { n: 3, text: 'Three.' }, { n: 5, text: 'Five.' }]);
+  assert.deepEqual(arrivedSoFar(whole), [{ n: 1, text: 'One.' }, { n: 3, text: 'Three.' }, { n: 5, text: 'Five.' }]);
+});
+
+test('braces, brackets and quotes inside the text do not end an item early', () => {
+  const tricky = { n: 2, text: 'A "quote", a brace } and a bracket ] and a backslash \\ in it.' };
+  const whole = JSON.stringify({ paragraphs: [tricky, { n: 4, text: 'Next.' }] });
+  assert.deepEqual(arrivedSoFar(whole.slice(0, whole.indexOf('brace') + 7)), [], 'cut inside the text, after its brace');
+  assert.deepEqual(arrivedSoFar(whole.slice(0, whole.indexOf('{"n":4') + 3)), [tricky]);
+});
+
+test('an answer laid out over several lines, or fenced, reads the same', () => {
+  const pretty = '```json\n{\n  "paragraphs": [\n    { "n": 1, "text": "One." },\n    { "n": 2, "text": "Two';
+  assert.deepEqual(arrivedSoFar(pretty), [{ n: 1, text: 'One.' }]);
+});
+
+test('an answer that is not a list of items has none', () => {
+  assert.deepEqual(arrivedSoFar('The model says hello.'), []);
+  assert.deepEqual(arrivedSoFar('{"paragraphs": "none"}'), []);
+  assert.deepEqual(arrivedSoFar('{"paragraphs": [1, 2, "three"]}'), []);
 });

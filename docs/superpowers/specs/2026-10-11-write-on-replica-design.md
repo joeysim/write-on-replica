@@ -141,7 +141,7 @@ Opacity states: ghost text 11%; paragraphs other than the panel's target 35%.
 
 | Element | Position (1548×976) | Notes |
 | --- | --- | --- |
-| Word count | left 24 px, top row | "535 words 3115 chars"; with a selection "34 words 182 chars selected". Words are whitespace-separated; chars include spaces (both readouts in the clips check out against the selected text). Lights up under the pointer. |
+| Word count | left 24 px, top row | "535 words 3115 chars"; with a selection "34 words 182 chars selected", and one of either is singular: "1 word 1 char selected". Words are whitespace-separated; chars include spaces (both readouts in the clips check out against the selected text). Lights up under the pointer. |
 | Alternates toggle | centre (753, 32) | Three 7 px dots (ring, disc, ring) over a 24.4 px bar; accent when on |
 | Source icon | centre (795, 32) | "M↓" in a 24.45 × 16.95 rounded rectangle |
 | Keyboard icon | centre (1513, 32) | Same rectangle; rows of four and five dots over a bar |
@@ -155,7 +155,8 @@ whole pixels and any half pixel in a drawing's position is written into the draw
 
 An icon brightens under the pointer, and one that has a shortcut shows it in a small label
 centred 25.5 px above the icon's middle, kept 22 px inside the window's edge. Labels seen
-in the clips: "Ctrl+S", "Ctrl+O", "Ctrl+Shift+P", "Ctrl+Shift+D".
+in the clips: "Ctrl+S", "Ctrl+O", "Ctrl+Shift+P", "Ctrl+Shift+D". The label stays for as
+long as the pointer rests on the control, through a press on it.
 
 ### 4.4 Window
 
@@ -245,7 +246,8 @@ paragraph (how it is drawn, its word count) is worked out once, however long the
   panels, underlines, dots and margin bars are hidden; hover-cycling and the custom
   context menu are off. Ghost text stays dim, because that is content, not chrome.
 - Clicking the word count, or Ctrl+Shift+R, toggles Read mode. The word count's tooltip
-  is "Read (Ctrl+Shift+R)". Chrome fades in over about 200 ms.
+  is "Read (Ctrl+Shift+R)". The chrome and the marks are there at once: in the clip every
+  icon and mark is at full strength in the frame after the click.
 - Using any feature shortcut leaves Read mode.
 - The **alternates toggle** hides or shows only the underlines, dots and margin bars, "so
   you can look at the document without any of that formatting". Behaviour is unchanged.
@@ -289,9 +291,16 @@ Each scope has its own mark, so the three can sit near each other without confus
   (sentence). For a paragraph group the whole block tints, with 4 px corners. The
   underlines are translucent, so they brighten over the tint.
 - While hovering, **→ or ↓** shows the next variant and **← or ↑** the previous, wrapping
-  at the ends. The new text arrives with a ~150 ms blur-and-fade, the line reflows, and
-  the caret lands at the end of the swapped text. The mouse pointer may hide; cycling
-  keeps working.
+  at the ends. The new text arrives with a ~150 ms blur-and-fade and the line reflows.
+  The mouse pointer may hide; cycling keeps working.
+- **The caret.** A caret in the group, or at its edge, goes to the end of the new text,
+  and so does the caret when the text had none. A caret anywhere else stays among the
+  words it was in: in the clip eight flips of "tension" leave the caret resting in
+  "obvious", later in the same paragraph.
+- **Not a step to undo.** Which variant shows is the state of the document, not an edit to
+  it. In the clip three suggestions are tried in turn and one undo then takes the whole
+  batch away. The one exception is a flip that would lose something: words of the showing
+  variant that are ghosted. That flip is a step, so that undo has them back.
 - **Delete or Backspace** while hovering removes the variant that is showing, with an
   explosion (§6.12), and shows the next one. Undo brings it back with a small reverse
   burst and a thump. A group cannot be reduced below one variant this way.
@@ -386,7 +395,20 @@ icons stay in view over it. Going into Read mode closes it.
 - Suggestions are in context: the request carries the target, its sentence, its paragraph
   and the variants already present, and asks for replacements that fit the grammar and
   tone of the sentence as written. It is not a synonym lookup.
-- A batch is one undo step. Undoing it removes all of its rows.
+- A batch is one undo step. Undoing it removes all of its rows and leaves the list as it
+  was before the asking: for a word that had no alternatives, the word and an empty row
+  with the caret in it. The "?" typed on the way to "??" is never an alternative and
+  leaves no step behind.
+- **The empty row is a step.** A second undo, in the clip, takes the empty row and nothing
+  else: the word stays underlined and the panel stays on it. So each empty row the panel
+  opens (on a new target, on Return) is a step of its own that changes nothing in the
+  document. The steps go with the list: when the panel lets the target go they are
+  forgotten, and looking at a word leaves nothing to undo.
+- **Dots follow the list.** While the panel is on a group, the word in the page has a dot
+  for every row of the list: the empty row, the row that is asking, each suggestion as it
+  lands. (Two under a new target, 3, 5, 7 as a batch arrives.)
+- When the panel takes another target its rows come up from dark over 0.13 s. The pointer
+  is an I-beam over a row's words and an arrow beside them.
 - Failure (no key, network, bad response): the `??` row stops dancing and shakes once,
   the footer shows a one-line reason for a few seconds, and nothing else changes.
 
@@ -436,7 +458,9 @@ icons stay in view over it. Going into Read mode closes it.
 Replaces the system menu outside Read mode. A dark rounded card, 376 × 136 px with its
 corner at the pointer (12 px radius, hairline edge), holding four 31 px rows: a label on
 the left and its shortcut, dimmer, on the right, in 13 px type set 15 px in. The row
-under the pointer is a lighter band with 8 px corners.
+under the pointer is a lighter band with 8 px corners. The first row is lit as the menu
+opens, before the pointer is on any, and the row last pointed at stays lit when the
+pointer leaves the menu (both as in the clip).
 
 A right-click inside the selection is about the selection. Anywhere else it puts the
 caret there and is about the word under it; inside an existing group, about that group.
@@ -493,6 +517,15 @@ pointed at):
    undo step. "Done" dismisses the proposal and the text returns to normal.
 5. Choosing another level replaces the pending proposal. "Original" is highlighted when
    nothing is pending.
+6. **The cuts arrive with the answer.** The answer is every paragraph over again and takes
+   a while to come. The cuts in the paragraphs that have arrived whole are faded while the
+   card still reads "Reading…", and "Walk through" joins the other buttons with the first
+   of them, as in the clip. Nothing can be cut or walked until the whole answer is in.
+7. **Levels are kept.** In the clip "Tighten more", chosen twenty seconds after "Slight
+   trim" was read, is there at once: no reading, no line through the text. So what the
+   model says about a level is kept until the piece changes, and when the level asked for
+   has been read the others are read quietly, one at a time, the deeper ones first. Each
+   is a request to the AI service.
 
 A proposal is temporary. It is not saved to the file and is not ghost text: it is drawn
 at twice ghost's strength and lives beside the document, not in it. Text the user has
@@ -569,8 +602,11 @@ Overflow text, as plain paragraphs.
   with no file is offered the name of its first heading, less what a file name cannot
   hold and cut at a word to 80 characters, or "Untitled". The window goes by the same
   name until the document has a file, and then by the file's.
-- The Save icon is accent while the document differs from its file. It lights at the
-  first change, and a change taken back (undone, or typed out again as it was) dims it.
+- The Save icon is accent while the document differs from its file, and follows it both
+  ways: in the main clip it is grey whenever the heading shows the version that was
+  saved. It changes 0.42 s after the change that decides it, over 0.13 s. The shell is
+  told of a change at once, so a window closed in that moment still asks. A change taken
+  back (undone, or typed out again as it was) dims it.
   The panel looking at a word is not a change: a group of one is never written (§5.1).
 - A file opens in the window that already has it; failing that in a window nobody has
   written in (no file, no changes), in place of what is there; failing that in a window
@@ -616,6 +652,12 @@ hairline edge, 7 px corners and a soft shadow that falls mostly below it.
   the top of the scrolling area.
 - Comment and metadata lines are dimmed; text, the overflow included, is full strength.
   Read-only. Esc closes.
+- It comes back as it was left: on the same tab, at the same place in the file (the clip
+  puts it away on Readable and brings it back there). Another document is looked at from
+  the top.
+- The page around the card still answers to the pointer: in the clip the Overflow button
+  shows its shortcut with the card up, and one click on it swaps the card for Overflow. A
+  press off the card puts it away and is still a press on whatever it lands on.
 
 **Post to X** (X icon, Ctrl+Shift+P): opens X's compose window in the default browser
 (`https://x.com/intent/post?text=…`) with the document text filled in, heading marker and
@@ -842,7 +884,7 @@ go another way.
 | 24 | Arrow keys while hovering | → and ↓ go forward, ← and ↑ go back. The clips show both directions and wrap-around, not which key is which. |
 | 25 | Panel details | Clicking a tab retargets at that scope; ↑ / ↓ do not wrap; a group cannot be deleted down to nothing. |
 | 26 | Lab popover while a proposal is pending | The pending level is highlighted; choosing "Original" dismisses it, like "Done". |
-| 27 | Source view details | "As saved" reflects the document as it would be saved now, and is what shows each time the view opens. "Copy" copies the tab that is showing and reads "Copied" for a second and a half. Esc, Ctrl+U again, the M↓ icon or a click off the card closes it, and so does going into Read mode. While it is open the keys scroll it and none reach the page; afterwards the caret is where it was. |
+| 27 | Source view details | "As saved" reflects the document as it would be saved now, and is what shows the first time the view opens on a document. "Copy" copies the tab that is showing and reads "Copied" for a second and a half. Esc, Ctrl+U again, the M↓ icon or a click off the card closes it, and so does going into Read mode. While it is open the keys scroll it and none reach the page; afterwards the caret is where it was. |
 | 28 | Read mode details | Feature shortcuts leave Read mode; the mode is remembered between launches. |
 | 29 | Ghost with no selection | Applies to the word at the caret, like the alternatives commands. |
 | 30 | Mac shell additions | Blended title bar, menu bar with ⌘ equivalents, Save As, Open Recent, unsaved-changes prompt, crash snapshots, file name suggested from the first heading, a sound toggle. None of these are in the clips. |
@@ -853,7 +895,7 @@ go another way.
 | 35 | Alternates toggle when off | Drawn in the inactive icon colour. The clips only show it on. |
 | 36 | A target with no alternatives | While the panel looks at a word that has none, the word is a group of one. Making and unmaking that group is not an undo step, and it is never left behind: closing the panel, moving it on, undo, redo or opening a file turns a group of one back into plain text. |
 | 37 | Rows | The empty row is always the last. Emptying a row in the middle removes its variant and puts the caret in the empty row at the end. A row typed into the same words as another row does not become a second copy; the row it repeats shows instead. The only variant of a group cannot be emptied away. |
-| 38 | Typing an alternative and undo | The letters of an alternative typed in one go are one undo step. Undo and redo in the panel are the document's. |
+| 38 | Typing an alternative and undo | The letters of an alternative typed in one go are one undo step. Undo and redo in the panel are the document's. That an empty row opened with Return is a step like the first, and that a flip which loses ghosted words is one, are decisions made here. |
 | 40 | Context menu states | Items that cannot apply are dimmed and do nothing: the two alternatives items for a selection across paragraphs or where there is no word (they then read just "Alternatives" and "AI alternatives"), Ghost with nothing to ghost, Stash on a blank line. Arrow keys and Return work in the menu; Esc, a click elsewhere, scrolling or any other key puts it away. Near the window's edge it opens on the other side of the pointer. |
 | 41 | Shortcut card | The keyboard icon opens a centred card listing the shortcuts of §6.13 and the keys that work under the pointer; Esc, a click outside or the icon again closes it. It has the look of the source view's card, the one card the clips show: the same edge, corners and shadow, and the page behind is not dimmed. |
 | 42 | Which shortcuts leave Read mode | The feature shortcuts (alternatives, AI alternatives, ghost, stash, Overflow, source view) and any context-menu item. Save, Open, Post to X, undo and redo do not. |
@@ -876,7 +918,8 @@ go another way.
    normalisation; scope detection; sentence and word boundaries; article agreement; the
    tone rule replayed against the tick sequences recorded from the clips; history;
    prompt building and response parsing, including hostile responses.
-2. **Scripted UI runs in the real web view.** A debug-only harness launches the app,
+2. **Scripted UI runs in the real web view.** A harness built into the app, which does
+   nothing unless the app is started with `--ui-test`, launches it,
    drives a scenario and writes PNG snapshots of the page. Clicks, drags, typing and
    shortcuts are native events handed straight to the app's web view. A scripted run is
    headless and must not disturb whoever is using the Mac: it is a background process

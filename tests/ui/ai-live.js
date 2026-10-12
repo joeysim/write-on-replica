@@ -5,7 +5,7 @@
 //   scripts/ui-test.sh ai-live --ai live
 //
 // It never sees the key: the shell holds it and says only where it came from.
-const { editor, ui, commands } = window.writeOn;
+const { editor, ui, commands, lab } = window.writeOn;
 if (!(await t.call('test.options')).aiLive) {
   t.log('skipped: this run does not ask the real service (scripts/ui-test.sh ai-live --ai live does)');
   return;
@@ -103,8 +103,15 @@ const PARA = 5; // "Click the word count in the top-left corner to turn the tool
   const before = editor.getState().html;
   await t.click(...t.center('#lab'));
   await t.until(() => ui.get('lab') && menu.getAnimations({ subtree: false }).length === 0, 2000, 'the Lab to open');
+  const levelNamed = (name) => [...menu.querySelectorAll('.level')].find((level) => level.querySelector('.name').textContent === name);
+  // When the first cuts are faded: the answer is every paragraph again, and they are shown as they come.
+  let firstCut = null;
   const began = performance.now();
-  await t.click(...t.center([...menu.querySelectorAll('.level')].find((level) => level.querySelector('.name').textContent === 'Slight trim')));
+  const watcher = new MutationObserver(() => {
+    if (firstCut === null && editor.root.querySelector('[data-trim]')) firstCut = performance.now() - began;
+  });
+  watcher.observe(editor.root, { childList: true, subtree: true });
+  await t.click(...t.center(levelNamed('Slight trim')));
   await t.until(() => /words ·/.test(title()) || card.classList.contains('is-failed') || /Done/.test(card.textContent) && !/Reading/.test(title()), 60000, 'the trim to come back');
   const total = performance.now() - began;
   t.log(`a trim, in ${seconds(total)}: ${title()}`);
@@ -119,5 +126,21 @@ const PARA = 5; // "Click the word count in the top-left corner to turn the tool
     t.equal(editor.getState().html, before, 'and until the writer says so, nothing is cut');
   }
   t.assert(total < 45000, `in good time: ${seconds(total)}`);
+  watcher.disconnect();
+  if (firstCut !== null) t.log(`    the first cuts were faded after ${seconds(firstCut)}, ${seconds(total - firstCut)} before the whole answer was in`);
   await t.snap('trim');
+
+  // The next level is read quietly meanwhile, and is there at once when it is chosen.
+  const quiet = performance.now();
+  const ready = await t.until(() => lab.kept().includes('tighten'), 120000, 'the next level to be read quietly');
+  if (ready) {
+    t.log(`    "Tighten more" was read quietly in another ${seconds(performance.now() - quiet)}`);
+    await t.click(...t.center('#lab'));
+    await t.until(() => ui.get('lab') && menu.getAnimations({ subtree: false }).length === 0, 2000, 'the Lab to open again');
+    await t.click(...t.center(levelNamed('Tighten more')));
+    t.assert(/^Tighten more \d+ → \d+ words/.test(title()), `and is there at once when chosen: ${title()}`);
+    t.log(`    ${title()}`);
+  }
+  lab.dismiss();
+  lab.forget(); // nothing more is asked once this is over
 }

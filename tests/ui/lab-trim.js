@@ -227,7 +227,7 @@ t.equal(faded(), [], 'and nothing is faded yet');
 
 // --- the proposal ---------------------------------------------------------------------------------
 
-await t.until(() => faded().length > 0, 4000, 'the proposal to arrive');
+await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal to arrive');
 t.equal(faded(), CUTS, 'what could go is faded where it stands');
 t.same(html(), before, 'the text itself is untouched');
 t.assert(!editor.canUndo, 'and nothing has been done that could be undone');
@@ -279,7 +279,7 @@ await load();
 // A cut that takes all of a group takes the group.
 await answer(SLIGHT);
 await choose('Slight trim');
-await t.until(() => faded().length > 0, 4000, 'the proposal');
+await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
 await act('Make the cuts');
 t.equal(textOf(5), 'Keep this aside what earns its place and nothing else.', 'every cut made');
 t.equal(Object.keys(editor.groups), [], 'the group whose only word went is gone');
@@ -289,7 +289,7 @@ await load();
 
 await answer(SLIGHT);
 await choose('Slight trim');
-await t.until(() => faded().length > 0, 4000, 'the proposal');
+await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
 await act('Done');
 t.equal([faded().length, shown(card)], [0, false], 'Done puts the proposal away');
 t.same(html(), before, 'and leaves the text as it was');
@@ -300,11 +300,11 @@ await t.key('Escape');
 // Another level replaces what is proposed.
 await answer(SLIGHT);
 await choose('Slight trim');
-await t.until(() => faded().length > 0, 4000, 'the proposal');
+await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
 await answer([{ n: 3, text: 'A last paragraph the trim leaves alone.' }], { firstMs: 400 });
 await choose('Tighten more');
 t.equal([faded().length, title()], [0, 'Tighten more Reading…'], 'choosing another level starts over');
-await t.until(() => faded().length > 0, 4000, 'the second proposal');
+await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the second proposal');
 t.equal(faded(), ['that '], 'with only what the new answer would cut');
 t.equal(title(), summary('Tighten more', 1), 'under its own name');
 t.near(card.getBoundingClientRect().width, 608.5, 0.01, 'on a card one letter wider');
@@ -312,6 +312,29 @@ t.assert((await askedAbout()).includes(20), 'having asked for 20%');
 // Original puts it away.
 await choose('Original');
 t.equal([faded().length, shown(card), ui.get('lab')], [0, false, false], 'Original puts the proposal away and closes the popover');
+
+// --- cuts arrive as the answer does ----------------------------------------------------------------
+// A trim's answer is every paragraph over again, and it takes a while to arrive. In the clip
+// the first cuts fade, and "Walk through" appears, while the card still reads "Reading…".
+{
+  lab.forget();
+  const whole = JSON.stringify({ paragraphs: SLIGHT });
+  const cut = whole.indexOf('},{') + 2; // the first paragraph whole, and the start of the next
+  t.assert(cut > 2, 'the answer has more than one paragraph');
+  await t.call('test.ai', { set: { chunks: [whole.slice(0, cut), whole.slice(cut)], firstMs: 100, everyMs: 900 } });
+  await choose('Slight trim');
+  await t.until(() => faded().length > 0, 800, 'the first paragraph’s cuts to fade while the rest is still coming');
+  t.equal(title(), 'Slight trim Reading…', 'the card still says it is reading');
+  t.assert(shown(scan), 'and the line is still going through the text');
+  t.equal(actions(), ['Make the cuts', 'Walk through', 'Done'], 'Walk through is there already');
+  const early = faded().length;
+  const text = html();
+  await act('Make the cuts');
+  t.same(html(), text, 'though nothing can be cut until the whole answer is in');
+  await t.until(() => title() === summary('Slight trim', 14), 3000, 'the whole answer');
+  t.assert(faded().length > early, `which brings the rest of the cuts: ${early}, then ${faded().length}`);
+  await act('Done');
+}
 
 // --- levels are kept ------------------------------------------------------------------------------
 // In the clip "Tighten more" is chosen some seconds after "Slight trim" was read, and its
@@ -323,7 +346,7 @@ t.equal([faded().length, shown(card), ui.get('lab')], [0, false, false], 'Origin
   const before = (await asked()).length;
   await choose('Slight trim');
   t.equal(title(), 'Slight trim Reading…', 'the level asked for is read');
-  await t.until(() => faded().length > 0, 4000, 'its proposal');
+  await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'its proposal');
   t.equal((await askedAbout(before))[0], 10, 'the model was asked about that level first');
   await t.until(async () => (await asked()).length === before + 4, 4000, 'the other three levels to be read quietly');
   t.equal(await askedAbout(before), [10, 20, 30, 50], 'one after another, from the one asked for outwards');
@@ -346,7 +369,7 @@ t.equal([faded().length, shown(card), ui.get('lab')], [0, false, false], 'Origin
   await answerQuietly(SLIGHT, { firstMs: 300 });
   await choose('Tighten more');
   t.equal(title(), 'Tighten more Reading…', 'after an edit a level is read again');
-  await t.until(() => faded().length > 0, 4000, 'the new proposal');
+  await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the new proposal');
   await act('Done');
   await t.key('z', { meta: true });
   await load();
@@ -360,7 +383,7 @@ for (const [what, change] of [
 ]) {
   await answer(SLIGHT);
   await choose('Slight trim');
-  await t.until(() => faded().length > 0, 4000, `the proposal before ${what}`);
+  await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, `the proposal before ${what}`);
   editor.focus();
   editor.select({ block: 7, offset: 0 });
   await change();
@@ -386,7 +409,7 @@ await load();
 {
   await answer(SLIGHT);
   await choose('Slight trim');
-  await t.until(() => faded().length > 0, 4000, 'the proposal before read mode');
+  await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal before read mode');
   await openMenu();
   ui.set({ read: true });
   await t.settle();
@@ -425,7 +448,7 @@ await answer([
   { n: 3, text: 'A last paragraph the trim leaves alone.' },
 ]);
 await choose('Cut in half');
-await t.until(() => faded().length > 0, 4000, 'the proposal');
+await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
 t.equal(faded(), ['that '], 'a paragraph that came back reworded is not touched');
 await act('Done');
 // Nothing usable at all.
@@ -440,7 +463,7 @@ await act('Done');
 
 await answer(SLIGHT);
 await choose('Slight trim');
-await t.until(() => faded().length > 0, 4000, 'the proposal');
+await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
 await act('Walk through');
 t.equal(title(), 'Slight trim 1 of 5', 'the walk starts at the first cut');
 t.equal(actions(), ['Cut', 'Keep', 'Stop'], 'with three choices');
