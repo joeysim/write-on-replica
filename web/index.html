@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="styles/chrome.css" />
     <link rel="stylesheet" href="styles/panels.css" />
     <link rel="stylesheet" href="styles/popovers.css" />
+    <link rel="stylesheet" href="styles/lab.css" />
   </head>
   <body class="is-booting">
     <div id="scroll">
@@ -16,6 +17,7 @@
         <div id="underlay" aria-hidden="true"></div>
         <svg id="decor" aria-hidden="true"></svg>
         <div id="editor" contenteditable="true" spellcheck="false" autocorrect="off" autocapitalize="off"></div>
+        <div id="scan" aria-hidden="true"></div>
       </div>
     </div>
 
@@ -115,6 +117,12 @@
     <canvas id="fx" aria-hidden="true"></canvas>
     <div id="tooltip" role="tooltip"></div>
     <div id="menu" role="menu"></div>
+    <div id="labcard" role="status">
+      <p class="title"><span class="name"></span> <span class="state"></span></p>
+      <p class="hint"></p>
+      <div class="actions"></div>
+    </div>
+    <div id="labmenu" role="menu" aria-label="The Lab"></div>
     <div id="scrim"></div>
     <section id="source" role="dialog" aria-modal="true" aria-label="The file as saved">
       <header>

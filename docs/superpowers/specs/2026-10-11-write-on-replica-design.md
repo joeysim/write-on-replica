@@ -407,7 +407,10 @@ caret there and is about the word under it; inside an existing group, about that
 
 ### 6.10 The Lab
 
-The dashed "LAB" button opens a popover above it.
+The dashed "LAB" button opens a popover that stands on the button's bottom edge and
+covers it: 620 × 327 px, centred. It opens outwards from the button, a reveal that takes
+about 270 ms and slows as it goes; its shadow arrives when the reveal is over. It closes
+the same way in reverse, faster and fading.
 
 ```
 The Lab guide…                         what each idea does
@@ -423,26 +426,38 @@ Mark hedges and filler
                   ~10%            ~20%             ~30%            ~50%
 ```
 
-**Trims** (observed in full):
+The first line is lit when the popover opens; the line under the pointer is lit, and
+stays lit while the pointer is on the trims below. "Original" is outlined in the accent
+colour while nothing is proposed; otherwise the level that is.
 
-1. Choosing a trim closes the popover and shows a card at the bottom centre:
-   "**Slight trim** Reading…", then "Faded words would go. Click one to keep it.", with
-   buttons "Make the cuts" and "Done".
-2. While it reads, a crimson line the width of the text column sweeps down each
-   paragraph in turn, 300 ms per paragraph, top to bottom of the block.
-3. When the answer arrives the proposed cuts fade to ghost strength where they stand,
-   and the card's first line becomes "**Slight trim** 535 → 480 words · −10%". A
-   "Walk through" button appears between the other two.
+**Trims** (observed in full, except "Make the cuts" and "Walk through", which are only
+pointed at):
+
+1. Choosing a trim closes the popover and at once shows a card at the bottom centre,
+   500 × 88 px, 55 px above the bottom of the window: "**Slight trim** Reading…", then
+   "Faded words would go. Click one to keep it.", with buttons "Make the cuts" and "Done".
+2. While it reads, a crimson line the width of the text column sweeps down each block of
+   text in turn, the heading included, 300 ms to a block whatever its height, at a steady
+   speed from its top to its bottom.
+3. When the answer arrives the proposed cuts drop, in one frame, to 22% where they stand:
+   twice the strength of ghosted text (the clip measures 0.226 against ghost's 0.112).
+   The card's first line becomes "**Slight trim** 535 → 480 words · −10%" and a "Walk
+   through" button appears between the other two. The card is now wider than its words
+   need: 601.5 px for "Slight trim", 608.5 px for "Tighten more". Nothing visible in the
+   clip accounts for that width, so the replica takes it as measured, 7 px for each
+   further letter in the name.
 4. Clicking a faded passage keeps it. "Make the cuts" deletes what is still faded, as one
    undo step. "Done" dismisses the proposal and the text returns to normal.
 5. Choosing another level replaces the pending proposal. "Original" is highlighted when
    nothing is pending.
 
-A proposal is temporary. It is not saved to the file and is not the same thing as ghost
-text, though it looks the same. Text the user has already ghosted is treated as already
-out: it is not offered for cutting and is left out of both word counts on the card. A
-cut inside an alternative group edits that group's active variant; a cut that removes
-all of it removes the group.
+A proposal is temporary. It is not saved to the file and is not ghost text: it is drawn
+at twice ghost's strength and lives beside the document, not in it. Text the user has
+already ghosted is treated as already out: it is not offered for cutting and is left out
+of both word counts on the card. Headings are not offered either, though their words are
+counted. A cut inside an alternative group edits that group's active variant; a cut that
+removes all of it removes the group. Any change to the document while a pass is out
+(an edit, an undo, a redo) puts the pass away, since it was about the text as it was.
 
 After "Make the cuts" the app does only mechanical tidying: collapse doubled spaces,
 remove a space left before punctuation, and capitalise a sentence whose first words were
@@ -679,7 +694,7 @@ go another way.
 | --- | --- | --- |
 | 1 | Keyboard icon | Opens a card listing the shortcuts in §6.13. |
 | 2 | "The Lab guide…" | Opens a card with a two-sentence explanation of each idea. |
-| 3 | "Walk through" | Steps through the proposal one passage at a time with Cut / Keep / Stop, showing "3 of 9". |
+| 3 | "Walk through" | Steps through the proposal one passage at a time with Cut / Keep / Stop, showing "3 of 9" where the numbers were. The passage in question is underlined in the Lab's crimson and scrolled into view. Cut and Keep only decide; nothing is cut until "Make the cuts". After the last passage, or on Stop or Esc, the summary is back. |
 | 4 | "Mark…" passes | Marked passages get a `lab`-coloured underline; hovering shows a short reason; clicking a mark dismisses it; "Done" clears them. Never saved. |
 | 5 | "Fix punctuation and typos" | Proposed fixes are marked the same way, with the correction shown on hover. Card buttons: "Fix all", "Walk through", "Done". Clicking a mark keeps the original. |
 | 6 | Stash with no selection | Moves the whole paragraph at the caret. |
@@ -722,6 +737,7 @@ go another way.
 | 44 | While the AI is asked | The row of `??` cannot be typed in while it dances. Closing the panel or moving it to another target calls the request off, and nothing arrives. Suggestions show as they come but become variants together, when the answer is complete; a request that fails part-way leaves none of them. After a failure the row keeps its `??`, still, with the caret in it: deleting a mark and typing it again asks again. The reason replaces the footer hint for four seconds. |
 | 45 | Ghost at the edges | A run of ghosted text is what runs on unbroken within one paragraph; where the edge of a group splits it, it is still one. A caret on a ghosted word revives even at the very edge of the run, and a caret inside ghosted spaces or punctuation revives too. A selection with no words in it, a blank line and a caret among plain spaces give the command nothing to do, and the menu item is dimmed. A word beside ghosted text is ghosted in its own right. |
 | 46 | Stash and use, in detail | Stashed text is trimmed, and marks do not travel: a group or ghosted words go as the words that were showing. Where a stash empties a paragraph, the paragraph goes and a blank line with it, so the page stays one blank line between paragraphs. Taking whole lines out of Overflow closes it up the same way. Used text goes in as a paste would, the caret goes to the page and stands after it, and the page scrolls to show it; where the page has had no caret yet it is added at the end as a paragraph of its own. A blank line, or a selection with no words, gives either command nothing to do. |
+| 47 | Trims, in detail | A click on a faded passage keeps it and a second click lets it go again. Choosing another level, or "Original", puts a pending proposal away first. If the request fails the card keeps the trim's name, gives the reason in one line and offers only "Done"; the same if the answer holds nothing that is the text with words deleted ("The AI found nothing it could cut without rewording."), or nothing at all ("The AI found nothing to cut."). A paragraph that came back reworded is left alone while the others are proposed. Going into Read mode puts the popover and any pass away. Arrow keys are not needed in the popover; Esc and a click elsewhere close it. |
 | 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
 
 ## 10. Verification

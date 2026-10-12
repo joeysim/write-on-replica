@@ -215,6 +215,27 @@ export function setGhost(blocks, start, end, on) {
   return mapRange(blocks, start, end, (piece) => run(piece.text, { vid: piece.vid, ghost: on }));
 }
 
+// --- rewriting --------------------------------------------------------------------------------
+
+/**
+ * Block `index` with each character of its text passed through `write(offset)`, which
+ * gives what to put in its place: the same character, another, or '' to drop it. Marks stay
+ * with whatever is left of the text they were on.
+ */
+export function rewriteBlock(blocks, index, write) {
+  const block = blocks[index];
+  let at = 0;
+  const runs = block.runs.map((piece) => {
+    let text = '';
+    for (let i = 0; i < piece.text.length; i++) text += write(at + i);
+    at += piece.text.length;
+    return run(text, piece);
+  });
+  const made = withRuns(block, runs);
+  // Nothing left: a plain blank line, whatever the block was.
+  return replaceBlocks(blocks, index, 1, made.runs.length ? made : { kind: 'blank', runs: [] });
+}
+
 // --- groups -----------------------------------------------------------------------------------
 
 /** Marks `start`..`end` of one block as inline group `vid`, replacing any groups inside. */
