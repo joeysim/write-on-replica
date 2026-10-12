@@ -4,6 +4,7 @@
 
 const handler = globalThis.webkit?.messageHandlers?.writeon;
 const listeners = new Map();
+const answers = new Map();
 
 const SETTINGS = 'write_on.settings';
 const stored = () => {
@@ -35,6 +36,12 @@ const shim = {
     window.open(url, '_blank', 'noopener');
     return null;
   },
+  // A browser has no files of the app's: the page opens on the welcome piece and stays there.
+  'doc.start': () => ({ kind: 'welcome' }),
+  'doc.state': () => null,
+  'draft.write': () => null,
+  'file.open': () => null,
+  'file.save': () => ({ saved: false }),
   log: ({ level, message }) => {
     (level === 'error' ? console.error : console.log)(message);
     return null;
@@ -65,6 +72,11 @@ export const native = {
     return () => listeners.get(event)?.delete(listener);
   },
 
+  /** Says how to answer a question the shell may ask (`Bridge.ask` there). */
+  answer(question, reply) {
+    answers.set(question, reply);
+  },
+
   /** Lets the browser shim answer more methods (used by features as they arrive). */
   provide(method, answer) {
     shim[method] = answer;
@@ -74,5 +86,10 @@ export const native = {
 globalThis.__writeon = {
   emit(event, payload) {
     for (const listener of listeners.get(event) ?? []) listener(payload);
+  },
+  async answer(question, params) {
+    const reply = answers.get(question);
+    if (!reply) throw new Error(`the page has no answer for: ${question}`);
+    return (await reply(params ?? {})) ?? null;
   },
 };

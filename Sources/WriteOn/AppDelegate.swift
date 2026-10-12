@@ -1,10 +1,39 @@
 import AppKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenuItemValidation {
     private var controllers: [DocumentWindowController] = []
     private var harness: UITestHarness?
     private var webRoot: URL?
     private var settings = AppSettings.standard
+    private(set) var store = FileStore()
+    private var asking: Asking = Panels()
+    private var launched = false
+    /// Files handed over before the app was ready for them.
+    private var waiting: [URL] = []
+    /// A UI test run: one window, never in front, and nothing shown that waits for a person.
+    private var scripted = false
+    /// The Open panel is up. One at a time.
+    private var choosing = false
+    /// The windows a scripted run was asked for beyond its one. It opens none of them.
+    private(set) var windowsAskedFor: [DocumentStart] = []
+
+    /// Checking and correcting are there to be turned on (Edit ▸ Spelling and Grammar,
+    /// Substitutions) and are off until they are, so the page shows what was typed. These
+    /// are the settings WebKit keeps them under; unset, some would follow the system's.
+    static let typingDefaults: [String: Any] = [
+        "WebContinuousSpellCheckingEnabled": false,
+        "WebGrammarCheckingEnabled": false,
+        "WebAutomaticSpellingCorrectionEnabled": false,
+        "WebAutomaticQuoteSubstitutionEnabled": false,
+        "WebAutomaticDashSubstitutionEnabled": false,
+        "WebAutomaticTextReplacementEnabled": false,
+    ]
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        UserDefaults.standard.register(defaults: Self.typingDefaults)
+        // One document to a window: no tab bar, and none of its items in the View menu.
+        NSWindow.allowsAutomaticWindowTabbing = false
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard let root = AssetSchemeHandler.locateWebRoot() else {
@@ -12,89 +41,224 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             exit(70)
         }
         webRoot = root
-        NSApp.mainMenu = Self.buildMenu()
+        NSApp.mainMenu = MainMenu.build(for: self)
+        launched = true
 
-        let test = UITestOptions.parse(CommandLine.arguments)
-        if let test {
+        if let test = UITestOptions.parse(CommandLine.arguments) {
             // A scripted run starts from the settings it names and saves nothing. It is
-            // silent unless it asks for sound.
+            // silent unless it asks for sound, keeps its files in a folder of its own,
+            // answers its own questions, and types as the app does when new, whatever
+            // has been turned on in the Edit menu since.
+            scripted = true
             var initial = test.settings
             if initial["sound"] == nil { initial["sound"] = false }
             settings = AppSettings(defaults: nil, initial: initial)
-        }
-        let controller = openWindow(pageSize: test?.pageSize, scripted: test != nil)
-        if let test {
+            store = FileStore(stateDirectory: test.state)
+            let answers = ScriptedAsking(folder: test.output)
+            asking = answers
+            UserDefaults.standard.setVolatileDomain(Self.typingDefaults, forName: UserDefaults.argumentDomain)
+
+            let start = store.drafts().first.map { DocumentStart.recovered($0) } ?? untitledStart()
+            guard let controller = openWindow(start, pageSize: test.pageSize) else { exit(70) }
             // Never activated: the keyboard and pointer stay with whoever is at the Mac.
-            harness = UITestHarness(options: test, controller: controller)
+            harness = UITestHarness(options: test, controller: controller, app: self, answers: answers)
             harness?.start()
-        } else {
-            NSApp.activate(ignoringOtherApps: true)
+            return
         }
+
+        // Unsaved work from before a crash comes back first, as unsaved documents.
+        for draft in store.drafts() { openWindow(.recovered(draft)) }
+        let files = waiting
+        waiting = []
+        files.forEach { open($0) }
+        if controllers.isEmpty { openWindow(untitledStart()) }
+        NSApp.activate(ignoringOtherApps: true)
     }
 
+    /// A click on the Dock icon with no window to show: a new one, which is the app's to
+    /// open. AppKit is not to try opening a document of its own, here or at launch.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        if !flag { openWindow() }
-        return true
+        guard !flag else { return true }
+        openWindow(untitledStart())
+        return false
     }
+
+    func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool { false }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool { true }
 
+    /// Files from Finder, the Dock or `open`.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard launched else {
+            waiting += urls
+            return
+        }
+        urls.forEach { open($0) }
+    }
+
+    // MARK: Windows
+
+    /// What a window with no file opens with: the welcome piece the first time there is
+    /// one, a blank page ever after.
+    private func untitledStart() -> DocumentStart {
+        if settings.welcomed { return .blank }
+        settings.welcomed = true
+        return .welcome
+    }
+
+    private var front: DocumentWindowController? {
+        controllers.first { $0.window.isMainWindow } ?? controllers.last
+    }
+
     @discardableResult
-    func openWindow(pageSize: NSSize? = nil, scripted: Bool = false) -> DocumentWindowController {
+    func openWindow(_ start: DocumentStart, pageSize: NSSize? = nil) -> DocumentWindowController? {
         guard let webRoot else { fatalError("openWindow before launch finished") }
-        let controller = DocumentWindowController(webRoot: webRoot, settings: settings, pageSize: pageSize, scripted: scripted)
+        if scripted, !controllers.isEmpty {
+            windowsAskedFor.append(start)
+            return nil
+        }
+        let controller = DocumentWindowController(
+            webRoot: webRoot, settings: settings, store: store, asking: asking,
+            start: start, pageSize: pageSize, scripted: scripted
+        )
         controller.onClosed = { [weak self] closed in
             self?.controllers.removeAll { $0 === closed }
+        }
+        controller.onOpenRequest = { [weak self] from in
+            self?.chooseAndOpen(from: from)
+        }
+        if let before = controllers.last, !scripted {
+            // A step down and to the right of the window before, so both can be seen.
+            let origin = before.window.frame.origin
+            controller.window.setFrameOrigin(NSPoint(x: origin.x + 24, y: origin.y - 24))
         }
         controllers.append(controller)
         controller.show()
         return controller
     }
 
-    @objc func newDocument(_ sender: Any?) {
-        openWindow()
+    /// Opens a file: in the window that already has it, or in one nobody has written in
+    /// (the one it was asked for from, for choice), or in a window of its own.
+    func open(_ url: URL, preferring current: DocumentWindowController? = nil) {
+        let url = url.standardizedFileURL
+        if let showing = controllers.first(where: { $0.fileURL == url }) {
+            showing.show()
+            return
+        }
+        let text: String
+        do {
+            text = try store.read(url)
+        } catch {
+            asking.tell("The document “\(url.lastPathComponent)” could not be opened.", detail: error.localizedDescription, for: current?.window)
+            return
+        }
+        store.noteRecent(url)
+        let unwritten = current.flatMap { $0.isPristine ? $0 : nil } ?? controllers.first { $0.isPristine }
+        if let unwritten {
+            unwritten.load(url, text: text)
+            unwritten.show()
+        } else {
+            openWindow(.file(url, text: text))
+        }
     }
 
-    // MARK: Menu
+    private func chooseAndOpen(from controller: DocumentWindowController?) {
+        guard !choosing else { return }
+        choosing = true
+        asking.whatToOpen(for: controller?.window) { [weak self] urls in
+            self?.choosing = false
+            urls.forEach { self?.open($0, preferring: controller) }
+        }
+    }
 
-    /// The first cut of the menu bar: enough for Quit, a new window and the standard
-    /// editing commands. The full menu arrives with file handling.
-    private static func buildMenu() -> NSMenu {
-        let main = NSMenu()
+    // MARK: Menu actions
 
-        let appItem = NSMenuItem()
-        let appMenu = NSMenu()
-        appMenu.addItem(withTitle: "About Write_On", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
-        appMenu.addItem(.separator())
-        appMenu.addItem(withTitle: "Hide Write_On", action: #selector(NSApplication.hide(_:)), keyEquivalent: "h")
-        appMenu.addItem(withTitle: "Quit Write_On", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
-        appItem.submenu = appMenu
-        main.addItem(appItem)
+    @objc func newDocument(_ sender: Any?) {
+        openWindow(.blank)
+    }
 
-        let fileItem = NSMenuItem()
-        let fileMenu = NSMenu(title: "File")
-        fileMenu.addItem(withTitle: "New", action: #selector(AppDelegate.newDocument(_:)), keyEquivalent: "n")
-        fileMenu.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
-        fileItem.submenu = fileMenu
-        main.addItem(fileItem)
+    @objc func openDocument(_ sender: Any?) {
+        chooseAndOpen(from: front)
+    }
 
-        let editItem = NSMenuItem()
-        let editMenu = NSMenu(title: "Edit")
-        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
-        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
-        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
-        editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
-        editItem.submenu = editMenu
-        main.addItem(editItem)
+    @objc func openRecent(_ sender: NSMenuItem) {
+        if let url = sender.representedObject as? URL { open(url, preferring: front) }
+    }
 
-        let windowItem = NSMenuItem()
-        let windowMenu = NSMenu(title: "Window")
-        windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.performMiniaturize(_:)), keyEquivalent: "m")
-        windowMenu.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
-        windowItem.submenu = windowMenu
-        main.addItem(windowItem)
-        NSApp.windowsMenu = windowMenu
+    @objc func clearRecents(_ sender: Any?) {
+        store.clearRecents()
+    }
 
-        return main
+    @objc func showWelcome(_ sender: Any?) {
+        openWindow(.welcome)
+    }
+
+    // What belongs to a document goes to the one in front.
+
+    @objc func pageCommand(_ sender: NSMenuItem) {
+        if let name = sender.representedObject as? String { front?.command(name) }
+    }
+
+    @objc func saveDocument(_ sender: Any?) {
+        front?.command("save")
+    }
+
+    @objc func saveDocumentAs(_ sender: Any?) {
+        front?.command("save-as")
+    }
+
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        switch item.action {
+        case #selector(pageCommand(_:)), #selector(saveDocument(_:)), #selector(saveDocumentAs(_:)):
+            // Not while the document is waiting on a panel: there is nothing to do it to yet.
+            guard let front, !front.isAsking else { return false }
+            if let name = item.representedObject as? String, let on = front.isOn(name) { item.state = on ? .on : .off }
+            return true
+        case #selector(openDocument(_:)):
+            return !choosing
+        default:
+            return true
+        }
+    }
+
+    /// Open Recent is made anew each time it is opened.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard menu.title == MainMenu.openRecentTitle else { return }
+        menu.removeAllItems()
+        let recents = store.recents
+        for url in recents {
+            let item = NSMenuItem(title: url.lastPathComponent, action: #selector(openRecent(_:)), keyEquivalent: "")
+            item.target = self
+            item.representedObject = url
+            item.toolTip = url.path
+            menu.addItem(item)
+        }
+        if !recents.isEmpty { menu.addItem(.separator()) }
+        let clear = NSMenuItem(title: "Clear Menu", action: recents.isEmpty ? nil : #selector(clearRecents(_:)), keyEquivalent: "")
+        clear.target = self
+        menu.addItem(clear)
+    }
+
+    // MARK: Quitting
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard controllers.contains(where: { $0.dirty }) else { return .terminateNow }
+        reviewUnsaved { sender.reply(toApplicationShouldTerminate: $0) }
+        return .terminateLater
+    }
+
+    /// Asks about each document with unsaved changes in turn, and says whether the app may
+    /// go: not if any of them is to be kept open.
+    func reviewUnsaved(then done: @escaping (Bool) -> Void) {
+        var unsaved = controllers.filter { $0.dirty }
+        func next() {
+            guard !unsaved.isEmpty else { return done(true) }
+            let controller = unsaved.removeFirst()
+            controller.show()
+            controller.confirmClose { may in
+                if may { next() } else { done(false) }
+            }
+        }
+        next()
     }
 }

@@ -59,6 +59,23 @@ final class Bridge: NSObject, WKScriptMessageHandlerWithReply {
         }
     }
 
+    /// Asks the page something it has said it can answer (`native.answer` there) and waits
+    /// for it: the one way the shell gets anything out of the page that it did not send.
+    func ask(_ question: String, _ params: [String: Any] = [:], then reply: @escaping (Result<Any?, Failure>) -> Void) {
+        guard let webView else { return reply(.failure(Failure("there is no page to ask"))) }
+        webView.callAsyncJavaScript(
+            "return await window.__writeon.answer(question, params)",
+            arguments: ["question": question, "params": params],
+            in: nil,
+            in: .page
+        ) { result in
+            switch result {
+            case .success(let value): reply(.success(value is NSNull ? nil : value))
+            case .failure(let error): reply(.failure(Failure(error.localizedDescription)))
+            }
+        }
+    }
+
     /// Sends an event to the page. `payload` must be JSON-serialisable.
     func emit(_ event: String, _ payload: Any = [String: Any]()) {
         guard let webView,

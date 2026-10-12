@@ -77,7 +77,7 @@ export function createPanel({ editor, ui, alternatives, commands }) {
   function makeRow() {
     const row = document.createElement('li');
     row.className = 'row';
-    row.innerHTML = '<span class="marker"></span><div class="text" contenteditable="plaintext-only" spellcheck="false" autocapitalize="off"></div>';
+    row.innerHTML = '<span class="marker"></span><div class="text" contenteditable="plaintext-only" autocapitalize="off"></div>';
     return row;
   }
 

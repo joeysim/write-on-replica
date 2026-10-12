@@ -20,6 +20,7 @@
 // In memory a document is a DocState: { html, groups, overflow }.
 
 import { isValidGroup, tidyGroup } from './model.js';
+import { clearGroup } from './blocks.js';
 
 const OVERFLOW_MARK = '<!-- overflow -->';
 const META_OPEN = '<!-- write_on ';
@@ -267,8 +268,13 @@ function sameBlocks(a, b) {
  * can be read straight back from its Markdown is written as plain Markdown.
  */
 function layout(state) {
-  const blocks = htmlToBlocks(state.html);
-  const groups = groupsInDocumentOrder(blocks, state.groups ?? {});
+  const all = state.groups ?? {};
+  let blocks = htmlToBlocks(state.html);
+  // A group of one is the panel looking at a word, not something to keep (design spec 5.1).
+  for (const [vid, group] of Object.entries(all)) {
+    if (group?.variants?.length === 1) blocks = clearGroup(blocks, vid);
+  }
+  const groups = groupsInDocumentOrder(blocks, all);
   const rawOverflow = (state.overflow ?? '').replace(/\r\n?/g, '\n');
   const overflow = rawOverflow.trim() ? trimBlankLines(rawOverflow) : '';
   const hasMarks = Object.keys(groups).length > 0 || blocks.some((b) => b.vid || b.runs.some((r) => r.ghost || r.vid));
@@ -497,4 +503,36 @@ export function plainText(state, { withoutGhost = false, headingMarker = true } 
     lines.push(line);
   }
   return trimBlankLines(lines.join('\n'));
+}
+
+// --- the name a file is offered ------------------------------------------------------------
+
+const NAME_MOST = 80;
+// What Finder, Windows or a shell will not take in a name.
+const UNNAMEABLE = /[\\/:*?"<>|\u0000-\u001f\u007f]+/g;
+
+// At a word where there is one, and never through the middle of a character.
+function clipName(name) {
+  if (name.length <= NAME_MOST) return name;
+  let kept = '';
+  for (const { segment } of new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(name)) {
+    if (kept.length + segment.length > NAME_MOST) break;
+    kept += segment;
+  }
+  const space = kept.lastIndexOf(' ');
+  return (name[kept.length] !== ' ' && space > NAME_MOST / 2 ? kept.slice(0, space) : kept).trim();
+}
+
+/** A name for the file, without its extension: the first heading in `blocks` that leaves one, or ''. */
+export function suggestedName(blocks) {
+  for (const block of blocks) {
+    if (block.kind !== 'h') continue;
+    const name = blockText(block)
+      .replace(UNNAMEABLE, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^[. ]+|[. ]+$/g, '');
+    if (name) return clipName(name);
+  }
+  return '';
 }

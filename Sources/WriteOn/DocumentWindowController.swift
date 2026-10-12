@@ -31,6 +31,26 @@ final class EditorWebView: WKWebView {
     /// harness treats it as a mistake in the scenario.
     var onSuppressedMenu: (() -> Void)?
 
+    private var document: DocumentWindowController? { window?.delegate as? DocumentWindowController }
+
+    // Edit ▸ Undo and Redo. The history is the document's own, kept in the page. WebKit's
+    // knows only the last plain keystrokes, so it is neither asked nor used.
+    @objc func undo(_ sender: Any?) {
+        document?.command("undo")
+    }
+
+    @objc func redo(_ sender: Any?) {
+        document?.command("redo")
+    }
+
+    override func validateUserInterfaceItem(_ item: NSValidatedUserInterfaceItem) -> Bool {
+        switch item.action {
+        case #selector(undo(_:)): return document?.can("undo") ?? false
+        case #selector(redo(_:)): return document?.can("redo") ?? false
+        default: return super.validateUserInterfaceItem(item)
+        }
+    }
+
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
         if suppressesNativeMenus {
             menu.removeAllItems()
@@ -41,7 +61,18 @@ final class EditorWebView: WKWebView {
     }
 }
 
-/// One window, one document. Owns the web view that hosts the page.
+/// What a window opens with.
+enum DocumentStart {
+    /// The piece that shows what the app does, the first time it is opened.
+    case welcome
+    case blank
+    case file(URL, text: String)
+    /// Unsaved work from before a crash.
+    case recovered(Draft)
+}
+
+/// One window, one document. Owns the web view that hosts the page, and knows which file
+/// the document is, whether it has changes that file does not, and what to do about them.
 final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDelegate, WKUIDelegate {
     static let pageBackground = NSColor(srgbRed: 5 / 255, green: 10 / 255, blue: 28 / 255, alpha: 1)
     /// The page size the source clips were recorded at; the default for a new window.
@@ -59,8 +90,32 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     var onPageLog: ((_ level: String, _ message: String) -> Void)?
     var onClosed: ((DocumentWindowController) -> Void)?
 
+    /// Open… was chosen in this window.
+    var onOpenRequest: ((DocumentWindowController) -> Void)?
+
+    /// Under which this document's unsaved work is copied aside.
+    let id: String
+    private(set) var fileURL: URL?
+    /// Whether the page holds changes the file does not. The page says (`doc.state`).
+    private(set) var dirty = false
+    /// The first heading, as a name for a document that has no file yet.
+    private var heading = ""
+    /// Which of the page's switches are on (read mode and the like), for the menu's ticks.
+    private var flags: [String: Bool] = [:]
+    /// Whether there is anything to undo or redo, for the menu.
+    private var able: [String: Bool] = [:]
+    /// Where a recovered document used to live, which is where saving it starts.
+    private var formerURL: URL?
+    private var start: DocumentStart
+    private var startTaken = false
+    /// A question about this document is waiting for its answer. One at a time: a second
+    /// panel would only queue up behind the first.
+    private(set) var isAsking = false
+
     private let scripted: Bool
     private let settings: AppSettings
+    private let store: FileStore
+    private let asking: Asking
     /// Where Copy puts text. A scripted run has a pasteboard of its own, so it never
     /// replaces what the person at this Mac has copied.
     let pasteboard: NSPasteboard
@@ -73,9 +128,28 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     ///   - pageSize: content size in points; defaults to the reference size, fitted to the screen.
     ///   - scripted: a UI test run. Keeps `pageSize` exactly, and makes the page behave as
     ///     visible and focused even when the Mac is locked.
-    init(webRoot: URL, settings: AppSettings, pageSize: NSSize? = nil, scripted: Bool = false) {
+    init(
+        webRoot: URL, settings: AppSettings, store: FileStore, asking: Asking,
+        start: DocumentStart = .blank, pageSize: NSSize? = nil, scripted: Bool = false
+    ) {
         self.scripted = scripted
         self.settings = settings
+        self.store = store
+        self.asking = asking
+        self.start = start
+        switch start {
+        case .file(let url, _):
+            id = UUID().uuidString
+            fileURL = url.standardizedFileURL
+        case .recovered(let draft):
+            // Still unsaved, and still kept under the same name until it is saved or let go.
+            id = draft.id
+            dirty = true
+            heading = draft.name
+            formerURL = draft.path.map { URL(fileURLWithPath: $0) }
+        case .welcome, .blank:
+            id = UUID().uuidString
+        }
         pasteboard = scripted ? NSPasteboard.withUniqueName() : NSPasteboard.general
         let exactSize = scripted
         let configuration = WKWebViewConfiguration()
@@ -146,6 +220,7 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
 
         webView.navigationDelegate = self
         webView.uiDelegate = self
+        reflect()
         webView.load(URLRequest(url: AssetSchemeHandler.indexURL))
     }
 
@@ -204,11 +279,30 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
             guard let self, let text = params["url"] as? String, let url = URL(string: text),
                   url.scheme == "https", url.host == "x.com", url.path == "/intent/post"
             else { throw Bridge.Failure("only X's compose window can be opened") }
-            if self.scripted {
-                self.askedToOpen.append(url)
-            } else if !NSWorkspace.shared.open(url) {
-                throw Bridge.Failure("the browser could not be opened")
+            guard self.sendToBrowser(url) else { throw Bridge.Failure("the browser could not be opened") }
+            return nil
+        })
+        bridge.on("doc.start", sync: { [weak self] _ in
+            self?.takeStart()
+        })
+        bridge.on("doc.state", sync: { [weak self] params in
+            self?.heard(params)
+            return nil
+        })
+        bridge.on("file.save") { [weak self] params, reply in
+            guard let self, let text = params["text"] as? String else { return reply(.failure(Bridge.Failure("file.save needs text"))) }
+            guard !self.isAsking else { return reply(.success(["saved": false] as [String: Any])) }
+            self.save(text, saveAs: params["as"] as? Bool ?? false) { saved in
+                reply(.success(["saved": saved] as [String: Any]))
             }
+        }
+        bridge.on("file.open", sync: { [weak self] _ in
+            if let self { self.onOpenRequest?(self) }
+            return nil
+        })
+        bridge.on("draft.write", sync: { [weak self] params in
+            guard let self, let text = params["text"] as? String else { return nil }
+            self.store.keep(Draft(id: self.id, text: text, name: self.displayName, path: (self.fileURL ?? self.formerURL)?.path))
             return nil
         })
         bridge.on("log", sync: { [weak self] params in
@@ -250,7 +344,7 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
             return decisionHandler(.allow)
         }
         if url.scheme == "http" || url.scheme == "https" {
-            NSWorkspace.shared.open(url)
+            sendToBrowser(url)
         }
         decisionHandler(.cancel)
     }
@@ -262,7 +356,7 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
         if let url = navigationAction.request.url, url.scheme == "http" || url.scheme == "https" {
-            NSWorkspace.shared.open(url)
+            sendToBrowser(url)
         }
         return nil
     }
@@ -285,7 +379,159 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         webView.load(URLRequest(url: AssetSchemeHandler.indexURL))
     }
 
+    /// Hands a page to the browser. A scripted run only notes that it was asked.
+    @discardableResult
+    private func sendToBrowser(_ url: URL) -> Bool {
+        guard !scripted else {
+            askedToOpen.append(url)
+            return true
+        }
+        return NSWorkspace.shared.open(url)
+    }
+
+    // MARK: Document
+
+    /// What the document goes by: its file's name, or its first heading, or "Untitled".
+    var displayName: String {
+        if let fileURL { return fileURL.deletingPathExtension().lastPathComponent }
+        return heading.isEmpty ? "Untitled" : heading
+    }
+
+    /// A window nobody has written in: where a file may open in place of what is there.
+    var isPristine: Bool { fileURL == nil && !dirty }
+
+    /// What the page starts with. Asked a second time, the page is starting over (its
+    /// process ended), and gets back what there was: unsaved work from the copy kept aside,
+    /// saved work from its file.
+    func takeStart() -> [String: Any] {
+        if startTaken {
+            if let draft = store.draft(id) {
+                return ["kind": "recovered", "text": draft.text, "name": fileURL?.lastPathComponent ?? draft.name]
+            }
+            if let fileURL, let text = try? store.read(fileURL) {
+                return ["kind": "file", "text": text, "name": fileURL.lastPathComponent]
+            }
+        }
+        startTaken = true
+        switch start {
+        case .welcome: return ["kind": "welcome"]
+        case .blank: return ["kind": "blank"]
+        case .file(let url, let text): return ["kind": "file", "text": text, "name": url.lastPathComponent]
+        case .recovered(let draft): return ["kind": "recovered", "text": draft.text, "name": draft.name]
+        }
+    }
+
+    /// Puts a file in this window, in place of a document nobody has written in.
+    func load(_ url: URL, text: String) {
+        fileURL = url.standardizedFileURL
+        formerURL = nil
+        dirty = false
+        if startTaken {
+            bridge.emit("file.opened", ["text": text, "name": url.lastPathComponent])
+        } else {
+            start = .file(url, text: text)
+        }
+        reflect()
+    }
+
+    private func heard(_ told: [String: Any]) {
+        dirty = told["dirty"] as? Bool ?? dirty
+        heading = told["name"] as? String ?? heading
+        if let switches = told["flags"] as? [String: Any] { flags = switches.compactMapValues { $0 as? Bool } }
+        if let can = told["can"] as? [String: Any] { able = can.compactMapValues { $0 as? Bool } }
+        if !dirty { store.discardDraft(id) }
+        reflect()
+    }
+
+    /// The window shows what the document is called and whether it has unsaved changes:
+    /// in the Window menu and Mission Control, and as the dot in the close button.
+    private func reflect() {
+        window.title = displayName
+        window.representedURL = fileURL
+        window.isDocumentEdited = dirty
+    }
+
+    /// Writes the document to its file, asking where first if it has none or `saveAs` is set.
+    private func save(_ text: String, saveAs: Bool, then done: @escaping (Bool) -> Void) {
+        if let fileURL, !saveAs { return done(write(text, to: fileURL)) }
+        let known = fileURL ?? formerURL
+        let suggested = known?.lastPathComponent ?? "\(displayName).\(FileStore.fileExtension)"
+        isAsking = true
+        asking.whereToSave(suggested: suggested, in: known?.deletingLastPathComponent(), for: window) { [weak self] url in
+            self?.isAsking = false
+            guard let self, let url else { return done(false) }
+            done(self.write(text, to: url))
+        }
+    }
+
+    private func write(_ text: String, to url: URL) -> Bool {
+        do {
+            try store.write(text, to: url)
+        } catch {
+            asking.tell(
+                "The document “\(displayName)” could not be saved as “\(url.lastPathComponent)”.",
+                detail: error.localizedDescription, for: window
+            )
+            return false
+        }
+        fileURL = url.standardizedFileURL
+        formerURL = nil
+        dirty = false
+        store.discardDraft(id)
+        store.noteRecent(url)
+        reflect()
+        return true
+    }
+
+    /// Asks about unsaved changes, if there are any, and says whether the window may go.
+    func confirmClose(then done: @escaping (Bool) -> Void) {
+        guard dirty else { return done(true) }
+        guard !isAsking else { return done(false) }
+        isAsking = true
+        asking.whetherToSave(displayName, for: window) { [weak self] choice in
+            guard let self else { return done(false) }
+            self.isAsking = false
+            switch choice {
+            case .cancel:
+                done(false)
+            case .discard:
+                self.store.discardDraft(self.id)
+                done(true)
+            case .save:
+                // The page saves as it would for Ctrl+S, and says how that went.
+                self.bridge.ask("save") { answer in
+                    done(((try? answer.get()) as? [String: Any])?["saved"] as? Bool ?? false)
+                }
+            }
+        }
+    }
+
+    // MARK: Menu
+
+    /// Has the page run one of its commands, as its shortcut would.
+    func command(_ name: String) {
+        bridge.emit("menu.command", ["name": name])
+    }
+
+    /// Whether the page has said `name` ("undo", "redo") can be done just now.
+    func can(_ name: String) -> Bool {
+        able[name] ?? false
+    }
+
+    /// Whether the page's switch `name` ("read", "overflow") is on; nil if it is not a switch.
+    func isOn(_ name: String) -> Bool? {
+        flags[name]
+    }
+
     // MARK: Window
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard dirty else { return true }
+        confirmClose { [weak self] may in
+            if may { self?.window.close() }
+        }
+        return false
+    }
 
     func windowWillClose(_ notification: Notification) {
         webView.configuration.userContentController.removeScriptMessageHandler(forName: Bridge.name, contentWorld: .page)

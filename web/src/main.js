@@ -16,20 +16,25 @@ import { createOverflow } from './features/overflow.js';
 import { createSourceView } from './features/sourceview.js';
 import { createLab } from './features/lab.js';
 import { initSharing } from './features/share.js';
+import { createFiles } from './features/files.js';
 import { createAIClient } from './ai/client.js';
 import { createSound } from './fx/sound.js';
 import { createExplosions } from './fx/explosion.js';
-import { sampleState } from './sample.js';
 
 // What the shell keeps between launches.
 const REMEMBERED = ['read', 'alternates', 'sound'];
 
 const editor = createEditor(document.getElementById('editor'));
-editor.setState(sampleState());
+// A browser checks spelling unless told not to. In the app that is the Edit menu's to say.
+if (!native.inApp) document.documentElement.spellcheck = false;
 
-// Start as the app was left. The controls stay out of sight until this is known, so that
-// none of them flashes by on the way into read mode.
-const saved = await native.call('settings.get').catch(() => ({}));
+// Start as the app was left, with the document the shell has for this window. The controls
+// stay out of sight until this is known, so that none of them flashes by on the way into
+// read mode.
+const [saved, start] = await Promise.all([
+  native.call('settings.get').catch(() => ({})),
+  native.call('doc.start').catch(() => ({ kind: 'welcome' })),
+]);
 ui.set(Object.fromEntries(REMEMBERED.filter((name) => typeof saved?.[name] === 'boolean').map((name) => [name, saved[name]])));
 ui.paint();
 document.body.classList.remove('is-booting');
@@ -54,7 +59,10 @@ const lab = createLab({ editor, ui, ai, commands, cards });
 initReadMode({ editor, ui, commands });
 const tooltips = initTooltips();
 initSharing({ editor, ui, commands, native, tooltips, sound, explosions });
-initShortcuts({ ui, commands });
+const files = createFiles({ editor, ui, commands, native, tooltips });
+const shortcuts = initShortcuts({ ui, commands });
+// The menu bar's items run the same commands as the keys.
+native.on('menu.command', ({ name }) => shortcuts.perform(name));
 
 // Undo is the document's own: the browser's history knows nothing of groups.
 commands.register('undo', () => editor.undo());
@@ -63,6 +71,9 @@ commands.register('shortcuts', () => cards.toggle('shortcuts'));
 document.getElementById('open-shortcuts').addEventListener('click', () => commands.run('shortcuts'));
 
 // One handle on the running app, for the console and for UI scenarios.
-window.writeOn = { editor, ui, native, commands, decor, sound, explosions, alternatives, panel, menu, cards, overflow, source, lab, tooltips };
+window.writeOn = { editor, ui, native, commands, decor, sound, explosions, alternatives, panel, menu, cards, overflow, source, lab, tooltips, files };
+
+// Everything is listening: now the document.
+files.show(start);
 
 document.fonts.ready.then(() => native.call('app.ready'));

@@ -94,7 +94,7 @@ await settled();
   t.near(box.left + pad('Left'), 1291, 0.01, 'it starts 22px inside the hairline too');
   t.near(box.width - pad('Left') - pad('Right'), 235, 0.01, 'and is 26 characters wide');
   t.near(box.top + pad('Top'), 215, 0.3, 'its first line is where the clip has it');
-  t.equal([style.resize, style.outlineStyle, field.spellcheck], ['none', 'none', false], 'a bare field: no grip, no focus ring, no spelling marks');
+  t.equal([style.resize, style.outlineStyle], ['none', 'none'], 'a bare field: no grip, no focus ring');
 
   const hint = el.querySelector('.hint');
   t.equal(hint.textContent, 'ctrl+↵ or drag into the page to use', 'the hint');

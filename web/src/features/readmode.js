@@ -47,6 +47,7 @@ export function initReadMode({ editor, ui, commands }) {
   wordcount.addEventListener('click', () => ui.toggle('read'));
   alternates.addEventListener('click', () => ui.toggle('alternates'));
   commands.register('read', () => ui.toggle('read'));
+  commands.register('alternates', () => ui.toggle('alternates'));
 
   countDocument();
   show();

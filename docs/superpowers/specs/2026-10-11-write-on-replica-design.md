@@ -522,11 +522,32 @@ Overflow text, as plain paragraphs.
   editor, the Markdown wins: a group is kept only where its active text can still be
   found in the same paragraph, and ghost marking is dropped. A file with no comment opens
   as plain Markdown.
-- Save (Ctrl+S, ⌘S), Save As (⇧⌘S), Open (Ctrl+O, ⌘O), New (⌘N), Open Recent. The
-  suggested file name comes from the first heading. The Save icon is accent while there
-  are unsaved changes.
-- Closing or quitting with unsaved changes asks first. Unsaved work is also snapshotted
-  to Application Support every few seconds and offered back after a crash.
+- Save (Ctrl+S, ⌘S), Save As (⇧⌘S), Open (Ctrl+O, ⌘O), New (⌘N), Open Recent. A document
+  with no file is offered the name of its first heading, less what a file name cannot
+  hold and cut at a word to 80 characters, or "Untitled". The window goes by the same
+  name until the document has a file, and then by the file's.
+- The Save icon is accent while the document differs from its file. It lights at the
+  first change, and a change taken back (undone, or typed out again as it was) dims it.
+  The panel looking at a word is not a change: a group of one is never written (§5.1).
+- A file opens in the window that already has it; failing that in a window nobody has
+  written in (no file, no changes), in place of what is there; failing that in a window
+  of its own. Files from Finder, the Dock and Open Recent go the same way. The app
+  declares itself an editor of Markdown files without claiming to be the one that opens
+  them all.
+- What a file could not give (a damaged record, text changed elsewhere, §8) is said in
+  one line by the Open icon, the way a control's note is (see Post to X below). A file
+  that is not UTF-8 is read all the same, UTF-16 by its mark and anything else as
+  Latin-1, and is saved as UTF-8.
+- Closing or quitting with unsaved changes asks first: Save, Cancel, Don't Save. One
+  question at a time: while a panel or alert about a document is up, saving it again
+  waits, and so does a second Open panel.
+- Unsaved work is copied to Application Support (`Write_On/Drafts`) within three seconds
+  of a change. The copy goes when the document is saved, taken back to what was saved, or
+  let go. After a crash each copy comes back at the next launch as an unsaved document,
+  with a note by the Save icon, and saving it starts from the name and folder it had. If
+  only the page fails, it starts over from the copy.
+- A new window is a blank page. The first window the app ever opens has the welcome
+  piece instead (§9 item 19), and Help ▸ The Welcome Piece opens it again.
 
 **Source view** (Ctrl+U, or the M↓ icon): a card over the page, 900 px wide and 70 px
 clear of the top and bottom of the window. The page behind is not dimmed: in the clip the
@@ -623,6 +644,22 @@ As shown in the original, including on the Mac, these use Control.
 The Mac menu bar adds the usual ⌘ equivalents: ⌘N, ⌘O, ⌘S, ⇧⌘S, ⌘W, ⌘Z, ⇧⌘Z, ⌘, and ⌘Q.
 Tooltips on the chrome show the Control shortcuts, as in the video.
 
+The menu bar holds every command, the page's under the Control shortcuts they have above:
+
+| Menu | Items |
+| --- | --- |
+| File | New, Open…, Open Recent ▸ (newest first, Clear Menu), Close, Save…, Save As…, Post to X |
+| Edit | Undo and Redo (the document's own history, §5.3), Cut, Copy, Paste, Delete, Select All, and the standard Spelling and Grammar ▸, Substitutions ▸ and Speech ▸ |
+| View | Read Mode, Alternates, Overflow, Source, Enter Full Screen; the first three are ticked while on |
+| Tools | Alternatives, AI Alternatives, Ghost or Revive, Stash in Overflow, The Lab |
+| Window | Minimize, Zoom, Bring All to Front |
+| Help | Keyboard Shortcuts, The Welcome Piece |
+
+A command chosen from the menu does what its shortcut does, turning the tools on where
+the shortcut would. Checking and correcting (spelling, grammar, autocorrection, smart
+quotes and dashes, text replacement) are all off until turned on in the Edit menu, whatever
+the system's own settings say; what is turned on there is remembered.
+
 ## 7. Architecture
 
 ```
@@ -653,9 +690,12 @@ files, windows, secrets and network.
 text. The web view loads only the bundled page and refuses every other navigation;
 external links open in the default browser.
 
-**Bridge.** Page to shell: `doc.state`, `file.save`, `file.open`, `draft.write`,
-`ai.start`, `ai.cancel`, `clipboard.write`, `url.open`, `settings.get`, `settings.set`.
-Shell to page: `menu.command`, `file.opened`, `ai.delta`, `ai.done`, `ai.error`.
+**Bridge.** Page to shell: `doc.start` (what this window opens with), `doc.state`
+(unsaved or not, the name, what the menu bar needs), `file.save`, `file.open`,
+`draft.write`, `ai.start`, `ai.cancel`, `clipboard.write`, `browser.open`, `settings.get`,
+`settings.set`. Shell to page: `menu.command`, `file.opened`, `ai.delta`, `ai.done`,
+`ai.error`. The shell also asks the page one thing and waits for the answer: `save`, on
+the way out of a window with unsaved changes.
 
 An AI request is `ai.start { id, messages, maxTokens, effort, schema? }`. The answer comes
 back as `ai.delta { id, text }` events while it streams, then `ai.done { id }`, or
@@ -757,6 +797,7 @@ go another way.
 | 46 | Stash and use, in detail | Stashed text is trimmed, and marks do not travel: a group or ghosted words go as the words that were showing. Where a stash empties a paragraph, the paragraph goes and a blank line with it, so the page stays one blank line between paragraphs. Taking whole lines out of Overflow closes it up the same way. Used text goes in as a paste would, the caret goes to the page and stands after it, and the page scrolls to show it; where the page has had no caret yet it is added at the end as a paragraph of its own. A blank line, or a selection with no words, gives either command nothing to do. |
 | 47 | Trims, in detail | A click on a faded passage keeps it and a second click lets it go again. Choosing another level, or "Original", puts a pending proposal away first. If the request fails the card keeps the trim's name, gives the reason in one line and offers only "Done"; the same if the answer holds nothing that is the text with words deleted ("The AI found nothing it could cut without rewording."), or nothing at all ("The AI found nothing to cut."). A paragraph that came back reworded is left alone while the others are proposed. Going into Read mode puts the popover and any pass away. Arrow keys are not needed in the popover; Esc and a click elsewhere close it. |
 | 48 | Post to X, in detail | The clip only hovers the X icon, so everything past "opens X's compose window" is a choice: the address (`x.com/intent/post`), the text sent (the page as it reads: no heading mark, nothing ghosted, nothing from Overflow, nothing of the other versions), the two limits and the clipboard fallback, the wording and behaviour of the note, and doing nothing for an empty page. |
+| 49 | Documents and windows | Where a file opens (the window that has it, else one nobody has written in, else its own); a new window being blank and the welcome piece shown once; unsaved work coming back after a crash as an unsaved document rather than being offered in a dialog; one question at a time; Undo and Redo in the menu being the document's; which commands the menus hold and what they are called. |
 | 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
 
 ## 10. Verification

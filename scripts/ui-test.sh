@@ -6,6 +6,7 @@
 #   // launch: --setting read=false
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT" # so that a scenario's launch options can name paths in the project
 NAME="${1:?usage: ui-test.sh <scenario> [options]}"
 shift
 BIN="$ROOT/build/Write_On.app/Contents/MacOS/WriteOn"

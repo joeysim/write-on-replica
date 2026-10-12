@@ -12,6 +12,9 @@ struct UITestOptions {
     var aiMock = false
     /// Interface settings the run starts with, as if left that way by an earlier launch.
     var settings: [String: Any] = [:]
+    /// Where the run keeps what the app keeps between launches (its drafts). Its own
+    /// folder unless it is given another's, to start where that run left off.
+    var state: URL
 
     static func parse(_ arguments: [String]) -> UITestOptions? {
         func value(after flag: String) -> String? {
@@ -19,7 +22,9 @@ struct UITestOptions {
             return arguments[i + 1]
         }
         guard let scenario = value(after: "--ui-test"), let output = value(after: "--out") else { return nil }
-        var options = UITestOptions(scenario: URL(fileURLWithPath: scenario), output: URL(fileURLWithPath: output, isDirectory: true))
+        let folder = URL(fileURLWithPath: output, isDirectory: true)
+        var options = UITestOptions(scenario: URL(fileURLWithPath: scenario), output: folder, state: folder.appendingPathComponent("state", isDirectory: true))
+        if let state = value(after: "--state") { options.state = URL(fileURLWithPath: state, isDirectory: true) }
         if let size = value(after: "--size") {
             let parts = size.lowercased().split(separator: "x").compactMap { Double($0) }
             if parts.count == 2 { options.pageSize = NSSize(width: parts[0], height: parts[1]) }
@@ -48,6 +53,8 @@ struct UITestOptions {
 final class UITestHarness {
     private let options: UITestOptions
     private let controller: DocumentWindowController
+    private unowned let app: AppDelegate
+    private let answers: ScriptedAsking
     private let started = Date()
     private var snapshots: [String] = []
     private var pageErrors: [String] = []
@@ -64,9 +71,11 @@ final class UITestHarness {
     private var aiRequests: [[String: Any]] = []
     private var aiCancelled: Set<String> = []
 
-    init(options: UITestOptions, controller: DocumentWindowController) {
+    init(options: UITestOptions, controller: DocumentWindowController, app: AppDelegate, answers: ScriptedAsking) {
         self.options = options
         self.controller = controller
+        self.app = app
+        self.answers = answers
     }
 
     func start() {
@@ -138,9 +147,10 @@ final class UITestHarness {
         bridge.on("test.snap") { [weak self] params, reply in
             self?.snapshot(named: params["name"] as? String ?? "snapshot", reply: reply)
         }
-        // test.pixels { x, y, w, h } -> { ground: [r, g, b], ink: [r, g, b] }
+        // test.pixels { x, y, w, h, near?, within? } -> { ground: [r, g, b], ink: [r, g, b], matching? }
         // The colours painted in a part of the page: `ground` is what most of it shows (what
-        // lies behind the text), `ink` the brightest fiftieth of it (the text itself).
+        // lies behind the text), `ink` the brightest fiftieth of it (the text itself). Given a
+        // colour as `near`, `matching` counts the pixels no further than `within` from it.
         bridge.on("test.pixels") { [weak self] params, reply in
             self?.pixels(params, reply: reply)
         }
@@ -172,6 +182,8 @@ final class UITestHarness {
         bridge.on("test.opened", sync: { [weak self] _ in
             ["urls": self?.controller.askedToOpen.map(\.absoluteString) ?? []] as [String: Any]
         })
+        registerFiles()
+        registerMenus()
         // What the run looks like from outside, for the scenario that checks it stays out
         // of the way. These are the real states, not the ones simulated for the page.
         bridge.on("test.environment", sync: { [weak self] _ in
@@ -196,6 +208,143 @@ final class UITestHarness {
             // Answer the page first, then leave.
             DispatchQueue.main.async { self?.finish(ok: params["ok"] as? Bool ?? false, failures: failures, logs: logs) }
             return nil
+        })
+    }
+
+    // MARK: The menu bar
+
+    /// A scripted run is never in front, so its menus are never on screen. A scenario reads
+    /// them and picks from them here, by the titles on the way: ["File", "Open Recent"].
+    private func registerMenus() {
+        let bridge = controller.bridge
+        // test.menu { path } -> { items }: the menu there as it would open now.
+        bridge.on("test.menu", sync: { [weak self] params in
+            guard let self, let menu = self.menu(at: params["path"] as? [String] ?? []) else { throw Bridge.Failure("there is no such menu") }
+            menu.delegate?.menuNeedsUpdate?(menu)
+            return ["items": menu.items.map { self.describe($0) }] as [String: Any]
+        })
+        // test.pick { path } -> { picked }: chooses the item there as a click on it would.
+        bridge.on("test.pick", sync: { [weak self] params in
+            guard let self, let path = params["path"] as? [String], let title = path.last, let menu = self.menu(at: Array(path.dropLast())) else {
+                throw Bridge.Failure("there is no such menu")
+            }
+            menu.delegate?.menuNeedsUpdate?(menu)
+            guard let item = menu.items.first(where: { $0.title == title }) else { throw Bridge.Failure("there is no item “\(title)”") }
+            return ["picked": self.choose(item)] as [String: Any]
+        })
+    }
+
+    private func menu(at path: [String]) -> NSMenu? {
+        path.reduce(NSApp.mainMenu) { menu, title in menu?.items.first { $0.title == title }?.submenu }
+    }
+
+    /// Who would get the item's action: its own target, or the first to answer along the
+    /// way AppKit takes from the page out to the app. (AppKit's own lookup starts at the
+    /// key window, and a scripted run has none.)
+    private func target(of item: NSMenuItem) -> NSObject? {
+        guard let action = item.action else { return nil }
+        if let own = item.target as? NSObject { return own }
+        let chain: [NSObject] = [controller.webView, controller.window, controller, NSApp, app]
+        return chain.first { $0.responds(to: action) }
+    }
+
+    private func allows(_ item: NSMenuItem, target: NSObject) -> Bool {
+        if let asks = target as? NSMenuItemValidation { return asks.validateMenuItem(item) }
+        return (target as? NSUserInterfaceValidations)?.validateUserInterfaceItem(item) ?? true
+    }
+
+    private func choose(_ item: NSMenuItem) -> Bool {
+        guard let action = item.action, let target = target(of: item), allows(item, target: target) else { return false }
+        _ = target.perform(action, with: item)
+        return true
+    }
+
+    private func describe(_ item: NSMenuItem) -> [String: Any] {
+        var key = ""
+        if !item.keyEquivalent.isEmpty {
+            let held = item.keyEquivalentModifierMask
+            for (flag, sign) in [(NSEvent.ModifierFlags.function, "fn"), (.control, "⌃"), (.option, "⌥"), (.shift, "⇧"), (.command, "⌘")] where held.contains(flag) { key += sign }
+            key += item.keyEquivalent.uppercased()
+        }
+        let target = target(of: item)
+        return [
+            "title": item.title,
+            "key": key,
+            "separator": item.isSeparatorItem,
+            "alternate": item.isAlternate,
+            "submenu": item.hasSubmenu,
+            "enabled": item.hasSubmenu || (target.map { allows(item, target: $0) } ?? false),
+            "on": item.state == .on,
+        ]
+    }
+
+    /// Files, and the questions that go with them. A scenario's files live in the run's own
+    /// folder and are named without it.
+    private func registerFiles() {
+        let bridge = controller.bridge
+        let folder = options.output
+        // test.dialogs { answers? } -> { asked }: what the shell has asked or told the person
+        // so far, having first, if `answers` is given, said how to answer what comes next:
+        // { save: "name.md" | null }, { open: ["name.md"] }, { unsaved: "save" | "discard" | "cancel" },
+        // any of them with `after`, the milliseconds the answer takes to come.
+        bridge.on("test.dialogs", sync: { [weak self] params in
+            guard let self else { return nil }
+            if let next = params["answers"] as? [[String: Any]] { self.answers.answers = next }
+            return ["asked": self.answers.asked] as [String: Any]
+        })
+        // test.shell -> what the shell knows of the document and keeps about it.
+        bridge.on("test.shell", sync: { [weak self] _ in
+            guard let self else { return nil }
+            let name = { (path: String?) -> Any in path.map { URL(fileURLWithPath: $0).lastPathComponent } ?? NSNull() }
+            let windows: [[String: Any]] = self.app.windowsAskedFor.map { start in
+                switch start {
+                case .welcome: return ["kind": "welcome"]
+                case .blank: return ["kind": "blank"]
+                case .file(let url, _): return ["kind": "file", "file": url.lastPathComponent]
+                case .recovered(let draft): return ["kind": "recovered", "name": draft.name]
+                }
+            }
+            return [
+                "file": name(self.controller.fileURL?.path),
+                "dirty": self.controller.dirty,
+                "edited": self.controller.window.isDocumentEdited,
+                "title": self.controller.window.title,
+                "drafts": self.app.store.drafts().map { ["name": $0.name, "file": name($0.path), "text": $0.text] as [String: Any] },
+                "recents": self.app.store.recents.map { $0.lastPathComponent },
+                // The kinds of file the app tells the system it opens, and how it ranks itself for them.
+                "opens": (Bundle.main.object(forInfoDictionaryKey: "CFBundleDocumentTypes") as? [[String: Any]] ?? []).map { type in
+                    ["types": type["LSItemContentTypes"] ?? [String](), "role": type["CFBundleTypeRole"] ?? "", "rank": type["LSHandlerRank"] ?? ""]
+                },
+                "windows": windows,
+            ] as [String: Any]
+        })
+        // test.readFile { name, asTheAppDoes? } -> { text }: a file of the run's, as UTF-8, or
+        // as the app reads a document it is opening. null if it cannot be read.
+        bridge.on("test.readFile", sync: { [weak self] params in
+            guard let self, let name = params["name"] as? String else { throw Bridge.Failure("test.readFile needs a name") }
+            let url = folder.appendingPathComponent(name)
+            let text = params["asTheAppDoes"] as? Bool == true ? try? self.app.store.read(url) : try? String(contentsOf: url, encoding: .utf8)
+            return ["text": text ?? NSNull()] as [String: Any]
+        })
+        // As Finder hands files over.
+        bridge.on("test.openFiles", sync: { [weak self] params in
+            guard let self, let names = params["names"] as? [String] else { throw Bridge.Failure("test.openFiles needs names") }
+            self.app.application(NSApp, open: names.map { folder.appendingPathComponent($0) })
+            return nil
+        })
+        // Closing the window and quitting, as far as the question of unsaved changes: the
+        // answer is whether it would go. The run's one window stays, to carry on in.
+        bridge.on("test.close") { [weak self] _, reply in
+            guard let self else { return }
+            self.controller.confirmClose { reply(.success(["closes": $0] as [String: Any])) }
+        }
+        bridge.on("test.quit") { [weak self] _, reply in
+            guard let self else { return }
+            self.app.reviewUnsaved { reply(.success(["quits": $0] as [String: Any])) }
+        }
+        // What the page would be given if it had to start over now.
+        bridge.on("test.restart", sync: { [weak self] _ in
+            self?.controller.takeStart()
         })
     }
 
@@ -312,7 +461,14 @@ final class UITestHarness {
             let ink = (0..<3).map { channel in
                 brightest.reduce(0.0) { $0 + Double(bytes[$1 * 4 + channel]) } / Double(brightest.count)
             }
-            reply(.success(["ground": ground, "ink": ink, "width": width, "height": height] as [String: Any]))
+            var found: [String: Any] = ["ground": ground, "ink": ink, "width": width, "height": height]
+            if let near = (params["near"] as? [NSNumber])?.map(\.doubleValue), near.count == 3 {
+                let within = (params["within"] as? NSNumber)?.doubleValue ?? 0
+                found["matching"] = (0..<count).filter { i in
+                    (0..<3).reduce(0.0) { $0 + pow(Double(bytes[i * 4 + $1]) - near[$1], 2) } <= within * within
+                }.count
+            }
+            reply(.success(found))
         }
     }
 
@@ -418,13 +574,14 @@ final class UITestHarness {
         }
     }
 
-    /// Follows AppKit's order for a key press: key equivalents first (the view hierarchy,
-    /// then the menu bar) when Command is down, otherwise the first responder. Sent by hand
-    /// because `NSApp.sendEvent` needs a real key window, which a locked Mac cannot give.
+    /// Follows AppKit's order for a key press: with Command down it is a key equivalent,
+    /// offered to the view hierarchy, where WebKit gives the page the first say and sends
+    /// what the page leaves alone on to the menu bar; otherwise it goes to the first
+    /// responder. Sent by hand because `NSApp.sendEvent` needs a real key window, which a
+    /// locked Mac cannot give.
     private func deliver(_ event: NSEvent, in window: NSWindow) {
         if event.type == .keyDown, event.modifierFlags.contains(.command) {
             if window.performKeyEquivalent(with: event) { return }
-            if NSApp.mainMenu?.performKeyEquivalent(with: event) == true { return }
         }
         guard let responder = window.firstResponder else { return }
         if event.type == .keyDown {
@@ -513,5 +670,63 @@ private struct KeyMap {
             return KeyMap(code: code, characters: String(ch), charactersIgnoringModifiers: String(ch), needsShift: true)
         }
         return nil
+    }
+}
+
+/// Answers the shell's questions in a scripted run, as its scenario said to (`test.dialogs`),
+/// and keeps a list of what was asked. Nothing is ever shown. An answer is used for the
+/// next question of its kind; a question with no answer waiting is called off.
+final class ScriptedAsking: Asking {
+    private let folder: URL
+    private(set) var asked: [[String: Any]] = []
+    var answers: [[String: Any]] = []
+
+    init(folder: URL) {
+        self.folder = folder
+    }
+
+    /// How long the answer just taken is to be in coming: `after` milliseconds, if it said so.
+    private var wait: TimeInterval = 0
+
+    private func take(_ kind: String) -> Any? {
+        wait = 0
+        guard let answer = answers.first, let value = answer[kind] else { return nil }
+        answers.removeFirst()
+        wait = ((answer["after"] as? NSNumber)?.doubleValue ?? 0) / 1000
+        return value
+    }
+
+    // A person takes a moment to answer, and so does this: never before the question returns.
+    private func later(_ reply: @escaping () -> Void) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + wait, execute: reply)
+    }
+
+    func whereToSave(suggested: String, in directory: URL?, for window: NSWindow?, then reply: @escaping (URL?) -> Void) {
+        var question: [String: Any] = ["kind": "save", "name": suggested]
+        if let directory { question["folder"] = directory.lastPathComponent }
+        asked.append(question)
+        let url = (take("save") as? String).map { folder.appendingPathComponent($0) }
+        later { reply(url) }
+    }
+
+    func whatToOpen(for window: NSWindow?, then reply: @escaping ([URL]) -> Void) {
+        asked.append(["kind": "open"])
+        let urls = (take("open") as? [String] ?? []).map { folder.appendingPathComponent($0) }
+        later { reply(urls) }
+    }
+
+    func whetherToSave(_ name: String, for window: NSWindow?, then reply: @escaping (UnsavedChoice) -> Void) {
+        asked.append(["kind": "unsaved", "name": name])
+        let choice: UnsavedChoice
+        switch take("unsaved") as? String {
+        case "save": choice = .save
+        case "discard": choice = .discard
+        default: choice = .cancel
+        }
+        later { reply(choice) }
+    }
+
+    func tell(_ message: String, detail: String, for window: NSWindow?) {
+        asked.append(["kind": "tell", "message": message, "detail": detail])
     }
 }

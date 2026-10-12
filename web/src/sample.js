@@ -31,6 +31,9 @@ const OVERFLOW = [
   'An opening that did not make it: every sentence is a choice you made once and can make again.',
 ].join('\n\n');
 
+/** A new document: one empty line. */
+export const blankState = () => ({ html: '<p><br></p>', groups: {}, overflow: '' });
+
 export function sampleState() {
   return {
     html: BLOCKS.join(''),

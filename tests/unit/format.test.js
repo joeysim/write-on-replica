@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { htmlToBlocks, blocksToHtml, blocksToMarkdown, markdownToBlocks, serialize, readable, sourceLines, parse, plainText } from '../../web/src/doc/format.js';
+import { htmlToBlocks, blocksToHtml, blocksToMarkdown, markdownToBlocks, serialize, readable, sourceLines, parse, plainText, suggestedName } from '../../web/src/doc/format.js';
 import { sampleState } from '../../web/src/sample.js';
 
 // A small document with the same shape as the file in the author's clip: a blank first
@@ -200,6 +200,24 @@ test('groups that are not in the html are not written', () => {
   assert.ok(!serialize(state).includes('zzzzzzz'));
 });
 
+test('a group of one, which is only the panel looking at a word, is not written', () => {
+  // design spec 5.1: a group needs at least two variants
+  const looking = { html: '<p># Title</p><p><br></p><p>Just <span data-vid="l00king">text</span>.</p>', groups: { l00king: { scope: 'word', variants: ['text'], active: 0 } }, overflow: '' };
+  assert.equal(serialize(looking), '# Title\n\nJust text.\n');
+
+  const paragraph = { html: '<p data-vid="l00king">A whole paragraph.</p>', groups: { l00king: { scope: 'paragraph', variants: ['A whole paragraph.'], active: 0 } }, overflow: '' };
+  assert.equal(serialize(paragraph), 'A whole paragraph.\n');
+
+  const beside = fixture();
+  beside.html += '<p><br></p><p>And one <span data-vid="l00king">more</span>.</p>';
+  beside.groups.l00king = { scope: 'word', variants: ['more'], active: 0 };
+  const file = serialize(beside);
+  assert.ok(!file.includes('l00king'), 'neither its span nor its entry');
+  assert.ok(file.includes('<p>And one more.</p>'));
+  assert.deepEqual(Object.keys(parse(file).state.groups).sort(), Object.keys(fixture().groups).sort(), 'the real groups are all there');
+  assert.equal(readable(looking), serialize(looking), 'in either layout');
+});
+
 test('readable shows the same text with the metadata laid out for reading', () => {
   const text = readable(fixture());
   assert.ok(text.startsWith('\n# Title here\n\nIt is a test of things.\n'));
@@ -357,4 +375,36 @@ test('fifty thousand words round-trip quickly', () => {
   const elapsed = performance.now() - started;
   assert.equal(again, text.trimEnd() + '\n');
   assert.ok(elapsed < 500, `took ${elapsed.toFixed(0)} ms`);
+});
+
+// --- the name a file is offered --------------------------------------------------------------------
+
+const named = (html) => suggestedName(htmlToBlocks(html));
+
+test('a file is offered the name of the first heading', () => {
+  assert.equal(named('<p><br></p><p>An opening line.</p><p># On writing well</p><p># A second heading</p>'), 'On writing well');
+  assert.equal(named(sampleState().html), 'Write it more than one way');
+  assert.equal(named('<p># <span data-vid="t1tle01">Shown</span> <span data-ghost>and ghosted</span></p>'), 'Shown and ghosted', 'as it reads on the page, marks and all');
+});
+
+test('a document with no heading is offered no name', () => {
+  assert.equal(named('<p>Just a paragraph.</p>'), '');
+  assert.equal(named('<p><br></p>'), '');
+  assert.equal(named('<p># </p><p>Text under an empty heading.</p>'), '');
+});
+
+test('what a file name cannot hold is left out of it', () => {
+  assert.equal(named('<p># What/why: a "test"? &lt;yes&gt; | no\\maybe*</p>'), 'What why a test yes no maybe');
+  assert.equal(named('<p># ...and then.</p>'), 'and then', 'no leading dot to hide the file, no trailing one');
+  assert.equal(named('<p>#   Spaced \t out  </p>'), 'Spaced out');
+  assert.equal(named('<p># Café 👍🏽 naïve</p>'), 'Café 👍🏽 naïve', 'letters and emoji from anywhere are fine');
+  assert.equal(named('<p># ???</p><p># The next one</p>'), 'The next one', 'a heading that leaves nothing is passed over');
+});
+
+test('a long heading is cut to a name of reasonable length, at a word', () => {
+  const name = named(`<p># ${'Twelve words that go on and on until the name would be too long '.repeat(4)}</p>`);
+  assert.ok(name.length <= 80 && name.length > 60, String(name.length));
+  assert.ok(!name.endsWith(' ') && 'Twelve words that go on and on until the name would be too long '.repeat(4).startsWith(`${name} `), name);
+  const emoji = named(`<p># ${'👍🏽'.repeat(60)}</p>`);
+  assert.ok(emoji.length <= 80 && /^(👍🏽)+$/u.test(emoji), 'never through the middle of a character');
 });

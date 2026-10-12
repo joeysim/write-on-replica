@@ -80,7 +80,7 @@ export function createEditor(root) {
    * selection } to modify with the functions in doc/blocks.js; set `draft.selection` to
    * { start, end? } to place the selection afterwards.
    * @param record false for a change that is not the writer's edit and so not a step to
-   *   undo (the panel marking the word it is looking at)
+   *   undo (the panel marking the word it is looking at); listeners are told as much
    * @returns {boolean} whether anything changed
    */
   function change(label, fn, { coalesceKey = null, meta = null, record = true } = {}) {
@@ -97,7 +97,7 @@ export function createEditor(root) {
       render(blocks);
     }
     if (draft.selection) select(draft.selection.start, draft.selection.end ?? draft.selection.start);
-    if (!same) emit('change', { label });
+    if (!same) emit('change', { label, record });
     return !same;
   }
 

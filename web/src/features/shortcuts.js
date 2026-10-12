@@ -19,6 +19,8 @@ export const SHORTCUTS = [
   { keys: 'Ctrl+Shift+P', command: 'post', label: 'Post to X' },
 ];
 
+const FEATURES = new Set(SHORTCUTS.filter((shortcut) => shortcut.feature).map((shortcut) => shortcut.command));
+
 const CODES = { '/': 'Slash' };
 
 function parse(keys) {
@@ -52,10 +54,17 @@ export function initShortcuts({ ui, commands }) {
       if (!shortcut) return;
       event.preventDefault();
       event.stopPropagation();
-      // The command first: it may need to know that the tools were off when it was asked for.
-      commands.run(shortcut.command);
-      if (shortcut.feature) ui.set({ read: false });
+      perform(shortcut.command);
     },
     true,
   );
+
+  /** Runs a command as its shortcut would. The menu bar comes this way too. */
+  function perform(command) {
+    // The command first: it may need to know that the tools were off when it was asked for.
+    commands.run(command);
+    if (FEATURES.has(command)) ui.set({ read: false });
+  }
+
+  return { perform };
 }
