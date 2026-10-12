@@ -156,6 +156,9 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         let exactSize = scripted
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(AssetSchemeHandler(root: webRoot), forURLScheme: AssetSchemeHandler.scheme)
+        // The page keeps nothing in the browser's own stores (its settings go through the
+        // shell), so WebKit is given none to keep on disk.
+        configuration.websiteDataStore = .nonPersistent()
         configuration.mediaTypesRequiringUserActionForPlayback = []
         configuration.userContentController.addUserScript(
             WKUserScript(source: Self.pageLogScript, injectionTime: .atDocumentStart, forMainFrameOnly: true)

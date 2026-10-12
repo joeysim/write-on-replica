@@ -175,12 +175,20 @@ editor.select({ block: 5, offset: 0 });
 }
 
 // In read mode the page leaves the right-click to the system. (Asked of the page directly:
-// a scripted run cannot put a system menu away once WebKit has opened one.)
+// a scripted run cannot put a system menu away once WebKit has opened one. And once the page
+// has had its say the scenario takes the event for itself, so that WebKit does not go on to
+// make its own menu, which reaches into the system: the spelling panels, for one.)
 ui.set({ read: true });
 {
-  const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: wx, clientY: wy, button: 2 });
-  document.elementFromPoint(wx, wy).dispatchEvent(event);
-  t.equal(event.defaultPrevented, false, 'in read mode the right-click is the system’s');
+  let taken = null;
+  const afterThePage = (event) => {
+    taken = event.defaultPrevented;
+    event.preventDefault();
+  };
+  window.addEventListener('contextmenu', afterThePage);
+  document.elementFromPoint(wx, wy).dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: wx, clientY: wy, button: 2 }));
+  window.removeEventListener('contextmenu', afterThePage);
+  t.equal(taken, false, 'in read mode the right-click is the system’s');
   t.assert(!isOpen(), 'and the menu stays shut');
 }
 ui.set({ read: false });

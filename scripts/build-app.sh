@@ -14,8 +14,8 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/WriteOn"
 cp "$ROOT/packaging/Info.plist" "$APP/Contents/Info.plist"
 cp -R "$ROOT/web" "$APP/Contents/Resources/web"
-if [ -f "$ROOT/packaging/AppIcon.icns" ]; then
-  cp "$ROOT/packaging/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
-fi
+# The icon is drawn by a script and kept in the repository; it is drawn again only if missing.
+[ -f "$ROOT/packaging/AppIcon.icns" ] || swift "$ROOT/scripts/make-icon.swift" >/dev/null
+cp "$ROOT/packaging/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 codesign --force --sign - "$APP" >/dev/null 2>&1
 echo "built $APP"

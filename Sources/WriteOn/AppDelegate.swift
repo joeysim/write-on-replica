@@ -88,7 +88,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         waiting = []
         files.forEach { open($0) }
         if controllers.isEmpty { openWindow(untitledStart()) }
-        NSApp.activate(ignoringOtherApps: true)
+        // Not brought to the front by force: the system does that for an app opened from
+        // Finder or the Dock, and leaves one alone that was asked to open in the background.
     }
 
     /// A click on the Dock icon with no window to show: a new one, which is the app's to

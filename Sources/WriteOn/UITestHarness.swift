@@ -71,6 +71,12 @@ final class UITestHarness {
     /// did has failed, whatever its scenario says.
     private var activations = 0
     private var keyGrabs = 0
+    /// The app's saved settings as the run found them. It is to leave them as they were.
+    private let savedSettings = UITestHarness.savedSettingsNow()
+
+    private static func savedSettingsNow() -> NSDictionary {
+        (Bundle.main.bundleIdentifier.flatMap { UserDefaults.standard.persistentDomain(forName: $0) } ?? [:]) as NSDictionary
+    }
     private var nativeMenus = 0
     // The scripted AI provider (`--ai mock`): what to answer next, and what was asked.
     private var aiScript: [String: Any] = [:]
@@ -337,7 +343,14 @@ final class UITestHarness {
 
     private func allows(_ item: NSMenuItem, target: NSObject) -> Bool {
         if let asks = target as? NSMenuItemValidation { return asks.validateMenuItem(item) }
-        return (target as? NSUserInterfaceValidations)?.validateUserInterfaceItem(item) ?? true
+        // The web view is asked only what the app answers for itself: Undo and Redo. WebKit's
+        // own answers for the rest reach into the system (asked about the spelling items, it
+        // makes the spelling panels, whose places AppKit then saves in the app's settings).
+        let ours = [#selector(EditorWebView.undo(_:)), #selector(EditorWebView.redo(_:))]
+        if target === controller.webView, let action = item.action, ours.contains(action) {
+            return controller.webView.validateUserInterfaceItem(item)
+        }
+        return true
     }
 
     private func choose(_ item: NSMenuItem) -> Bool {
@@ -689,6 +702,11 @@ final class UITestHarness {
         if NSApp.keyWindow != nil { keyGrabs += 1 }
         if activations > 0 || NSApp.isActive { intrusions.append("the run came to the front (\(max(activations, 1)) time(s)); it must stay in the background") }
         if keyGrabs > 0 { intrusions.append("the run's window took the keyboard; it must never be the key window") }
+        let settingsNow = Self.savedSettingsNow()
+        if settingsNow != savedSettings {
+            let changed = Set((settingsNow.allKeys + savedSettings.allKeys).compactMap { $0 as? String }).filter { !(settingsNow[$0] as AnyObject).isEqual(savedSettings[$0]) }
+            intrusions.append("the run changed the app's saved settings (\(changed.sorted().joined(separator: ", "))); a scripted run keeps its settings in memory")
+        }
         if nativeMenus > 0 {
             intrusions.append("the scenario right-clicked where the page leaves the menu to the system; WebKit drops every mouse event after that in a scripted run, so ask the page with a 'contextmenu' event instead")
         }
