@@ -464,8 +464,11 @@ remove a space left before punctuation, and capitalise a sentence whose first wo
 cut. It changes no other words.
 
 **Mark passes and the typo pass** are named in the video but not run, so their results
-are inferred (§9): the same card and scan line, with marked passages underlined in `lab`
-and a short reason shown on hover.
+are inferred (§9 items 4 and 5): the same card and scan line, with marked passages
+underlined in `lab` at full strength, and a small label by the passage under the pointer
+giving the reason, or for a typo the fix ("Teh → The · Misspelt."). They are passes like a
+trim: only one is out at a time, a new one puts the last away, and so does any change to
+the document.
 
 **AI contract.** Each pass sends the document as numbered paragraphs and gets back a
 fixed JSON shape. What the app accepts is narrow by construction:
@@ -693,10 +696,10 @@ go another way.
 | # | Area | Decision |
 | --- | --- | --- |
 | 1 | Keyboard icon | Opens a card listing the shortcuts in §6.13. |
-| 2 | "The Lab guide…" | Opens a card with a two-sentence explanation of each idea. |
+| 2 | "The Lab guide…" | Opens a card, in the look of the shortcut card, headed "The Lab": each of the six ideas and the trims with two sentences on what it does, and a closing line that the AI never rewrites. |
 | 3 | "Walk through" | Steps through the proposal one passage at a time with Cut / Keep / Stop, showing "3 of 9" where the numbers were. The passage in question is underlined in the Lab's crimson and scrolled into view. Cut and Keep only decide; nothing is cut until "Make the cuts". After the last passage, or on Stop or Esc, the summary is back. |
-| 4 | "Mark…" passes | Marked passages get a `lab`-coloured underline; hovering shows a short reason; clicking a mark dismisses it; "Done" clears them. Never saved. |
-| 5 | "Fix punctuation and typos" | Proposed fixes are marked the same way, with the correction shown on hover. Card buttons: "Fix all", "Walk through", "Done". Clicking a mark keeps the original. |
+| 4 | "Mark…" passes | Marked passages get a `lab`-coloured underline; hovering shows a short reason; clicking a mark dismisses it, and dismissing the last puts the card away; "Done" clears them. The card names the pass and counts ("Mark hedges and filler 2 marked") over the line "Hover a mark to see why. Click one to dismiss it." A quote the model made up, or changed, is dropped; if nothing is left the card says "The AI marked nothing." Never saved. |
+| 5 | "Fix punctuation and typos" | Proposed fixes are marked the same way, with the correction shown on hover. The card counts them ("4 found") over "Hover a mark to see the fix. Click one to keep the original." Card buttons: "Fix all", "Walk through", "Done". Clicking a mark keeps the original and drops the fix. "Fix all" makes every fix still marked, as one step to undo. "Walk through" shows each fix on the card in turn with Fix / Keep / Stop; as for a trim they only decide, and "Fix all" then makes what was not kept. A fix inside an alternative group changes what the group is showing. A clean page gets "The AI found no slips." |
 | 6 | Stash with no selection | Moves the whole paragraph at the caret. |
 | 7 | Where stashed text lands | Appended to the end of Overflow. |
 | 8 | Ctrl+Return in Overflow | Moves text into the page (rather than copying it). |

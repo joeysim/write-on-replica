@@ -49,7 +49,7 @@ initAIAlternatives({ editor, panel, alternatives, ai, commands });
 initGhost({ editor, commands });
 const overflow = createOverflow({ editor, ui, commands });
 const source = createSourceView({ editor, ui, commands, native });
-const lab = createLab({ editor, ui, ai, commands });
+const lab = createLab({ editor, ui, ai, commands, cards });
 initReadMode({ editor, ui, commands });
 initTooltips();
 initShortcuts({ ui, commands });

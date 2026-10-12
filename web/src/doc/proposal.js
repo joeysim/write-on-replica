@@ -1,10 +1,10 @@
-// A trim proposal (design spec 6.10): the passages a trim would cut, held beside the
-// document and never part of it until the writer says "Make the cuts".
+// What a pass of the Lab proposes (design spec 6.10), held beside the document and never
+// part of it until the writer says so: the passages a trim would cut, the passages a
+// marking pass points at, the fixes the typo pass would make.
 //
 // The model is offered the paragraphs without their ghosted text, which the writer has
-// already set aside. What comes back has been checked by ai/parse.js: for each paragraph,
-// the stretches of the offered text that would go (`runs`) and the capitals that would
-// change with them (`caseFixes`). This module ties those back to the blocks.
+// already set aside. What comes back has been checked by ai/parse.js and speaks of that
+// offered text; this module ties it back to the blocks.
 
 import { countWords } from './text.js';
 import { rewriteBlock } from './blocks.js';
@@ -35,6 +35,20 @@ export function offered(blocks) {
   return paragraphs;
 }
 
+/** The stretches of its block that `start`..`end` of a paragraph's offered text cover. */
+function rangesFor(paragraph, start, end) {
+  const ranges = [];
+  for (let i = start; i < end; i++) {
+    const at = paragraph.map[i];
+    const last = ranges[ranges.length - 1];
+    if (last && last.end === at) last.end = at + 1;
+    else ranges.push({ start: at, end: at + 1 });
+  }
+  return ranges;
+}
+
+// --- trims ------------------------------------------------------------------------------------
+
 /**
  * @param paragraphs what `offered` gave
  * @param items the checked answer: [{ n, runs: [{index, start, end}], caseFixes }]
@@ -49,14 +63,7 @@ export function makeProposal(paragraphs, items) {
     const item = byNumber.get(paragraph.n);
     if (!item) continue;
     for (const run of [...item.runs].sort((a, b) => a.start - b.start)) {
-      const ranges = [];
-      for (let i = run.start; i < run.end; i++) {
-        const at = paragraph.map[i];
-        const last = ranges[ranges.length - 1];
-        if (last && last.end === at) last.end = at + 1;
-        else ranges.push({ start: at, end: at + 1 });
-      }
-      cuts.push({ id: `c${cuts.length + 1}`, n: paragraph.n, block: paragraph.block, run: run.index, ranges });
+      cuts.push({ id: `c${cuts.length + 1}`, n: paragraph.n, block: paragraph.block, run: run.index, ranges: rangesFor(paragraph, run.start, run.end) });
     }
   }
   return { paragraphs, items: byNumber, cuts };
@@ -122,6 +129,50 @@ export function applyProposal(blocks, proposal, kept = new Set()) {
     }
     const text = blocks[paragraph.block].runs.map((piece) => piece.text).join('');
     made = rewriteBlock(made, paragraph.block, (offset) => becomes.get(offset) ?? text[offset]);
+  }
+  return made;
+}
+
+// --- marks and fixes --------------------------------------------------------------------------
+
+/**
+ * The passages a marking pass points at, or the typo pass would fix.
+ * @param items the checked answer: [{ n, start, end, reason, replace? }]
+ * @returns {Array<{id, n, block, ranges, reason, replace?}>} in the order of the document;
+ *   `ranges` as for a cut
+ */
+export function makeMarks(paragraphs, items) {
+  const marks = [];
+  for (const paragraph of paragraphs) {
+    const here = items.filter((item) => item.n === paragraph.n).sort((a, b) => a.start - b.start);
+    for (const { start, end, reason, replace } of here) {
+      const mark = { id: `m${marks.length + 1}`, n: paragraph.n, block: paragraph.block, ranges: rangesFor(paragraph, start, end), reason };
+      if (replace !== undefined) mark.replace = replace;
+      marks.push(mark);
+    }
+  }
+  return marks;
+}
+
+/**
+ * The blocks with each fix made: what a mark points at becomes its replacement. Marks
+ * with no replacement are not fixes. The new words take the place, and the marks, of the
+ * first of the old ones; ghosted text in between stays where it is.
+ */
+export function applyFixes(blocks, marks) {
+  const byBlock = new Map();
+  for (const mark of marks) {
+    if (mark.replace === undefined) continue;
+    const becomes = byBlock.get(mark.block) ?? new Map();
+    mark.ranges.forEach((range, r) => {
+      for (let at = range.start; at < range.end; at++) becomes.set(at, r === 0 && at === range.start ? mark.replace : '');
+    });
+    byBlock.set(mark.block, becomes);
+  }
+  let made = blocks;
+  for (const [index, becomes] of byBlock) {
+    const text = blocks[index].runs.map((piece) => piece.text).join('');
+    made = rewriteBlock(made, index, (offset) => becomes.get(offset) ?? text[offset]);
   }
   return made;
 }

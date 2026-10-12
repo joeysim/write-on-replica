@@ -105,6 +105,19 @@ body.is-source #source {
   margin: 14px 0 0;
   color: var(--dim-text);
 }
+/* An entry of the Lab's guide: what an idea is called, and what it does. */
+#card .entry {
+  margin: 0 0 9px;
+}
+#card .entry .label,
+#card .entry .about {
+  display: block;
+}
+#card .entry .about {
+  color: var(--dim-text);
+  font-size: 12px;
+  line-height: 19px;
+}
 
 /* --- the source view ---------------------------------------------------------------------- */
 

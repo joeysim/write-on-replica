@@ -1,0 +1,282 @@
+// The Lab's marking passes, its typo pass and its guide (design spec 6.10 and section 9,
+// items 2, 4 and 5). The clips name these but never run them, so this is the replica's own
+// reading of them: the model points, and only the typo pass may change a letter, by asking.
+const { editor, ui } = window.writeOn;
+ui.set({ read: false });
+await document.fonts.ready;
+
+const $ = (s) => document.querySelector(s);
+const menu = $('#labmenu');
+const card = $('#labcard');
+const scan = $('#scan');
+const tip = $('#labtip');
+if (!t.assert(menu && card && tip, 'the page has the Lab’s popover, card and label')) return;
+
+const shown = (node) => getComputedStyle(node).visibility === 'visible' && getComputedStyle(node).opacity !== '0';
+const html = () => editor.getState().html;
+const textOf = (i) => editor.blocks[i].runs.map((r) => r.text).join('');
+const row = (label) => [...menu.querySelectorAll('.row')].find((node) => node.querySelector('.label').textContent === label);
+const pending = () => [...menu.querySelectorAll('.level')].find((b) => b.classList.contains('is-pending'))?.querySelector('.name').textContent;
+const actions = () => [...card.querySelectorAll('.actions button')].map((button) => button.textContent);
+const act = async (label) => {
+  const button = [...card.querySelectorAll('.actions button')].find((b) => b.textContent === label);
+  if (!t.assert(button, `the card has a ${label} button`)) return;
+  await t.click(...t.center(button));
+};
+const title = () => card.querySelector('.title').textContent.replace(/\s+/g, ' ').trim();
+const hint = () => card.querySelector('.hint').textContent;
+/** What is marked, one string per mark, in the order of the page. */
+const marked = () => {
+  const marks = new Map();
+  for (const span of editor.root.querySelectorAll('[data-mark]')) marks.set(span.dataset.mark, (marks.get(span.dataset.mark) ?? '') + span.textContent);
+  return [...marks.values()];
+};
+const markOf = (text) => [...editor.root.querySelectorAll('[data-mark]')].find((span) => span.textContent.includes(text));
+const openMenu = async () => {
+  if (!ui.get('lab')) await t.click(...t.center('#lab'));
+  await t.until(() => menu.getAnimations({ subtree: false }).length === 0, 1500, 'the popover to finish opening');
+};
+const pick = async (label) => {
+  await openMenu();
+  await t.click(...t.center(row(label)));
+};
+/** What the model is made to answer, and how soon. */
+const answer = (payload, { firstMs = 60, error = null } = {}) =>
+  t.call('test.ai', { set: error ? { error, firstMs } : { chunks: [JSON.stringify(payload)], firstMs, everyMs: 20 } });
+const lastAsked = async () => {
+  const { requests } = await t.call('test.ai');
+  return requests[requests.length - 1].messages.map((m) => m.content).join('\n');
+};
+const count = async () => (await t.call('test.ai')).requests.length;
+
+const P1 = 'Teh first paragraph has has a slip or two, and it is really quite long because it keeps going after it has made its point.';
+const DOC =
+  '<p><br></p><p># A page with slips</p><p><br></p>' +
+  `<p>${P1}</p><p><br></p>` +
+  '<p>Keep <span data-ghost>this aside </span>the second <span data-vid="r3aly01">realy</span> plain ,and stop there.</p><p><br></p>' +
+  '<p>The third is fine.</p>';
+const GROUPS = { r3aly01: { scope: 'word', variants: ['realy', 'truly'], active: 0 } };
+const load = async () => {
+  editor.setState({ html: DOC, groups: structuredClone(GROUPS), overflow: '' });
+  editor.focus();
+  editor.select({ block: 7, offset: 0 });
+  await t.settle();
+};
+await load();
+const before = html();
+
+// --- a marking pass -------------------------------------------------------------------------------
+
+const MARKS = {
+  marks: [
+    { n: 1, text: 'really quite', reason: 'Two hedges in a row.' },
+    { n: 2, text: 'plain', reason: 'Says little here.' },
+    { n: 1, text: 'words that are not there', reason: 'Made up.' },
+  ],
+};
+const WHY = 'Hover a mark to see why. Click one to dismiss it.';
+await answer(MARKS, { firstMs: 900 });
+await pick('Mark hedges and filler');
+t.assert(!ui.get('lab'), 'choosing an idea closes the popover');
+t.equal(title(), 'Mark hedges and filler Reading…', 'a card names the pass and says it is reading');
+t.equal([hint(), actions().join(' | ')], [WHY, 'Done'], 'with what the marks will mean, and Done');
+t.equal(card.getBoundingClientRect().width, 500, 'the same 500px card as a trim’s');
+t.assert(getComputedStyle(scan).visibility === 'visible' && scan.getAnimations().length === 1, 'the line reads down the page as for a trim');
+{
+  const said = await lastAsked();
+  t.assert(said.includes(`[1] ${P1}`) && said.includes('[2] Keep the second realy plain ,and stop there.') && said.includes('[3] The third is fine.'), 'the paragraphs go to the model, numbered');
+  t.assert(!said.includes('this aside') && !said.includes('A page with slips'), 'without ghosted text or the heading');
+  t.assert(/hedges and filler/.test(said), 'with what to look for');
+}
+await t.until(() => marked().length > 0, 4000, 'the marks to arrive');
+t.equal(marked(), ['really quite', 'plain'], 'what the model quoted is marked; a quote that is not in the text is dropped');
+t.same(html(), before, 'the text itself is untouched');
+t.assert(!editor.canUndo, 'and there is nothing to undo');
+{
+  const style = getComputedStyle(markOf('really quite'));
+  t.equal([style.textDecorationLine, style.textDecorationColor, style.opacity], ['underline', 'rgb(200, 16, 66)', '1'], 'a mark is an underline in the Lab’s crimson, the words at full strength');
+  t.equal(title(), 'Mark hedges and filler 2 marked', 'the card counts the marks');
+  t.equal(getComputedStyle(scan).visibility, 'hidden', 'and the line is gone');
+  await openMenu();
+  t.equal(pending(), 'Original', 'marks are not a trim: Original stays the level marked');
+  await t.key('Escape');
+}
+
+// The reason shows by the mark the pointer is on.
+{
+  t.assert(!shown(tip), 'no label to begin with');
+  const mark = markOf('really quite').getBoundingClientRect();
+  await t.hover(mark.left + mark.width / 2, mark.top + mark.height / 2);
+  t.assert(shown(tip), 'resting the pointer on a mark shows a label');
+  t.equal(tip.textContent, 'Two hedges in a row.', 'with the reason');
+  const box = tip.getBoundingClientRect();
+  t.assert(box.bottom <= mark.top + 2 && box.bottom > mark.top - 14, `just above the mark: ${Math.round(box.bottom)} over ${Math.round(mark.top)}`);
+  t.near(box.left + box.width / 2, mark.left + mark.width / 2, 1, 'and centred on it');
+  const style = getComputedStyle(tip);
+  t.equal([style.backgroundColor, style.color, style.fontSize], ['rgb(18, 21, 34)', 'rgb(245, 209, 192)', '12px'], 'a small label in the popover’s colours');
+  await t.snap('marks');
+  await t.hover(300, 300);
+  t.assert(!shown(tip), 'and moving away puts it away');
+}
+
+// A click dismisses a mark; the last one takes the card with it.
+{
+  const mark = markOf('really quite').getBoundingClientRect();
+  await t.click(mark.left + mark.width / 2, mark.top + mark.height / 2);
+  t.equal(marked(), ['plain'], 'a click on a mark dismisses it');
+  t.equal(title(), 'Mark hedges and filler 1 marked', 'and the card counts one fewer');
+  t.assert(!shown(tip), 'its label goes with it');
+  t.same(html(), before, 'without touching the text');
+  await t.click(...t.center(markOf('plain')));
+  t.equal([marked().length, getComputedStyle(card).visibility], [0, 'hidden'], 'dismissing the last mark puts the card away');
+}
+
+// Done clears them all; so does an edit.
+await answer(MARKS);
+await pick('Mark hedges and filler');
+await t.until(() => marked().length === 2, 4000, 'the marks again');
+await act('Done');
+t.equal([marked().length, getComputedStyle(card).visibility], [0, 'hidden'], 'Done clears the marks');
+t.same(html(), before, 'and leaves the text as it was');
+await pick('Mark hedges and filler');
+await t.until(() => marked().length === 2, 4000, 'the marks once more');
+editor.focus();
+await t.type('x');
+t.equal([marked().length, getComputedStyle(card).visibility], [0, 'hidden'], 'an edit puts the marks away: they were about the text as it was');
+await load();
+
+// Each idea asks its own question.
+for (const [label, asks] of [
+  ['Mark the weakest sentences', /weakest sentences/],
+  ['Mark sentences that run long', /run long/],
+  ['Mark convoluted sentences', /convoluted sentences/],
+  ['Mark words that don’t fit the tone', /do not fit the tone/],
+  ['Mark hedges and filler', /hedges and filler/],
+]) {
+  await answer({ marks: [{ n: 3, text: 'fine', reason: 'For the test.' }] });
+  await pick(label);
+  await t.until(() => marked().length === 1, 4000, `the mark for “${label}”`);
+  t.assert(asks.test(await lastAsked()), `“${label}” asks the model for that`);
+  t.equal(title(), `${label} 1 marked`, `and reports under its own name (${label})`);
+  await act('Done');
+}
+
+// Nothing to mark, and a request that fails.
+await answer({ marks: [] });
+await pick('Mark convoluted sentences');
+await t.until(() => /nothing/.test(hint()), 3000, 'the card to say there is nothing');
+t.equal([title(), hint(), actions().join(' | ')], ['Mark convoluted sentences', 'The AI marked nothing.', 'Done'], 'an answer with no marks says so');
+await act('Done');
+await answer(null, { error: 'No AI key is set. Add one in Settings.' });
+await pick('Mark convoluted sentences');
+await t.until(() => /key/.test(hint()), 3000, 'the reason to show');
+t.equal([title(), hint(), actions().join(' | ')], ['Mark convoluted sentences', 'No AI key is set. Add one in Settings.', 'Done'], 'a failure gives the reason in one line');
+t.same(html(), before, 'and the text is untouched');
+await act('Done');
+
+// A pass replaces whatever pass was out.
+await answer({ paragraphs: [{ n: 3, text: 'The third is.' }] });
+await openMenu();
+await t.click(...t.center([...menu.querySelectorAll('.level')][1]));
+await t.until(() => editor.root.querySelectorAll('[data-trim]').length > 0, 4000, 'a trim proposal');
+await answer(MARKS);
+await pick('Mark hedges and filler');
+t.equal(editor.root.querySelectorAll('[data-trim]').length, 0, 'starting a marking pass puts a trim proposal away');
+await t.until(() => marked().length === 2, 4000, 'the marks');
+await answer({ paragraphs: [{ n: 3, text: 'The third is.' }] });
+await openMenu();
+await t.click(...t.center([...menu.querySelectorAll('.level')][1]));
+t.equal(marked().length, 0, 'and a trim puts marks away');
+await t.until(() => editor.root.querySelectorAll('[data-trim]').length > 0, 4000, 'the trim proposal');
+await act('Done');
+
+// --- the typo pass --------------------------------------------------------------------------------
+
+const FIXES = {
+  fixes: [
+    { n: 1, find: 'Teh', replace: 'The', reason: 'Misspelt.' },
+    { n: 1, find: 'has has', replace: 'has', reason: 'Said twice.' },
+    { n: 2, find: 'realy', replace: 'really', reason: 'Misspelt.' },
+    { n: 2, find: ' ,and', replace: ', and', reason: 'Space before the comma.' },
+    { n: 3, find: 'fine', replace: 'fine', reason: 'Nothing to change.' },
+  ],
+};
+const FIX_HINT = 'Hover a mark to see the fix. Click one to keep the original.';
+await answer(FIXES, { firstMs: 400 });
+await pick('Fix punctuation and typos');
+t.equal([title(), hint(), actions().join(' | ')], ['Fix punctuation and typos Reading…', FIX_HINT, 'Done'], 'the typo pass reads like the others');
+t.assert(/spelling and punctuation/.test(await lastAsked()), 'and asks about spelling and punctuation');
+await t.until(() => marked().length > 0, 4000, 'the fixes to arrive');
+t.equal(marked(), ['Teh', 'has has', 'realy', ' ,and'], 'each slip is marked; a “fix” that changes nothing is dropped');
+t.equal([title(), actions().join(' | ')], ['Fix punctuation and typos 4 found', 'Fix all | Walk through | Done'], 'the card counts them and offers to fix them');
+t.same(html(), before, 'nothing is changed yet');
+{
+  const mark = markOf('Teh').getBoundingClientRect();
+  await t.hover(mark.left + mark.width / 2, mark.top + mark.height / 2);
+  t.equal(tip.textContent, 'Teh → The · Misspelt.', 'the label shows the fix and why');
+  await t.hover(300, 300);
+}
+await t.click(...t.center(markOf('has has')));
+t.equal(marked(), ['Teh', 'realy', ' ,and'], 'a click on a mark keeps the original');
+t.equal(title(), 'Fix punctuation and typos 3 found', 'and the card counts one fewer');
+await act('Fix all');
+t.equal(textOf(3), P1.replace('Teh', 'The'), 'Fix all makes the fixes that are left, and not the one that was kept');
+t.equal(textOf(5), 'Keep this aside the second really plain, and stop there.', 'in every paragraph, around what is ghosted');
+t.equal(editor.groups.r3aly01?.variants, ['really', 'truly'], 'a fix inside a group changes what the group is showing');
+t.equal([marked().length, getComputedStyle(card).visibility], [0, 'hidden'], 'the marks and the card are gone');
+await t.key('z', { meta: true });
+t.same(html(), before, 'one undo takes every fix back');
+t.assert(!editor.canUndo, 'it was a single step');
+await load();
+
+// Walking through the fixes.
+await answer(FIXES);
+await pick('Fix punctuation and typos');
+await t.until(() => marked().length === 4, 4000, 'the fixes');
+await act('Walk through');
+t.equal([title(), hint(), actions().join(' | ')], ['Fix punctuation and typos 1 of 4', 'Teh → The · Misspelt.', 'Fix | Keep | Stop'], 'the walk asks about each fix in turn, showing it');
+t.equal(editor.root.querySelector('[data-mark].is-current')?.textContent, 'Teh', 'and points it out');
+await act('Fix');
+t.equal([title(), hint()], ['Fix punctuation and typos 2 of 4', 'has has → has · Said twice.'], 'Fix moves on');
+await act('Keep');
+t.equal([title(), marked().join('|')], ['Fix punctuation and typos 2 of 3', 'Teh|realy| ,and'], 'Keep drops that fix and moves on');
+await act('Stop');
+t.equal([title(), actions().join(' | '), hint()], ['Fix punctuation and typos 3 found', 'Fix all | Walk through | Done', FIX_HINT], 'Stop goes back to the summary');
+t.same(html(), before, 'the walk itself changes nothing');
+await act('Walk through');
+for (let i = 0; i < 3; i++) await act('Fix');
+t.equal(actions().join(' | '), 'Fix all | Walk through | Done', 'after the last fix the summary is back');
+await act('Fix all');
+t.equal(textOf(3), P1.replace('Teh', 'The'), 'and Fix all makes what was not kept');
+await load();
+
+// No slips at all.
+await answer({ fixes: [] });
+await pick('Fix punctuation and typos');
+await t.until(() => /no slips/.test(hint()), 3000, 'the card to say there is nothing');
+t.equal([title(), hint(), actions().join(' | ')], ['Fix punctuation and typos', 'The AI found no slips.', 'Done'], 'a clean page says so');
+await act('Done');
+
+// --- the guide ------------------------------------------------------------------------------------
+
+{
+  const sheet = $('#card');
+  await pick('The Lab guide…');
+  t.assert(!ui.get('lab'), 'the guide closes the popover');
+  t.equal(getComputedStyle(sheet).visibility, 'visible', 'and opens a card');
+  t.equal(sheet.querySelector('.title').textContent, 'The Lab', 'headed The Lab');
+  const entries = [...sheet.querySelectorAll('.entry')].map((entry) => [entry.querySelector('.label').textContent, entry.querySelector('.about').textContent]);
+  t.equal(
+    entries.map(([label]) => label),
+    ['Fix punctuation and typos', 'Mark the weakest sentences', 'Mark sentences that run long', 'Mark convoluted sentences', 'Mark words that don’t fit the tone', 'Mark hedges and filler', 'Slight trim to Cut in half'],
+    'it lists every idea',
+  );
+  for (const [label, about] of entries) t.equal(about.split(/(?<=[.!?])\s+/).length, 2, `two sentences on “${label}”`);
+  t.assert(/never rewrites/.test(sheet.textContent), 'and says the AI never rewrites');
+  const box = sheet.getBoundingClientRect();
+  t.assert(box.top > 20 && box.bottom < innerHeight - 20, 'the card fits the window');
+  await t.until(() => getComputedStyle(menu).visibility === 'hidden', 1000, 'the popover to be out of the way');
+  await t.snap('guide');
+  await t.key('Escape');
+  t.equal(getComputedStyle(sheet).visibility, 'hidden', 'Esc puts it away');
+}

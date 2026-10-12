@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { offered, makeProposal, counts, applyProposal } from '../../web/src/doc/proposal.js';
+import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes } from '../../web/src/doc/proposal.js';
 import { alignDeletion } from '../../web/src/doc/trim.js';
 import { htmlToBlocks, blocksToHtml } from '../../web/src/doc/format.js';
 import { textOf, normaliseBlocks } from '../../web/src/doc/blocks.js';
@@ -134,4 +134,77 @@ test('characters beyond the basic plane survive a cut beside them', () => {
   const blocks = B('<p>Really 👍🏽 good, honestly, and done.</p>');
   const proposal = propose(blocks, { 1: '👍🏽 good and done.' });
   assert.equal(textOf(applyProposal(blocks, proposal)[0]), '👍🏽 good and done.');
+});
+
+// --- marks and fixes --------------------------------------------------------------------------------
+
+const TYPOS =
+  '<p># A title here</p><p><br></p>' +
+  '<p>Teh first line has has a slip or two in it.</p><p><br></p>' +
+  '<p>Keep <span data-ghost>this aside </span>it <span data-vid="aaaaaaa">realy plain</span> ,and stop.</p>';
+
+/** Marks as the checked answer gives them: `[n, quoted text, reason, replacement?]`, found in the offered text. */
+const marksFor = (blocks, list) => {
+  const paragraphs = offered(blocks);
+  const items = list.map(([n, quote, reason, replace]) => {
+    const start = paragraphs.find((p) => p.n === n).text.indexOf(quote);
+    return { n, start, end: start + quote.length, reason, ...(replace === undefined ? {} : { replace }) };
+  });
+  return makeMarks(paragraphs, items);
+};
+
+test('a mark knows the stretch of its block it points at, and marks come in the order of the document', () => {
+  const blocks = B(TYPOS);
+  const marks = marksFor(blocks, [
+    [2, 'realy', 'misspelt'],
+    [1, 'has has', 'said twice'],
+    [1, 'Teh', 'misspelt'],
+  ]);
+  assert.deepEqual(
+    marks.map((mark) => [mark.id, mark.block, cutText(blocks, mark).join('|'), mark.reason]),
+    [
+      ['m1', 2, 'Teh', 'misspelt'],
+      ['m2', 2, 'has has', 'said twice'],
+      ['m3', 4, 'realy', 'misspelt'],
+    ],
+  );
+});
+
+test('a mark that runs across ghosted text points at what is either side of it', () => {
+  const blocks = B(TYPOS);
+  const [mark] = marksFor(blocks, [[2, 'Keep it', 'a test']]);
+  assert.deepEqual(cutText(blocks, mark), ['Keep ', 'it']);
+});
+
+test('fixes replace what they point at, several to a paragraph, and nothing else', () => {
+  const blocks = B(TYPOS);
+  const fixes = marksFor(blocks, [
+    [1, 'Teh', 'misspelt', 'The'],
+    [1, 'has has', 'said twice', 'has'],
+    [2, ' ,and', 'space before the comma', ', and'],
+  ]);
+  const made = applyFixes(blocks, fixes);
+  assert.equal(textOf(made[2]), 'The first line has a slip or two in it.');
+  assert.equal(textOf(made[4]), 'Keep this aside it realy plain, and stop.');
+  assert.equal(made[0], blocks[0], 'a block with no fix in it is the same block');
+});
+
+test('a fix inside a group changes what the group is showing and leaves it a group', () => {
+  const blocks = B(TYPOS);
+  const made = normaliseBlocks(applyFixes(blocks, marksFor(blocks, [[2, 'realy', 'misspelt', 'really']])), {
+    aaaaaaa: { scope: 'word', variants: ['realy plain', 'simple'], active: 0 },
+  });
+  assert.ok(H(made.blocks).endsWith('it <span data-vid="aaaaaaa">really plain</span> ,and stop.</p>'), H(made.blocks).slice(-90));
+  assert.deepEqual(made.groups.aaaaaaa.variants, ['really plain', 'simple']);
+});
+
+test('a fix across ghosted text leaves the ghosted text where it is', () => {
+  const blocks = B(TYPOS);
+  const made = applyFixes(blocks, marksFor(blocks, [[2, 'Keep it', 'a test', 'Hold it']]));
+  assert.ok(H(made).endsWith('<p>Hold it<span data-ghost>this aside </span> <span data-vid="aaaaaaa">realy plain</span> ,and stop.</p>'), H(made).slice(-120));
+});
+
+test('marks without a replacement are not fixes and change nothing', () => {
+  const blocks = B(TYPOS);
+  assert.equal(applyFixes(blocks, marksFor(blocks, [[1, 'Teh', 'misspelt']])), blocks);
 });

@@ -351,7 +351,7 @@ await load();
   await t.settle();
   const asks = (await asked()).length;
   await choose('Slight trim');
-  t.equal(card.querySelector('.hint').textContent, 'There is nothing here to trim.', 'a page with no paragraphs has nothing to trim');
+  t.equal(card.querySelector('.hint').textContent, 'There is nothing here to read.', 'a page with no paragraphs has nothing for a pass to read');
   t.equal((await asked()).length, asks, 'and the model is not asked');
   await act('Done');
   await load();

@@ -220,8 +220,40 @@
 #editor [data-trim].is-kept {
   opacity: 1;
 }
-/* The cut a walk-through is asking about. */
+/* What a marking pass points at, the typo pass included: the words as they are, underlined.
+   The same underline shows the cut a walk-through is asking about. */
+#editor [data-mark],
 #editor [data-trim].is-current {
   text-decoration: underline 1.5px var(--lab);
   text-underline-offset: 5px;
+}
+#editor [data-mark] {
+  cursor: pointer;
+}
+/* The fix a walk-through is asking about stands out from the others. */
+#editor [data-mark].is-current {
+  background: rgba(200, 16, 66, 0.22);
+}
+
+/* Why a passage is marked, by the passage. */
+#labtip {
+  position: fixed;
+  z-index: 36;
+  left: 0;
+  top: 0;
+  max-width: 420px;
+  box-sizing: border-box;
+  padding: 4px 9px;
+  border: 1px solid var(--popover-edge);
+  border-radius: 6px;
+  background: var(--popover);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+  color: var(--text);
+  font: 400 12px/18px var(--mono);
+  white-space: pre-wrap;
+  pointer-events: none;
+  visibility: hidden;
+}
+#labtip.is-showing {
+  visibility: visible;
 }
