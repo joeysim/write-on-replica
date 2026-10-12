@@ -227,8 +227,12 @@ export function markdownToBlocks(markdown) {
   });
 }
 
+function trimBlankEnd(text) {
+  return text.replace(/(?:\n[ \t]*)+$/, '');
+}
+
 function trimBlankLines(text) {
-  return text.replace(/^(?:[ \t]*\n)+/, '').replace(/(?:\n[ \t]*)+$/, '');
+  return trimBlankEnd(text.replace(/^(?:[ \t]*\n)+/, ''));
 }
 
 function trimBlankBlocks(blocks) {
@@ -258,7 +262,7 @@ function sameBlocks(a, b) {
 }
 
 /**
- * Everything `serialize` and `readable` share: the visible text, and whether the editor
+ * Everything the ways of writing the file share: the visible text, and whether the editor
  * state needs recording at all. A document with no groups and no ghost runs whose blocks
  * can be read straight back from its Markdown is written as plain Markdown.
  */
@@ -270,14 +274,14 @@ function layout(state) {
   const hasMarks = Object.keys(groups).length > 0 || blocks.some((b) => b.vid || b.runs.some((r) => r.ghost || r.vid));
 
   const exactBody = blocksToMarkdown(blocks);
-  const trimmedBody = trimBlankLines(exactBody);
-  const plain = !hasMarks && (overflow ? sameBlocks(markdownToBlocks(trimmedBody), blocks) : true);
+  // Blank lines at the top are written as they stand, as in the author's files. Those at
+  // the end would be lost among the blank lines that keep the parts of the file apart.
+  const framedBody = trimBlankEnd(exactBody);
+  const plain = !hasMarks && (overflow ? sameBlocks(markdownToBlocks(framedBody), blocks) : true);
   // A plain file with no overflow keeps its lines exactly, blank edges included.
-  const body = plain && !overflow ? exactBody : trimmedBody;
+  const body = plain && !overflow ? exactBody : framedBody;
 
-  const parts = [body];
-  if (overflow) parts.push(OVERFLOW_MARK, overflow);
-  return { blocks, groups, text: parts.join('\n\n'), plain };
+  return { blocks, groups, body, overflow, plain };
 }
 
 // Text inside the comment must not be able to end it.
@@ -285,24 +289,54 @@ function guardComment(json) {
   return json.replace(/--(!?)>/g, '--$1\\u003e');
 }
 
-/** The file exactly as it is saved. */
-export function serialize(state) {
-  const { blocks, groups, text, plain } = layout(state);
-  if (plain) return `${text}\n`;
-  const meta = guardComment(JSON.stringify({ version: 1, html: blocksToHtml(blocks), groups }));
-  return `${text}\n\n${META_OPEN}${meta}${META_CLOSE}\n`;
-}
+/**
+ * The parts of the file in order: the text, then the overflow behind its marker, then the
+ * recorded state. `kind` is 'text', or 'mark' and 'meta' for the two comments a Markdown
+ * reader does not show. A blank line goes between one part and the next.
+ */
+function parts(state, pretty) {
+  const { blocks, groups, body, overflow, plain } = layout(state);
+  const list = [{ kind: 'text', text: body }];
+  if (overflow) list.push({ kind: 'mark', text: OVERFLOW_MARK }, { kind: 'text', text: overflow });
+  if (plain) return list;
 
-/** The same file with the recorded state laid out for a person to read. */
-export function readable(state) {
-  const { blocks, groups, text, plain } = layout(state);
-  if (plain) return `${text}\n`;
+  if (!pretty) {
+    const meta = guardComment(JSON.stringify({ version: 1, html: blocksToHtml(blocks), groups }));
+    return [...list, { kind: 'meta', text: `${META_OPEN}${meta}${META_CLOSE}` }];
+  }
   const html = blocks.map((block) => `    ${blockToHtml(block)}`).join('\n');
   const groupLines = JSON.stringify(groups, null, 2)
     .split('\n')
     .map((line, i) => (i === 0 ? line : `  ${line}`))
     .join('\n');
-  return `${text}\n\n${META_OPEN}{\n  "version": 1,\n  "html": "\n${html}\n  ",\n  "groups": ${groupLines}\n}${META_CLOSE}\n`;
+  const meta = `${META_OPEN}{\n  "version": 1,\n  "html": "\n${html}\n  ",\n  "groups": ${groupLines}\n}${META_CLOSE}`;
+  return [...list, { kind: 'meta', text: meta }];
+}
+
+const joined = (list) => `${list.map((part) => part.text).join('\n\n')}\n`;
+
+/** The file exactly as it is saved. */
+export function serialize(state) {
+  return joined(parts(state, false));
+}
+
+/** The same file with the recorded state laid out for a person to read. */
+export function readable(state) {
+  return joined(parts(state, true));
+}
+
+/**
+ * The file a line at a time, for showing it: `[{ kind, text }]`, with `kind` as above.
+ * Joined with line breaks, and one more at the end, the lines are the file.
+ * @param {{readable?: boolean}} options the recorded state as saved, or laid out for reading
+ */
+export function sourceLines(state, { readable: pretty = false } = {}) {
+  const lines = [];
+  parts(state, pretty).forEach((part, index) => {
+    if (index > 0) lines.push({ kind: 'text', text: '' });
+    for (const text of part.text.split('\n')) lines.push({ kind: part.kind, text });
+  });
+  return lines;
 }
 
 // --- reading ----------------------------------------------------------------------------
@@ -406,7 +440,7 @@ export function parse(fileText) {
   const { rest, meta, damaged } = splitMeta(text);
   const { body, overflow } = splitOverflow(rest);
   const framed = meta !== null || damaged || overflow !== null;
-  text = framed ? trimBlankLines(body) : body.replace(/\n$/, '');
+  text = framed ? trimBlankEnd(body) : body.replace(/\n$/, '');
   const fromMarkdown = markdownToBlocks(text);
 
   let blocks = fromMarkdown;
@@ -416,7 +450,8 @@ export function parse(fileText) {
   if (meta) {
     const recorded = htmlToBlocks(meta.html);
     const total = new Set(recorded.flatMap((b) => [b.vid, ...b.runs.map((r) => r.vid)]).filter(Boolean)).size;
-    if (trimBlankLines(blocksToMarkdown(recorded)) === text) {
+    // Blank lines at either end do not count: files differ in whether they keep them.
+    if (trimBlankLines(blocksToMarkdown(recorded)) === trimBlankLines(text)) {
       const { kept, dropped } = keepValidGroups(recorded, meta.groups);
       blocks = recorded;
       groups = kept;
@@ -425,8 +460,10 @@ export function parse(fileText) {
       // The Markdown was edited in another tool: it wins. Groups are kept where their
       // showing text can still be found, looking first in the paragraph they were in.
       const position = new Map();
-      trimBlankBlocks(recorded).forEach((block, index) => {
-        for (const vid of [block.vid, ...block.runs.map((r) => r.vid)]) if (vid && !position.has(vid)) position.set(vid, index);
+      const firstText = (list) => Math.max(0, list.findIndex((block) => block.kind !== 'blank'));
+      const shift = firstText(blocks) - firstText(recorded);
+      recorded.forEach((block, index) => {
+        for (const vid of [block.vid, ...block.runs.map((r) => r.vid)]) if (vid && !position.has(vid)) position.set(vid, index + shift);
       });
       let keptCount = 0;
       for (const [vid, index] of position) {

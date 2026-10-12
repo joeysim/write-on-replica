@@ -1,0 +1,126 @@
+// The source view (design spec 6.11): the file as it would be saved now, in a card over
+// the page. "As saved" is exactly what Save writes; "Readable" lays the recorded state out
+// for a person and jumps to it. It is for reading: nothing in it changes the document.
+
+import { serialize, readable, sourceLines } from '../doc/format.js';
+
+const ABOVE = 7.7; // how far below the top of the view the jump to the recorded state leaves it
+const COPIED_MS = 1500;
+
+export function createSourceView({ editor, ui, commands, native }) {
+  const card = document.getElementById('source');
+  const body = card.querySelector('.body');
+  const tabs = [...card.querySelectorAll('.tab')];
+  const bytes = card.querySelector('.bytes');
+  const copy = card.querySelector('.copy');
+  const scrim = document.getElementById('scrim');
+  let view = 'saved';
+  let caret = null; // the page's selection, to give back on closing
+  let relabel = 0;
+
+  const text = () => (view === 'readable' ? readable(editor.getState()) : serialize(editor.getState()));
+
+  function line({ kind, text: content }) {
+    const node = document.createElement('div');
+    node.className = kind === 'text' ? 'line' : `line dim ${kind}`;
+    node.textContent = content;
+    // A line set in from the margin wraps to its own indent.
+    const indent = view === 'readable' && kind === 'meta' ? content.length - content.trimStart().length : 0;
+    if (indent) node.style.cssText = `padding-left: ${indent}ch; text-indent: -${indent}ch`;
+    return node;
+  }
+
+  function show(next) {
+    view = next;
+    for (const tab of tabs) tab.classList.toggle('active', tab.dataset.view === view);
+    const state = editor.getState();
+    body.replaceChildren(...sourceLines(state, { readable: view === 'readable' }).map(line));
+    const size = new TextEncoder().encode(serialize(state)).length;
+    bytes.textContent = `${size.toLocaleString('en-US')} bytes`;
+    fit();
+    body.style.paddingTop = '';
+    body.scrollTop = 0;
+    const recorded = view === 'readable' ? body.querySelector('.meta') : null;
+    if (!recorded) return;
+    // Scrolling goes by whole pixels; the rest of the distance is made up above the text.
+    const wanted = recorded.getBoundingClientRect().top - body.getBoundingClientRect().top - ABOVE;
+    body.style.paddingTop = `${Math.ceil(wanted) - wanted}px`;
+    body.scrollTop = Math.ceil(wanted);
+  }
+
+  /**
+   * Makes each line of the file as tall as its lines of text are in the clip (see the
+   * note in styles/popovers.css), whatever number of them it wraps to at this width.
+   */
+  function fit() {
+    const style = getComputedStyle(body);
+    const set = parseFloat(style.lineHeight);
+    const pitch = parseFloat(style.getPropertyValue('--pitch'));
+    const rows = [...body.children];
+    for (const row of rows) row.style.height = '';
+    const heights = rows.map((row) => row.offsetHeight);
+    rows.forEach((row, i) => {
+      row.style.height = `${Math.max(1, Math.round(heights[i] / set)) * pitch}px`;
+    });
+  }
+
+  function open() {
+    if (ui.get('source')) return;
+    caret = editor.selection();
+    ui.set({ source: true, read: false });
+    show('saved');
+    body.focus({ preventScroll: true }); // the keys now scroll the file, and none reach the page
+  }
+
+  function close() {
+    if (!ui.get('source')) return;
+    ui.set({ source: false });
+    editor.focus();
+    if (caret) editor.select(caret.start, caret.end);
+  }
+
+  for (const tab of tabs) tab.addEventListener('click', () => show(tab.dataset.view));
+
+  copy.addEventListener('click', async () => {
+    try {
+      await native.call('clipboard.write', { text: text() });
+      copy.textContent = 'Copied';
+    } catch {
+      copy.textContent = 'Not copied';
+    }
+    clearTimeout(relabel);
+    relabel = setTimeout(() => {
+      copy.textContent = 'Copy';
+    }, COPIED_MS);
+  });
+  // The buttons work without taking the keyboard from the text.
+  card.querySelector('header').addEventListener('mousedown', (event) => event.preventDefault());
+
+  scrim.addEventListener('mousedown', (event) => {
+    if (!ui.get('source')) return;
+    event.preventDefault();
+    close();
+  });
+  window.addEventListener(
+    'keydown',
+    (event) => {
+      if (!ui.get('source') || event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      close();
+    },
+    true,
+  );
+  // Read mode is just the text.
+  ui.on((flags, patch) => {
+    if (patch.read === true) close();
+  });
+  window.addEventListener('resize', () => {
+    if (ui.get('source')) fit(); // the lines wrap differently now
+  });
+
+  commands.register('source', () => (ui.get('source') ? close() : open()));
+  document.getElementById('open-source').addEventListener('click', () => commands.run('source'));
+
+  return { open, close, isOpen: () => ui.get('source') };
+}

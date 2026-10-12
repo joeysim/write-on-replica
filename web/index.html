@@ -116,6 +116,17 @@
     <div id="tooltip" role="tooltip"></div>
     <div id="menu" role="menu"></div>
     <div id="scrim"></div>
+    <section id="source" role="dialog" aria-modal="true" aria-label="The file as saved">
+      <header>
+        <div class="tabs">
+          <button class="tab" type="button" data-view="saved">As saved</button>
+          <button class="tab" type="button" data-view="readable">Readable</button>
+        </div>
+        <span class="bytes"></span>
+        <button class="copy" type="button">Copy</button>
+      </header>
+      <div class="body" tabindex="-1"></div>
+    </section>
     <div id="card" role="dialog" aria-modal="true"></div>
 
     <script type="module" src="src/main.js"></script>

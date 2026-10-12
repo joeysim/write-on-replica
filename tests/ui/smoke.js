@@ -17,6 +17,7 @@ t.equal(outside.canBecomeKey, false, 'and its window cannot become one');
 t.equal(outside.onADisplay, false, 'the window is on no display');
 t.equal(outside.alpha, 0, 'and could not be seen if it were');
 t.equal(outside.ignoresMouse, true, 'or clicked');
+t.equal(outside.ownPasteboard, true, 'what it copies goes to a pasteboard of its own, not the one in use');
 t.equal(window.writeOn.ui.get('sound'), false, 'sound effects are off unless a scenario asks for them');
 t.equal(document.visibilityState, 'visible', 'the page still counts as visible');
 t.assert(document.hasFocus(), 'and as focused');

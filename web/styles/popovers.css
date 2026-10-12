@@ -45,47 +45,45 @@
 
 /* --- cards -------------------------------------------------------------------------------- */
 
+/* A card stands over the page as the clip's source view does: the page behind is not
+   dimmed, and a click anywhere off the card puts it away. The scrim is only there to take
+   that click. Edge, corners and shadow are measured from the clip. */
 #scrim {
   position: fixed;
   z-index: 50;
   inset: 0;
-  background: rgba(3, 6, 18, 0.62);
-  opacity: 0;
   visibility: hidden;
-  pointer-events: none; /* while it fades away, clicks already reach the page */
-  transition:
-    opacity 140ms ease,
-    visibility 0s linear 140ms;
 }
-#card {
+body.is-card #scrim,
+body.is-source #scrim {
+  visibility: visible;
+}
+#card,
+#source {
   position: fixed;
   z-index: 51;
+  box-sizing: border-box;
+  border: 1px solid var(--popover-edge);
+  border-radius: 7px;
+  background: var(--popover);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+  visibility: hidden;
+}
+body.is-card #card,
+body.is-source #source {
+  visibility: visible;
+}
+
+#card {
   left: 50%;
   top: 50%;
   width: 500px;
   max-height: calc(100% - 96px);
-  box-sizing: border-box;
   padding: 22px 26px 24px;
-  border: 1px solid var(--popover-edge);
-  border-radius: 12px;
-  background: var(--popover);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
   color: var(--text);
   font: 400 13px/22px var(--mono);
   overflow-y: auto;
   transform: translate(-50%, -50%);
-  visibility: hidden;
-}
-body.is-card #scrim {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
-  transition:
-    opacity 140ms ease,
-    visibility 0s linear 0s;
-}
-body.is-card #card {
-  visibility: visible;
 }
 #card .title {
   margin: 0 0 10px;
@@ -105,6 +103,88 @@ body.is-card #card {
 }
 #card .note {
   margin: 14px 0 0;
+  color: var(--dim-text);
+}
+
+/* --- the source view ---------------------------------------------------------------------- */
+
+/* The file as saved, in a card 70px clear of the top and bottom of the window (design spec
+   6.11). Measurements are from the clip of it. */
+#source {
+  left: 0;
+  right: 0;
+  top: 70px;
+  bottom: 70px;
+  width: min(900px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+}
+#source header {
+  flex: none;
+  display: flex;
+  align-items: baseline;
+  height: 52px;
+  box-sizing: border-box;
+  padding: 15.6px 22px 0;
+}
+#source .tabs {
+  display: flex;
+  gap: 16.5px;
+}
+#source .tab,
+#source .copy {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--dim-text);
+  font: var(--label);
+  cursor: pointer;
+}
+#source .tab:hover,
+#source .tab.active,
+#source .copy:hover {
+  color: var(--accent);
+}
+#source .bytes {
+  margin-left: auto;
+  color: var(--dim-text);
+  font: 400 13px/28px var(--mono);
+}
+#source .copy {
+  margin-left: 15.5px;
+}
+/* The text keeps its line breaks and wraps at the card. In the readable layout a line that
+   is set in keeps to its indent when it wraps.
+   The clip's lines are 20.8px apart (13px at 1.6). This engine sets lines of text a whole
+   number of pixels apart, so the text is set at 21px and features/sourceview.js makes each
+   line of the file as tall as it would be at 20.8px; nothing then drifts down the card. */
+#source .body {
+  --pitch: 20.8px;
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  padding: 0 22px;
+  overflow-y: auto;
+  outline: none;
+  color: var(--text);
+  font: 400 13px/21px var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  cursor: text;
+  -webkit-user-select: text;
+  user-select: text;
+}
+#source .line {
+  min-height: var(--pitch);
+}
+/* Half a pixel up, and each line rounds to the same device pixel as the clip's. */
+#source .line:first-child {
+  margin-top: -0.5px;
+}
+#source .line.dim {
   color: var(--dim-text);
 }
 

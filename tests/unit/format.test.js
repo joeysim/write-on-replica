@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { htmlToBlocks, blocksToHtml, blocksToMarkdown, markdownToBlocks, serialize, readable, parse, plainText } from '../../web/src/doc/format.js';
+import { htmlToBlocks, blocksToHtml, blocksToMarkdown, markdownToBlocks, serialize, readable, sourceLines, parse, plainText } from '../../web/src/doc/format.js';
 import { sampleState } from '../../web/src/sample.js';
 
 // A small document with the same shape as the file in the author's clip: a blank first
@@ -23,6 +23,7 @@ const fixture = () => ({
 });
 
 const FIXTURE_FILE = [
+  '',
   '# Title here',
   '',
   'It is a test of things.',
@@ -108,6 +109,32 @@ test('serialize writes the file in the shape shown in the clip', () => {
   assert.equal(serialize(fixture()), FIXTURE_FILE);
 });
 
+test('blank lines at the top of the document are written as they stand; those at the end are not', () => {
+  // The clip's "As saved" view begins with the document's blank first line.
+  const state = {
+    html: '<p><br></p><p><br></p><p>A <span data-vid="aaaaaa1">word</span>.</p><p><br></p><p><br></p>',
+    groups: { aaaaaa1: { scope: 'word', variants: ['word', 'term'], active: 0 } },
+    overflow: '',
+  };
+  const file = serialize(state);
+  assert.ok(file.startsWith('\n\nA word.\n\n<!-- write_on '), JSON.stringify(file.slice(0, 40)));
+  assert.deepEqual(parse(file), { state, note: null });
+});
+
+test('a file whose text has lost the blank lines at its top still opens with everything it recorded', () => {
+  const state = fixture();
+  const file = serialize(state).replace(/^\n+/, '');
+  assert.ok(file.startsWith('# Title here'));
+  assert.deepEqual(parse(file), { state, note: null });
+});
+
+test('blank lines at the top are kept when the file has overflow but nothing else to record', () => {
+  const state = { html: '<p><br></p><p>Just text.</p>', groups: {}, overflow: 'Spare.' };
+  const file = serialize(state);
+  assert.equal(file, '\nJust text.\n\n<!-- overflow -->\n\nSpare.\n');
+  assert.deepEqual(parse(file), { state, note: null });
+});
+
 test('groups are written in document order with scope, variants, active, then ai', () => {
   const file = serialize(fixture());
   const meta = JSON.parse(/<!-- write_on (.*) -->/.exec(file)[1]);
@@ -175,7 +202,7 @@ test('groups that are not in the html are not written', () => {
 
 test('readable shows the same text with the metadata laid out for reading', () => {
   const text = readable(fixture());
-  assert.ok(text.startsWith('# Title here\n\nIt is a test of things.\n'));
+  assert.ok(text.startsWith('\n# Title here\n\nIt is a test of things.\n'));
   assert.ok(text.includes('\n<!-- overflow -->\n\nSpare one.\n'));
   const meta = text.slice(text.indexOf('<!-- write_on {'));
   assert.equal(
@@ -228,6 +255,21 @@ test('readable shows the same text with the metadata laid out for reading', () =
 
 // --- files the app did not write ---------------------------------------------------------
 
+test('the file can be had line by line, each marked as text or as something a Markdown reader would hide', () => {
+  for (const state of [fixture(), sampleState(), { html: '<p># Plain</p><p><br></p><p>Text.</p>', groups: {}, overflow: '' }, { html: '<p>A</p><p><br></p>', groups: {}, overflow: '' }]) {
+    assert.equal(`${sourceLines(state).map((line) => line.text).join('\n')}\n`, serialize(state));
+    assert.equal(`${sourceLines(state, { readable: true }).map((line) => line.text).join('\n')}\n`, readable(state));
+  }
+  const kinds = (lines) => lines.map((line) => line.kind).join(' ');
+  assert.equal(kinds(sourceLines(fixture())), 'text text text text text text text mark text text text text text text text meta');
+  const pretty = sourceLines(fixture(), { readable: true });
+  const first = pretty.findIndex((line) => line.kind === 'meta');
+  assert.equal(pretty[first].text, '<!-- write_on {');
+  assert.ok(pretty.slice(first).every((line) => line.kind === 'meta'), 'the recorded state runs to the end of the file');
+  assert.equal(pretty[pretty.length - 1].text, '} -->');
+  assert.equal(kinds(sourceLines({ html: '<p># Plain</p><p><br></p><p>Text.</p>', groups: {}, overflow: '' })), 'text text text');
+});
+
 test('a plain markdown file opens with no groups', () => {
   const { state, note } = parse('# Notes\n\nFirst line.\nSecond line.\n');
   assert.deepEqual(state, { html: '<p># Notes</p><p><br></p><p>First line.</p><p>Second line.</p>', groups: {}, overflow: '' });
@@ -268,7 +310,7 @@ test('a damaged metadata block is dropped and reported, and the text is kept', (
   const truncated = FIXTURE_FILE.slice(0, FIXTURE_FILE.indexOf('"groups"'));
   const { state, note } = parse(truncated);
   assert.deepEqual(state.groups, {});
-  assert.equal(blocksToMarkdown(htmlToBlocks(state.html)), '# Title here\n\nIt is a test of things.\n\nWhole paragraph. Two sentences.');
+  assert.equal(blocksToMarkdown(htmlToBlocks(state.html)), '\n# Title here\n\nIt is a test of things.\n\nWhole paragraph. Two sentences.');
   assert.equal(state.overflow, 'Spare one.\n\nSpare two.\n\nhttps://example.com/x');
   assert.match(note, /could not be read/i);
 

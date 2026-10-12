@@ -164,6 +164,10 @@ final class UITestHarness {
             return ["zoom": self.options.zoom, "rendersAtZoom": self.rendersAtZoom, "aiMock": self.options.aiMock] as [String: Any]
         })
         if options.aiMock { registerScriptedAI() }
+        // test.clipboard -> { text }: what the page last copied, read from the run's own pasteboard.
+        bridge.on("test.clipboard", sync: { [weak self] _ in
+            ["text": self?.controller.pasteboard.string(forType: .string) ?? ""] as [String: Any]
+        })
         // What the run looks like from outside, for the scenario that checks it stays out
         // of the way. These are the real states, not the ones simulated for the page.
         bridge.on("test.environment", sync: { [weak self] _ in
@@ -179,6 +183,7 @@ final class UITestHarness {
                 "onADisplay": onADisplay,
                 "alpha": Double(window.alphaValue),
                 "ignoresMouse": window.ignoresMouseEvents,
+                "ownPasteboard": self.controller.pasteboard.name != NSPasteboard.general.name,
             ] as [String: Any]
         })
         bridge.on("test.done", sync: { [weak self] params in
@@ -452,6 +457,7 @@ final class UITestHarness {
         if let data = try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]) {
             try? data.write(to: options.output.appendingPathComponent("result.json"))
         }
+        controller.pasteboard.releaseGlobally() // the run's own, made for it
         exit(passed ? 0 : 1)
     }
 }

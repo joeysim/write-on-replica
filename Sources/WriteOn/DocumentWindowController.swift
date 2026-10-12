@@ -61,6 +61,9 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
 
     private let scripted: Bool
     private let settings: AppSettings
+    /// Where Copy puts text. A scripted run has a pasteboard of its own, so it never
+    /// replaces what the person at this Mac has copied.
+    let pasteboard: NSPasteboard
 
     /// - Parameters:
     ///   - settings: where the page's interface choices are kept.
@@ -70,6 +73,7 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
     init(webRoot: URL, settings: AppSettings, pageSize: NSSize? = nil, scripted: Bool = false) {
         self.scripted = scripted
         self.settings = settings
+        pasteboard = scripted ? NSPasteboard.withUniqueName() : NSPasteboard.general
         let exactSize = scripted
         let configuration = WKWebViewConfiguration()
         configuration.setURLSchemeHandler(AssetSchemeHandler(root: webRoot), forURLScheme: AssetSchemeHandler.scheme)
@@ -183,6 +187,12 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         })
         bridge.on("settings.set", sync: { [weak self] params in
             self?.settings.updateInterface(params)
+            return nil
+        })
+        bridge.on("clipboard.write", sync: { [weak self] params in
+            guard let self, let text = params["text"] as? String else { throw Bridge.Failure("clipboard.write needs text") }
+            self.pasteboard.clearContents()
+            guard self.pasteboard.setString(text, forType: .string) else { throw Bridge.Failure("the text could not be copied") }
             return nil
         })
         bridge.on("log", sync: { [weak self] params in

@@ -30,6 +30,7 @@ const shim = {
     return null;
   },
   'ai.cancel': () => null,
+  'clipboard.write': ({ text }) => navigator.clipboard.writeText(text).then(() => null),
   log: ({ level, message }) => {
     (level === 'error' ? console.error : console.log)(message);
     return null;

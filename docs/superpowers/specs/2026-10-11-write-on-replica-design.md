@@ -486,7 +486,10 @@ Overflow text, as plain paragraphs.
 ```
 
 - The visible Markdown is the document as it currently reads, so any other tool sees a
-  normal file. Ghosted text is included as ordinary text.
+  normal file. Ghosted text is included as ordinary text. Blank lines at the top of the
+  document are written as they stand (the clip's "As saved" view begins with the
+  document's blank first line); blank lines at its end are not. Opening does not mind
+  either way.
 - `<!-- overflow -->` and everything after it up to the metadata comment is the overflow.
   It is omitted when overflow is empty.
 - The `write_on` comment holds the editor state: `html` (one `<p>` per block, `<p><br></p>`
@@ -507,12 +510,26 @@ Overflow text, as plain paragraphs.
 - Closing or quitting with unsaved changes asks first. Unsaved work is also snapshotted
   to Application Support every few seconds and offered back after a crash.
 
-**Source view** (Ctrl+U, or the M↓ icon): a centred card over the dimmed page.
+**Source view** (Ctrl+U, or the M↓ icon): a card over the page, 900 px wide and 70 px
+clear of the top and bottom of the window. The page behind is not dimmed: in the clip the
+ground and the icons measure the same with the card up as without it. The card has a
+hairline edge, 7 px corners and a soft shadow that falls mostly below it.
 
-- Tabs "As saved" and "Readable"; on the right the byte count ("9,344 bytes") and "Copy".
+- A 52 px header: tabs "As saved" and "Readable" in the hand, accent for the one showing;
+  on the right the byte count ("9,344 bytes", 13 px, dim) and "Copy".
+- Under it the file scrolls: 13 px type, 22 px in from either side, nothing above its
+  first line, and 16 px of card below the scrolling area.
+- The clip's lines are 20.8 px apart (13 px at 1.6), each rounded to a device pixel.
+  WebKit sets the lines of a block a whole number of pixels apart, so the text is set at
+  21 px and each line of the file is made as tall as its lines would be at 20.8 px. Every
+  paragraph then starts on the clip's pixel; inside a paragraph the third and fourth lines
+  are half a pixel low.
 - "As saved" shows exactly what Save would write. "Readable" pretty-prints the metadata,
-  with the HTML unescaped one block per line, and jumps to it.
-- Comment and metadata lines are dimmed; text is full strength. Read-only. Esc closes.
+  with the HTML unescaped one block per line, four spaces in and keeping that indent
+  where it wraps, and jumps to it: the comment's first line lands just under 8 px below
+  the top of the scrolling area.
+- Comment and metadata lines are dimmed; text, the overflow included, is full strength.
+  Read-only. Esc closes.
 
 **Post to X** (X icon, Ctrl+Shift+P): opens X's compose window in the default browser
 with the document text filled in, heading marker and ghosted text removed. If the text is
@@ -686,7 +703,7 @@ go another way.
 | 24 | Arrow keys while hovering | → and ↓ go forward, ← and ↑ go back. The clips show both directions and wrap-around, not which key is which. |
 | 25 | Panel details | Clicking a tab retargets at that scope; ↑ / ↓ do not wrap; a group cannot be deleted down to nothing. |
 | 26 | Lab popover while a proposal is pending | The pending level is highlighted; choosing "Original" dismisses it, like "Done". |
-| 27 | Source view details | "As saved" reflects the document as it would be saved now; "Copy" copies the tab that is showing. |
+| 27 | Source view details | "As saved" reflects the document as it would be saved now, and is what shows each time the view opens. "Copy" copies the tab that is showing and reads "Copied" for a second and a half. Esc, Ctrl+U again, the M↓ icon or a click off the card closes it, and so does going into Read mode. While it is open the keys scroll it and none reach the page; afterwards the caret is where it was. |
 | 28 | Read mode details | Feature shortcuts leave Read mode; the mode is remembered between launches. |
 | 29 | Ghost with no selection | Applies to the word at the caret, like the alternatives commands. |
 | 30 | Mac shell additions | Blended title bar, menu bar with ⌘ equivalents, Save As, Open Recent, unsaved-changes prompt, crash snapshots, file name suggested from the first heading, a sound toggle. None of these are in the clips. |
@@ -699,7 +716,7 @@ go another way.
 | 37 | Rows | The empty row is always the last. Emptying a row in the middle removes its variant and puts the caret in the empty row at the end. A row typed into the same words as another row does not become a second copy; the row it repeats shows instead. The only variant of a group cannot be emptied away. |
 | 38 | Typing an alternative and undo | The letters of an alternative typed in one go are one undo step. Undo and redo in the panel are the document's. |
 | 40 | Context menu states | Items that cannot apply are dimmed and do nothing: the two alternatives items for a selection across paragraphs or where there is no word (they then read just "Alternatives" and "AI alternatives"), Ghost with nothing to ghost, Stash on a blank line. Arrow keys and Return work in the menu; Esc, a click elsewhere, scrolling or any other key puts it away. Near the window's edge it opens on the other side of the pointer. |
-| 41 | Shortcut card | The keyboard icon opens a centred card over the dimmed page listing the shortcuts of §6.13 and the keys that work under the pointer; Esc, a click outside or the icon again closes it. |
+| 41 | Shortcut card | The keyboard icon opens a centred card listing the shortcuts of §6.13 and the keys that work under the pointer; Esc, a click outside or the icon again closes it. It has the look of the source view's card, the one card the clips show: the same edge, corners and shadow, and the page behind is not dimmed. |
 | 42 | Which shortcuts leave Read mode | The feature shortcuts (alternatives, AI alternatives, ghost, stash, Overflow, source view) and any context-menu item. Save, Open, Post to X, undo and redo do not. |
 | 43 | Undo keys | ⌘Z and Ctrl+Z (with Shift to redo) undo the document wherever the focus is, except in a plain text field, which keeps its own history. |
 | 44 | While the AI is asked | The row of `??` cannot be typed in while it dances. Closing the panel or moving it to another target calls the request off, and nothing arrives. Suggestions show as they come but become variants together, when the answer is complete; a request that fails part-way leaves none of them. After a failure the row keeps its `??`, still, with the caret in it: deleting a mark and typing it again asks again. The reason replaces the footer hint for four seconds. |
