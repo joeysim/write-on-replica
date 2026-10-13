@@ -15,7 +15,11 @@ const slice = (text, range) => (range ? text.slice(range.start, range.end) : nul
 
 // --- counting ---------------------------------------------------------------------------
 
-test('counts match the two selection readouts in the source clips', () => {
+// The rule was read off two selections in the source clips, shown as "21 words 110 chars"
+// and "34 words 182 chars": what stands between spaces is a word, and every character
+// counts, spaces and punctuation too. Those selections were the author's own writing, so
+// the two sentences here are stand-ins written to the same counts.
+test('counts follow the rule the selection readouts in the source clips gave', () => {
   const a = 'Keep every version of a sentence you tried, because the one you threw away is usually the one you wanted back.';
   const b =
     'Nobody writes a sentence the best way first; you try it short, then long, then plain, and somewhere among the drafts is the one that says what you meant in the fewest words possible.';
