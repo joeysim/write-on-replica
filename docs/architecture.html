@@ -1,0 +1,1163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>How Write_On Is Built</title>
+<style>
+/* The app's own fonts, read from the repository: opening this file asks no one for anything. */
+@font-face { font-family: "IBM Plex Mono"; font-weight: 400; src: url("../web/fonts/IBMPlexMono-Regular.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-weight: 700; src: url("../web/fonts/IBMPlexMono-Bold.woff2") format("woff2"); }
+@font-face { font-family: "Caveat"; font-weight: 400 700; src: url("../web/fonts/Caveat-Variable.ttf") format("truetype"); }
+:root { color-scheme: light; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
+body { margin: 0; font: 14px system-ui, sans-serif; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+<style>
+  /* Layout: one reading column beside a sticky contents rail. Figures run wider than the
+     text and are drawn in two inks: violet for the page, teal for the native shell.
+     Whatever is outside the app is dashed. Region names are hand-lettered, as the app's
+     own panel labels are. */
+  :root {
+    --ground: #f3f4f9;
+    --surface: #ffffff;
+    --sunken: #e8eaf3;
+    --ink: #121a3a;
+    --body: #2b3254;
+    --muted: #5d6485;
+    --rule: #ccd0e2;
+    --page: #4d45c4;
+    --page-wash: #e9e7fb;
+    --shell: #0c7468;
+    --shell-wash: #dcefeb;
+    --out: #666b85;
+    --out-wash: #eceef5;
+    /* The app's own colours, for the one inset that shows the app as it looks. */
+    --app-ground: #050a1c;
+    --app-text: #f5d1c0;
+    --app-accent: #817cd4;
+    --app-ring: #6c6879;
+
+    --display: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --text: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --hand: "Caveat", "Bradley Hand", cursive;
+    --measure: 37rem;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --ground: #050a1c;
+      --surface: #0a0f1f;
+      --sunken: #121628;
+      --ink: #f5d1c0;
+      --body: #e2cfc7;
+      --muted: #a1969e;
+      --rule: #262b40;
+      --page: #9e99ea;
+      --page-wash: #161a36;
+      --shell: #5cc8b4;
+      --shell-wash: #0f222e;
+      --out: #9a9fb6;
+      --out-wash: #0e1428;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --ground: #050a1c;
+    --surface: #0a0f1f;
+    --sunken: #121628;
+    --ink: #f5d1c0;
+    --body: #e2cfc7;
+    --muted: #a1969e;
+    --rule: #262b40;
+    --page: #9e99ea;
+    --page-wash: #161a36;
+    --shell: #5cc8b4;
+    --shell-wash: #0f222e;
+    --out: #9a9fb6;
+    --out-wash: #0e1428;
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ground); color: var(--body); font: 16px/1.62 var(--text); -webkit-text-size-adjust: 100%; }
+  p, h1, h2, h3, h4, ul, ol, dl, figure, pre { margin: 0; }
+  a { color: var(--page); text-underline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--page); outline-offset: 2px; border-radius: 2px; }
+  code, kbd { font-family: var(--display); font-size: 0.86em; color: var(--ink); }
+  kbd { font-size: 0.8em; padding: 1px 5px; border: 1px solid var(--rule); border-radius: 3px; background: var(--surface); white-space: nowrap; }
+
+  .is-page { --c: var(--page); --w: var(--page-wash); }
+  .is-shell { --c: var(--shell); --w: var(--shell-wash); }
+  .is-out { --c: var(--out); --w: var(--out-wash); }
+  .hand { font: 600 22px/1 var(--hand); color: var(--c, var(--ink)); }
+
+  .wrap { max-width: 1200px; margin-inline: auto; padding-inline: clamp(16px, 4vw, 44px); padding-block: 44px 96px; }
+  .top { display: flex; flex-direction: column; gap: 24px; padding-bottom: 44px; }
+  .eyebrow { font: 500 12px/1.5 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .eyebrow code { font-size: 1em; color: inherit; text-transform: none; letter-spacing: 0; }
+  h1 { font: 700 clamp(30px, 5.2vw, 46px)/1.1 var(--display); letter-spacing: -0.025em; color: var(--ink); text-wrap: balance; padding-bottom: 0.3em; }
+  .lede { font-size: 19px; line-height: 1.5; max-width: 41rem; }
+  .facts { display: flex; flex-wrap: wrap; gap: 14px 40px; }
+  .facts div { display: flex; flex-direction: column; gap: 2px; }
+  .facts dt { font: 500 11.5px/1.3 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .facts dd { margin: 0; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+  /* The app's mark for a word with alternatives: a pen stroke and a row of dots. */
+  .alt { position: relative; display: inline-block; }
+  .alt > svg { position: absolute; left: 0; bottom: -0.1em; width: 100%; height: 0.16em; overflow: visible; color: var(--page); }
+  .alt > .dots { position: absolute; left: 50%; top: calc(100% + 0.17em); transform: translateX(-50%); display: flex; gap: 0.09em; }
+  .dots i { display: block; width: 0.13em; height: 0.13em; border-radius: 50%; box-shadow: inset 0 0 0 0.03em var(--page); }
+  .dots i.on { background: var(--page); }
+
+  .layout { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 60px; align-items: start; }
+  .toc { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 28px); display: flex; flex-direction: column; gap: 12px; font-size: 14px; line-height: 1.35; }
+  .toc b { font: 500 11.5px/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .toc ol { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+  .toc a { color: var(--body); text-decoration: none; }
+  .toc a:hover { color: var(--page); text-decoration: underline; }
+
+  main { display: flex; flex-direction: column; gap: 60px; min-width: 0; }
+  section { display: flex; flex-direction: column; gap: 16px; padding-top: 28px; border-top: 1px solid var(--rule); scroll-margin-top: 12px; }
+  section > p, section > ul, section > ol, section > h3 { max-width: var(--measure); }
+  h2 { font: 700 23px/1.25 var(--display); letter-spacing: -0.01em; color: var(--ink); text-wrap: balance; }
+  h3 { font: 600 17px/1.35 var(--text); color: var(--ink); text-wrap: balance; padding-top: 12px; }
+  section ul, section ol { padding-left: 1.25em; display: flex; flex-direction: column; gap: 7px; }
+
+  pre { padding: 14px 16px; background: var(--sunken); border-radius: 4px; overflow-x: auto; font: 400 13px/1.6 var(--display); color: var(--ink); tab-size: 2; }
+  pre .c { color: var(--muted); }
+  pre .hot { color: var(--page); font-weight: 500; }
+
+  figure { display: flex; flex-direction: column; gap: 10px; }
+  .plate { background: var(--surface); border: 1px solid var(--rule); border-radius: 6px; padding: clamp(12px, 2.4vw, 22px); overflow-x: auto; }
+  figcaption { font-size: 13.5px; line-height: 1.5; color: var(--muted); max-width: var(--measure); }
+  figcaption b { font: 500 12px var(--display); color: var(--ink); letter-spacing: 0.04em; margin-right: 6px; }
+
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14.5px; line-height: 1.45; }
+  .wide table { min-width: 760px; }
+  th { text-align: left; font: 500 11.5px/1.3 var(--display); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); padding: 0 16px 8px 0; white-space: nowrap; }
+  td { padding: 9px 16px 9px 0; border-top: 1px solid var(--rule); vertical-align: top; }
+  td:last-child, th:last-child { padding-right: 0; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.name, td code { white-space: nowrap; }
+  tr.group td { font: 600 14.5px/1.4 var(--text); color: var(--ink); padding-top: 22px; border-top: 0; }
+  tr.group:first-child td { padding-top: 4px; }
+  .chip { display: inline-block; font: 500 11px/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; padding: 4px 6px; border: 1px solid var(--c); color: var(--c); background: var(--w); border-radius: 3px; white-space: nowrap; }
+  .chip.is-out { border-style: dashed; }
+
+  /* Fig. 1: the whole app. */
+  .app { display: grid; grid-template-columns: minmax(0, 1.15fr) 148px minmax(0, 1.15fr) minmax(0, 0.74fr); gap: 14px; }
+  .region { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1.5px solid var(--c); background: var(--w); border-radius: 5px; min-width: 0; }
+  .region.is-out { border-style: dashed; }
+  .region > small { font: 400 11.5px/1.35 var(--display); color: var(--muted); }
+  .part { display: flex; flex-direction: column; gap: 1px; padding: 7px 9px; background: var(--surface); border: 1px solid var(--rule); border-radius: 3px; }
+  .part b { font: 500 12.5px/1.35 var(--display); color: var(--ink); overflow-wrap: anywhere; }
+  .part span { font-size: 12.5px; line-height: 1.38; color: var(--muted); }
+  .part em { font: 500 11px/1.3 var(--display); font-style: normal; color: var(--out); }
+  .wires { display: flex; flex-direction: column; justify-content: center; gap: 26px; min-width: 0; }
+  .wire { display: flex; flex-direction: column; gap: 4px; text-align: center; color: var(--c); }
+  .wire b { font: 500 12px/1.25 var(--display); color: var(--ink); }
+  .wire small { font-size: 12px; line-height: 1.3; color: var(--muted); }
+  .wire .dir { font: 500 11px/1.2 var(--display); color: var(--c); }
+  .arrow { position: relative; height: 10px; }
+  .arrow::before { content: ""; position: absolute; left: 0; right: 0; top: 4px; border-top: 1.5px solid currentColor; }
+  .arrow::after { content: ""; position: absolute; top: 0; border-block: 5px solid transparent; }
+  .arrow.to-right::after { right: 0; border-left: 8px solid currentColor; }
+  .arrow.to-left::after { left: 0; border-right: 8px solid currentColor; }
+
+  /* Sequences: one row per step, staggered by who acts. */
+  .seq { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px 0; counter-reset: step; }
+  .lanes { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); padding-bottom: 4px; }
+  .lanes .is-page { grid-column: 1; }
+  .lanes .is-shell { grid-column: 2; }
+  .lanes .is-out { grid-column: 3; }
+  .step { grid-column: var(--col) / span 2; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 0 8px; padding: 9px 12px 10px; border: 1.5px solid var(--c); background: var(--w); border-radius: 5px; counter-increment: step; }
+  .step.is-page { --col: 1; }
+  .step.is-shell { --col: 2; }
+  .step.is-out { --col: 3; border-style: dashed; }
+  .step::before { content: counter(step); font: 700 13px/1.6 var(--display); color: var(--c); }
+  .step > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .step b { font: 600 14.5px/1.35 var(--text); color: var(--ink); }
+  .step p { font-size: 13.5px; line-height: 1.45; }
+  .step .who { display: none; font: 500 11px/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--c); }
+
+  /* Fig. 3: the layers of the page. */
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .tier { display: grid; grid-template-columns: minmax(0, 1fr) 214px; gap: 18px; align-items: center; }
+  .bands { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .band { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 7px 14px; align-items: baseline; padding: 10px 12px 11px; border: 1.5px solid var(--c); background: var(--w); border-radius: 5px; }
+  .band > b { font: 700 14px/1.3 var(--display); color: var(--ink); }
+  .band .meta { font: 400 12px/1.3 var(--display); color: var(--muted); font-variant-numeric: tabular-nums; }
+  .band .bar { grid-column: 1 / -1; height: 4px; background: var(--c); border-radius: 2px; }
+  .band .mods { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 3px 12px; font: 400 12px/1.45 var(--display); color: var(--body); }
+  .tier-note { font-size: 13.5px; line-height: 1.45; padding-left: 14px; border-left: 2px solid var(--muted); }
+  .down { font: 500 12px/1 var(--display); color: var(--muted); padding: 5px 0 5px 12px; }
+
+  /* Fig. 4: one group, three ways. */
+  .model { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.12fr) minmax(0, 1.2fr); gap: 16px; }
+  .pane { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .pane > small { font-size: 12.5px; line-height: 1.4; color: var(--muted); }
+  .pane pre { font-size: 12px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; padding: 11px 12px; }
+  .screen { background: var(--app-ground); color: var(--app-text); font: 400 15px/2.6 var(--display); padding: 6px 16px 22px; border-radius: 4px; }
+  .flipper { all: unset; position: relative; display: inline-block; line-height: 1.2; cursor: pointer; }
+  .flipper:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 5px; }
+  .flipper > svg { position: absolute; left: 0; bottom: -4px; width: 100%; height: 4px; overflow: visible; color: var(--app-accent); }
+  .flipper > .dots { position: absolute; left: 50%; top: calc(100% + 8px); transform: translateX(-50%); display: flex; gap: 2px; }
+  .flipper .dots i { width: 5px; height: 5px; box-shadow: inset 0 0 0 1.2px var(--app-ring); }
+  .flipper .dots i.on { background: var(--app-accent); box-shadow: none; }
+  .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .controls button { font: 500 13px/1 var(--display); padding: 8px 11px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); border-radius: 4px; cursor: pointer; }
+  .controls button:hover { border-color: var(--page); color: var(--page); }
+  .status { font-size: 13px; color: var(--muted); }
+
+  /* Fig. 5: the two kinds of edit. */
+  .paths { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+  .path, .join { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1.5px solid var(--c); background: var(--w); border-radius: 5px; min-width: 0; }
+  .join { grid-column: 1 / -1; }
+  .when { font-size: 14px; line-height: 1.45; font-weight: 600; color: var(--ink); }
+  .path ol { padding-left: 1.3em; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.45; }
+  .join p { font-size: 14px; line-height: 1.45; }
+  .chain { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .chain span { font: 500 12.5px/1 var(--display); padding: 7px 9px; background: var(--surface); border: 1px solid var(--c); border-radius: 3px; color: var(--ink); }
+  .chain i { font-style: normal; color: var(--c); }
+
+  /* Fig. 9: the commits by time of day. */
+  #timeline { display: block; width: 100%; min-width: 720px; height: auto; }
+  #timeline text { font: 400 12px var(--display); fill: var(--muted); }
+  #timeline .lane-name { font: 400 13px var(--text); fill: var(--body); }
+  #timeline line { fill: none; stroke: var(--rule); stroke-width: 1; }
+  #timeline .row { stroke-dasharray: 2 4; }
+  #timeline circle { stroke: var(--surface); stroke-width: 1.5; }
+  #timeline .plain { fill: var(--ink); }
+  #timeline .page { fill: var(--page); }
+  #timeline .shell { fill: var(--shell); }
+  details summary { cursor: pointer; font-size: 14.5px; color: var(--page); padding-bottom: 10px; }
+
+  .decisions { display: flex; flex-direction: column; gap: 20px; max-width: 46rem; }
+  .decisions dt { font: 600 16px/1.4 var(--text); color: var(--ink); }
+  .decisions dd { margin: 5px 0 0; }
+  .decisions dd b { font: 500 11.5px var(--display); letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-right: 6px; }
+
+  @media (min-width: 821px) {
+    /* The page's four layers fill the height the shell's longer list sets. */
+    .app .region.is-page .part { flex: 1; }
+    /* A sequence with two actors needs three columns, not four. */
+    .seq.two, .seq.two .lanes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  }
+  @media (max-width: 980px) {
+    .layout { grid-template-columns: minmax(0, 1fr); gap: 32px; }
+    .toc { position: static; }
+    .toc ol { flex-direction: row; flex-wrap: wrap; gap: 7px 18px; }
+  }
+  @media (max-width: 820px) {
+    .app, .model, .paths, .tier { grid-template-columns: minmax(0, 1fr); }
+    .wires { flex-direction: row; flex-wrap: wrap; justify-content: flex-start; gap: 14px 22px; }
+    .wire { flex: 1 1 150px; text-align: left; }
+    .arrow { display: none; }
+    .seq { grid-template-columns: minmax(0, 1fr); }
+    .lanes { display: none; }
+    .step { grid-column: 1; }
+    .step .who { display: block; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    html { scroll-behavior: smooth; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <p class="eyebrow">Architecture report · 12 October 2026</p>
+    <h1>How Write_On is <span class="alt">built<svg viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true"><path d="M0 3.2 C 16 1.4, 34 4.6, 52 3 S 84 1.8, 100 3.4" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg><span class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></span></span></h1>
+    <p class="lede">Write_On.app is a small native Mac program wrapped around a web page. The Swift part owns the windows, the files, the key and the network. The page is the editor. This report walks through both, how they talk, where each behaviour lives, and how the whole thing is tested.</p>
+    <dl class="facts">
+      <div><dt>The shell</dt><dd>3,159 lines of Swift in 12 files</dd></div>
+      <div><dt>The page</dt><dd>7,125 lines of JavaScript in 43 modules, 1,205 of CSS</dd></div>
+      <div><dt>Tests</dt><dd>301 unit tests, 33 scripted scenarios, 5 measurements</dd></div>
+      <div><dt>Third-party code</dt><dd>None</dd></div>
+    </dl>
+  </header>
+
+  <div class="layout">
+    <nav class="toc" aria-label="Contents">
+      <b>Contents</b>
+      <ol>
+        <li><a href="#short">The short version</a></li>
+        <li><a href="#halves">Two halves</a></li>
+        <li><a href="#bridge">The bridge</a></li>
+        <li><a href="#page">Inside the page</a></li>
+        <li><a href="#document">The document</a></li>
+        <li><a href="#edit">How an edit happens</a></li>
+        <li><a href="#features">Features</a></li>
+        <li><a href="#ai">The AI path</a></li>
+        <li><a href="#files">Files and windows</a></li>
+        <li><a href="#testing">Testing</a></li>
+        <li><a href="#build">Build and packaging</a></li>
+        <li><a href="#order">The order it was built in</a></li>
+        <li><a href="#decisions">Decisions and their costs</a></li>
+        <li><a href="#gaps">Known gaps</a></li>
+        <li><a href="#map">Code map</a></li>
+        <li><a href="#change">Where to change things</a></li>
+      </ol>
+    </nav>
+
+    <main>
+      <section id="short">
+        <h2>The short version</h2>
+        <p>The app is two programs in one bundle, joined by a narrow channel.</p>
+        <ul>
+          <li><strong>The shell</strong> is 12 Swift files built with SwiftPM. It makes the windows and the menu bar, reads and writes files, keeps the API key and talks to the AI service. It knows nothing about writing: a document passes through it as one string it never looks inside.</li>
+          <li><strong>The page</strong> is the editor: 43 plain JavaScript modules, six stylesheets and one HTML file, with no framework, no bundler and no third-party code. It runs in a <code>WKWebView</code>, the system's WebKit view. It knows nothing about files, keys or the network.</li>
+          <li><strong>The bridge</strong> between them carries 14 requests from the page, 6 events from the shell, and one question the shell asks the page.</li>
+        </ul>
+
+        <figure id="fig-app">
+          <div class="plate">
+            <div class="app">
+              <div class="region is-page">
+                <span class="hand">the page</span>
+                <small>web/ · JavaScript and CSS in a WKWebView</small>
+                <div class="part"><b>features/ · fx/</b><span>Alternatives, the panel, the Lab, Overflow, ghost, files, sharing. Sound and explosions.</span></div>
+                <div class="part"><b>editor/</b><span>The editing surface, and the marks drawn over the text.</span></div>
+                <div class="part"><b>doc/ · ai/</b><span>The document as data, the file format, the prompts and the checking of answers. Pure functions.</span></div>
+                <div class="part"><b>native.js</b><span>The page's only door to the shell.</span></div>
+              </div>
+
+              <div class="wires">
+                <div class="wire is-page">
+                  <b>native.call()</b>
+                  <div class="arrow to-right"></div>
+                  <span class="dir">page → shell</span>
+                  <small>The page asks, the shell answers. 14 methods.</small>
+                </div>
+                <div class="wire is-shell">
+                  <b>bridge.emit()</b>
+                  <div class="arrow to-left"></div>
+                  <span class="dir">shell → page</span>
+                  <small>The shell tells the page. 6 events.</small>
+                </div>
+                <div class="wire is-shell">
+                  <b>bridge.ask()</b>
+                  <div class="arrow to-left"></div>
+                  <span class="dir">shell → page</span>
+                  <small>The shell asks, the page answers. One question.</small>
+                </div>
+              </div>
+
+              <div class="region is-shell">
+                <span class="hand">the shell</span>
+                <small>Sources/WriteOn · Swift and AppKit</small>
+                <div class="part"><b>DocumentWindowController</b><span>One per window: the web view, the file, unsaved or not.</span></div>
+                <div class="part"><b>AppDelegate · MainMenu</b><span>Launch, the list of windows, the menu bar, quitting.</span></div>
+                <div class="part"><b>FileStore</b><span>Reads and writes files, keeps drafts.</span><em>→ disk</em></div>
+                <div class="part"><b>AIClient</b><span>Streams answers from the model.</span><em>→ network</em></div>
+                <div class="part"><b>Credentials · AppSettings</b><span>Finds the key. Remembers settings.</span><em>→ Keychain</em></div>
+                <div class="part"><b>Bridge · AssetSchemeHandler</b><span>Routes messages. Serves the page at writeon://app/.</span></div>
+                <div class="part"><b>UITestHarness</b><span>Only when started with --ui-test.</span></div>
+              </div>
+
+              <div class="region is-out">
+                <span class="hand">outside</span>
+                <small>What the app touches on your Mac and beyond</small>
+                <div class="part"><b>Markdown files</b><span>And drafts in Application Support.</span></div>
+                <div class="part"><b>Keychain, login shell</b><span>Where the key is found.</span></div>
+                <div class="part"><b>LunaRoute</b><span>HTTPS, glm-5.3-flash.</span></div>
+                <div class="part"><b>Your browser</b><span>One page only: X's compose window.</span></div>
+              </div>
+            </div>
+          </div>
+          <figcaption><b>Fig. 1</b>The whole app. The page reaches the shell only through the bridge, and only the shell reaches anything outside.</figcaption>
+        </figure>
+
+        <p>Three ideas run through the code:</p>
+        <ul>
+          <li><strong>The document is data, and the screen is a rendering of it.</strong> Blocks and groups in memory are the truth. The paragraphs you see are drawn from them.</li>
+          <li><strong>Whatever decides what the document is lives in pure functions.</strong> They need no browser, so 301 tests run against them in Node.</li>
+          <li><strong>Nothing from outside is trusted.</strong> The page never holds the key. An answer from the model is checked against your own text before the app will act on it.</li>
+        </ul>
+      </section>
+
+      <section id="halves">
+        <h2>Two halves</h2>
+        <p>The split was settled at the start: a WebKit editor inside a native shell. The original is a web app, so its text layout, selection and animation are a browser's. Rebuilding them with the same technology meant measuring the clips and setting the same CSS values. What a web page cannot be is a proper Mac citizen: a document window with a dot in its close button, save panels, Open Recent, Finder's Open With, the Keychain, recovery after a crash. That is the shell's job.</p>
+
+        <div class="scroll">
+          <table>
+            <thead><tr><th></th><th>The page</th><th>The shell</th></tr></thead>
+            <tbody>
+              <tr><td class="name">Knows</td><td>What the document is, and whether it has changes the file does not</td><td>Which file it is, and what that file last contained</td></tr>
+              <tr><td class="name">Draws</td><td>Everything inside the window</td><td>The window, the menu bar, Settings, panels and alerts</td></tr>
+              <tr><td class="name">Stores</td><td>Nothing. WebKit is given no data store on disk</td><td>Settings in UserDefaults, the key in the Keychain, drafts in Application Support</td></tr>
+              <tr><td class="name">Network</td><td>None</td><td>One endpoint: the AI service</td></tr>
+              <tr><td class="name">Written in</td><td>JavaScript, CSS, HTML</td><td>Swift with AppKit, WebKit and Security</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>How the page is kept in its box</h3>
+        <ul>
+          <li>It loads from <code>writeon://app/</code>, a private URL scheme. <code>AssetSchemeHandler</code> serves it from the app bundle and fails any request that resolves outside the web root.</li>
+          <li>The web view refuses every navigation that is not <code>writeon://app</code> and never opens a second window.</li>
+          <li><code>browser.open</code> accepts one address: <code>https://x.com/intent/post</code>. Anything else is refused.</li>
+          <li>The page is never given the key. It sends a request and receives text.</li>
+        </ul>
+
+        <h3>From double-click to a page you can type in</h3>
+        <figure id="fig-start">
+          <div class="plate">
+            <div class="seq two">
+              <div class="lanes" aria-hidden="true"><span class="hand is-page">the page</span><span class="hand is-shell">the shell</span></div>
+              <div class="step is-shell"><div><span class="who">The shell</span><b>The app starts.</b><p><code>main.swift</code> creates the application. <code>AppDelegate</code> finds the page (the folder named by <code>WRITEON_WEB_ROOT</code> if set, otherwise the copy in the bundle) and builds the menu bar.</p></div></div>
+              <div class="step is-shell"><div><span class="who">The shell</span><b>It decides what to open.</b><p>Drafts left by a crash come back first, then any files Finder handed over. Otherwise one untitled window: the welcome piece the first time, a blank page ever after.</p></div></div>
+              <div class="step is-shell"><div><span class="who">The shell</span><b>It makes the window.</b><p>A <code>DocumentWindowController</code> creates the window and its <code>WKWebView</code>, registers its bridge handlers and loads <code>writeon://app/index.html</code>.</p></div></div>
+              <div class="step is-page"><div><span class="who">The page</span><b>The page wires itself up.</b><p><code>main.js</code> creates the editor and asks the shell two things at once: <code>settings.get</code> (was the app left in read mode?) and <code>doc.start</code> (what does this window open with?).</p></div></div>
+              <div class="step is-page"><div><span class="who">The page</span><b>The document goes in.</b><p>Every feature is created and handed the pieces it needs. Then <code>files.show(start)</code> loads the welcome piece, a blank page, a file's text or a recovered draft.</p></div></div>
+              <div class="step is-page"><div><span class="who">The page</span><b>It says it is ready.</b><p>Once the fonts have loaded it calls <code>app.ready</code>.</p></div></div>
+            </div>
+          </div>
+          <figcaption><b>Fig. 2</b>Startup. Each window repeats steps 3 to 6 with a page of its own, so two windows share no JavaScript state.</figcaption>
+        </figure>
+      </section>
+
+      <section id="bridge">
+        <h2>The bridge</h2>
+        <p>All traffic between the halves goes through two small files: <code>Sources/WriteOn/Bridge.swift</code> (87 lines) and <code>web/src/native.js</code> (95 lines). There are three kinds of message.</p>
+        <ul>
+          <li><strong>The page asks.</strong> <code>native.call(method, params)</code> posts <code>{ method, params }</code> to WebKit's message handler and returns a promise. The shell's handler for that method replies, and the promise resolves or rejects.</li>
+          <li><strong>The shell tells.</strong> <code>bridge.emit(event, payload)</code> runs a line of JavaScript in the page that hands the payload to whoever called <code>native.on(event, …)</code>.</li>
+          <li><strong>The shell asks.</strong> <code>bridge.ask(question)</code> calls into the page and waits for the function registered with <code>native.answer(question, …)</code>. It is used once.</li>
+        </ul>
+<pre><span class="c">// The page asks                              web/src/features/files.js</span>
+const outcome = await native.call('file.save', { text, as });
+
+<span class="c">// The shell answers             Sources/WriteOn/DocumentWindowController.swift</span>
+bridge.on("file.save") { [weak self] params, reply in
+    guard let self, let text = params["text"] as? String else { … }
+    self.save(text, saveAs: params["as"] as? Bool ?? false) { saved in
+        reply(.success(["saved": saved]))
+    }
+}
+
+<span class="c">// The shell tells, and the page listens              web/src/main.js</span>
+bridge.emit("menu.command", ["name": name])
+native.on('menu.command', ({ name }) =&gt; shortcuts.perform(name));</pre>
+
+        <h3>Every message</h3>
+        <div class="scroll wide">
+          <table>
+            <thead><tr><th>Message</th><th>Carries</th><th>What it is for</th></tr></thead>
+            <tbody>
+              <tr class="group"><td colspan="3"><span class="chip is-page">page → shell</span>&nbsp; Requests, each answered</td></tr>
+              <tr><td class="name"><code>doc.start</code></td><td>→ <code>{ kind, text?, name? }</code></td><td>What this window opens with: <code>welcome</code>, <code>blank</code>, <code>file</code> or <code>recovered</code>.</td></tr>
+              <tr><td class="name"><code>doc.state</code></td><td><code>{ dirty, name, flags, can }</code></td><td>Keeps the window title, the dot in the close button, the menu's ticks and Undo and Redo in step with the page.</td></tr>
+              <tr><td class="name"><code>file.save</code></td><td><code>{ text, as }</code> → <code>{ saved }</code></td><td>Write the document. The shell picks the file, asking if it must.</td></tr>
+              <tr><td class="name"><code>file.open</code></td><td></td><td>Show the Open panel.</td></tr>
+              <tr><td class="name"><code>draft.write</code></td><td><code>{ text }</code></td><td>A copy of unsaved work, kept against a crash.</td></tr>
+              <tr><td class="name"><code>ai.start</code>, <code>ai.cancel</code></td><td><code>{ id, messages, maxTokens, effort, schema? }</code></td><td>Start a request to the model, or call one off.</td></tr>
+              <tr><td class="name"><code>settings.get</code>, <code>settings.set</code></td><td><code>{ read, alternates, sound }</code></td><td>The three switches the app remembers between launches.</td></tr>
+              <tr><td class="name"><code>clipboard.write</code></td><td><code>{ text }</code></td><td>Copy.</td></tr>
+              <tr><td class="name"><code>browser.open</code></td><td><code>{ url }</code></td><td>Open X's compose window. Any other address is refused.</td></tr>
+              <tr><td class="name"><code>app.info</code>, <code>app.ready</code>, <code>log</code></td><td></td><td>The version; the page has loaded; a page error, sent on to the terminal.</td></tr>
+
+              <tr class="group"><td colspan="3"><span class="chip is-shell">shell → page</span>&nbsp; Events</td></tr>
+              <tr><td class="name"><code>menu.command</code></td><td><code>{ name }</code></td><td>A menu-bar item was chosen. The page runs the same command its shortcut would.</td></tr>
+              <tr><td class="name"><code>file.opened</code></td><td><code>{ text, name }</code></td><td>A file was put in this window.</td></tr>
+              <tr><td class="name"><code>ai.delta</code>, <code>ai.done</code>, <code>ai.error</code></td><td><code>{ id, text }</code>, <code>{ id }</code>, <code>{ id, message }</code></td><td>The answer, a piece at a time, then how it ended.</td></tr>
+              <tr><td class="name"><code>settings.changed</code></td><td><code>{ sound }</code></td><td>Sound was switched in Settings. Every open window hears it.</td></tr>
+
+              <tr class="group"><td colspan="3"><span class="chip is-shell">shell → page</span>&nbsp; The one question</td></tr>
+              <tr><td class="name"><code>save</code></td><td>→ <code>{ saved }</code></td><td>You chose Save while closing a window. The page saves exactly as it does for Ctrl+S and says how it went.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Two more sets of answers exist for the same methods. Outside the app, <code>native.js</code> answers them itself (settings in <code>localStorage</code>, a canned AI), so <code>scripts/dev-server.sh</code> can serve the page to an ordinary browser. And a scripted test run registers 26 extra <code>test.*</code> methods, covered under <a href="#testing">Testing</a>.</p>
+      </section>
+
+      <section id="page">
+        <h2>Inside the page</h2>
+        <p>There is no framework and no build step. <code>index.html</code> loads <code>src/main.js</code> as an ES module, and that one file builds the whole app by hand. Each part is made by a function that receives exactly what it depends on:</p>
+<pre><span class="c">// web/src/main.js, abridged</span>
+const editor       = createEditor(document.getElementById('editor'));
+const decor        = createDecor({ svg, underlay, editor });
+const sound        = createSound({ enabled: () =&gt; ui.get('sound') });
+const alternatives = createAlternatives({ editor, ui, decor, sound, explosions });
+const panel        = createPanel({ editor, ui, alternatives, commands });
+const ai           = createAIClient(native);
+const lab          = createLab({ editor, ui, ai, commands, cards });
+const files        = createFiles({ editor, ui, commands, native, tooltips });</pre>
+        <p>Reading <code>main.js</code> top to bottom tells you who depends on whom. The only global is <code>window.writeOn</code>, a handle on all of it for the console and for test scenarios.</p>
+
+        <h3>Three things every part shares</h3>
+        <ul>
+          <li><strong><code>ui</code></strong> in <code>state.js</code> holds seven interface flags: <code>read</code>, <code>alternates</code>, <code>panel</code>, <code>overflow</code>, <code>lab</code>, <code>source</code>, <code>sound</code>. Each is mirrored as a class on <code>&lt;body&gt;</code>, such as <code>is-read</code>, so the stylesheets do the showing and hiding.</li>
+          <li><strong><code>commands</code></strong> in <code>commands.js</code> is a table of 16 named commands, from <code>alternatives</code> and <code>ghost</code> to <code>save</code> and <code>undo</code>. A shortcut, a right-click item, a toolbar icon and a menu-bar item all end in <code>commands.run(name)</code>.</li>
+          <li><strong><code>native</code></strong> in <code>native.js</code> is the bridge.</li>
+        </ul>
+
+        <h3>Layers</h3>
+        <figure id="fig-layers">
+          <div class="plate">
+            <div class="stack is-page">
+              <div class="tier">
+                <div class="bands">
+                  <div class="band"><b>features/</b><span class="meta">14 modules · 2,354 lines</span><span class="bar" style="width:100%"></span><span class="mods"><span>alternatives</span><span>panel</span><span>ai-alternatives</span><span>lab</span><span>overflow</span><span>ghost</span><span>contextmenu</span><span>shortcuts</span><span>cards</span><span>sourceview</span><span>readmode</span><span>tooltips</span><span>share</span><span>files</span></span></div>
+                  <div class="band"><b>fx/</b><span class="meta">3 modules · 483 lines</span><span class="bar" style="width:20.5%"></span><span class="mods"><span>sound</span><span>explosion</span><span>flee</span></span></div>
+                  <div class="band"><b>editor/</b><span class="meta">5 modules · 928 lines</span><span class="bar" style="width:39.4%"></span><span class="mods"><span>editor</span><span>dom</span><span>selection</span><span>decor</span><span>wobble</span></span></div>
+                </div>
+                <p class="tier-note">These touch the DOM, the canvas or Web Audio. They are tested inside the app, by the UI scenarios.</p>
+              </div>
+              <p class="down">↓ imports point down only</p>
+              <div class="tier">
+                <div class="bands">
+                  <div class="band"><b>doc/</b><span class="meta">12 modules · 1,985 lines</span><span class="bar" style="width:84.3%"></span><span class="mods"><span>blocks</span><span>format</span><span>model</span><span>ids</span><span>history</span><span>text</span><span>target</span><span>ghost</span><span>overflow</span><span>proposal</span><span>trim</span><span>tone</span></span></div>
+                  <div class="band"><b>ai/</b><span class="meta">3 modules · 468 lines</span><span class="bar" style="width:19.9%"></span><span class="mods"><span>prompts</span><span>parse</span><span>client</span></span></div>
+                </div>
+                <p class="tier-note">No DOM below this line. <code>npm test</code> runs these in Node, with no browser.</p>
+              </div>
+            </div>
+          </div>
+          <figcaption><b>Fig. 3</b>The page's layers. Bars show lines of code on one scale. Nothing in <code>doc/</code> or <code>ai/</code> imports from the layers above; <code>fx/flee.js</code> and <code>editor/wobble.js</code> are pure as well and have unit tests of their own.</figcaption>
+        </figure>
+
+        <h3>The shape of a feature</h3>
+        <p>Features follow one pattern, which is what keeps 14 of them from tangling:</p>
+        <ul>
+          <li>A function <code>createX({ editor, ui, commands, … })</code> sets it up and returns a small interface.</li>
+          <li>It registers its commands, and listens to <code>editor.on('change', …)</code> and <code>ui.on(…)</code>.</li>
+          <li>It changes the document only through <code>editor.change()</code>, never by editing the DOM.</li>
+          <li>Its reasoning lives in a pure module beside the model: <code>features/ghost.js</code> is 21 lines because <code>doc/ghost.js</code> works out what the command acts on. The same pairing holds for Overflow, the Lab (<code>doc/proposal.js</code>, <code>doc/trim.js</code>) and alternatives (<code>doc/target.js</code>, <code>doc/model.js</code>).</li>
+        </ul>
+      </section>
+
+      <section id="document">
+        <h2>The document</h2>
+        <p>In memory a document is three things: a list of blocks, a table of groups, and the Overflow text.</p>
+<pre>blocks   = [ { kind: 'h', level: 1, runs: […] },          <span class="c">// a heading</span>
+             { kind: 'blank', runs: [] },                <span class="c">// an empty line</span>
+             { kind: 'p', runs: [ { text: 'This one ' },
+                                  { text: 'keeps', vid: 'k33ps01' },   <span class="c">// belongs to a group</span>
+                                  { text: ' the others too.' } ] } ]
+groups   = { k33ps01: { scope: 'word', variants: ['keeps', 'remembers', 'holds on to'], active: 0 } }
+overflow = 'Spare lines wait here.'</pre>
+        <p>A block is a paragraph, a heading or a blank line. Its text is a list of runs, and a run may carry a group's id (<code>vid</code>) or be ghosted. A whole paragraph can be a group too. The text showing is always <code>variants[active]</code>. A position in the document is <code>{ block, offset }</code>.</p>
+
+        <figure id="fig-model">
+          <div class="plate">
+            <div class="model">
+              <div class="pane">
+                <span class="hand is-page">on the page</span>
+                <div class="screen">Think of it as <span data-m="article">a</span> <button type="button" class="flipper" id="model-word" aria-label="Show the next alternative"><span data-m="word">workbench</span><svg viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true"><path d="M0 3.2 C 16 1.6, 34 4.4, 52 3 S 84 2, 100 3.4" fill="none" stroke="currentColor" stroke-width="1.4" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg><span class="dots" id="model-dots" aria-hidden="true"><i class="on"></i><i></i><i></i></span></button> for sentences.</div>
+                <div class="controls">
+                  <button type="button" id="model-prev" aria-label="Previous alternative">←</button>
+                  <button type="button" id="model-next" aria-label="Next alternative">→</button>
+                  <span class="status" id="model-status" aria-live="polite">Showing 1 of 3</span>
+                </div>
+                <small>Flip it with the buttons, or click the word. In the app you rest the pointer on it and press an arrow key.</small>
+              </div>
+              <div class="pane">
+                <span class="hand is-page">in memory</span>
+<pre><span class="c">// the end of blocks[3].runs</span>
+{ text: "… Think of it as <span data-m="article">a</span> " },
+{ text: "<span class="hot" data-m="word">workbench</span>",
+  vid: "wb3nch1" },
+{ text: " for sentences." }
+
+<span class="c">// groups.wb3nch1</span>
+{ scope: "word",
+  variants: ["workbench",
+    "easel", "sketchpad"],
+  active: <span class="hot" data-m="active">0</span>,
+  ai: ["easel"] }</pre>
+              </div>
+              <div class="pane">
+                <span class="hand is-page">in the file</span>
+                <small>The text, as any Markdown tool reads it:</small>
+<pre>… Think of it as <span data-m="article">a</span> <span class="hot" data-m="word">workbench</span> for sentences.</pre>
+                <small>And inside the comment at the end of the file, spaced out here for reading:</small>
+<pre>"html": "… as <span data-m="article">a</span> &lt;span
+  data-vid=\"wb3nch1\"&gt;<span class="hot" data-m="word">workbench</span>&lt;/span&gt;
+  for …",
+"groups": { "wb3nch1": {
+  "scope": "word",
+  "variants": ["workbench",
+    "easel", "sketchpad"],
+  "active": <span class="hot" data-m="active">0</span>,
+  "ai": ["easel"] }, … }</pre>
+              </div>
+            </div>
+          </div>
+          <figcaption><b>Fig. 4</b>One group from the welcome piece, three ways. This is a working sketch of the idea, not the app's code. Flipping changes the showing text and <code>active</code>, and nothing else. The article follows the word (<code>fixArticle</code> in <code>doc/text.js</code>), and <code>ai</code> records which variants the model wrote.</figcaption>
+        </figure>
+
+        <h3>Rules that keep it sound</h3>
+        <ul>
+          <li><strong>Groups do not nest.</strong> Variants are plain strings. Making a larger group over smaller ones turns the smaller ones back into text.</li>
+          <li><strong>A group needs two variants.</strong> Left with one, it dissolves into plain text, which is why an underline disappears when you undo the last alternative.</li>
+          <li><strong>Ghost text and groups never straddle.</strong> A ghost run that would cross a group's edge is split there.</li>
+          <li><strong>Every edit ends with <code>normaliseBlocks()</code>.</strong> It turns a line starting <code># </code> into a heading, removes duplicate ids left by splitting a paragraph, drops groups with no text left, and re-reads each group's showing variant from the text.</li>
+        </ul>
+        <p>Blocks are never modified once made. Every function in <code>doc/blocks.js</code> returns new blocks, so a list of blocks is also a snapshot of the document. Undo relies on that.</p>
+
+        <h3>The file</h3>
+        <p>One Markdown file. The text comes first, as the piece currently reads. Overflow follows a marker line. The alternatives sit in one HTML comment at the end, which other tools ignore. This is the start and end of the welcome piece as the app saves it, 3,275 bytes in all:</p>
+<pre># Write it more than one way
+
+Most writing tools keep the last thing you typed. This one keeps the others too, …
+
+&lt;!-- overflow --&gt;
+
+Spare lines wait here.
+
+&lt;!-- write_on {"version":1,"html":"&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;# &lt;span data-vid=\"t1tle01\"&gt;Write it more than
+one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","variants":["Write it more than one way",
+"Say it more than one way","Keep every version"],"active":0},…}} --&gt;</pre>
+        <p><code>doc/format.js</code> (558 lines, the largest module in the page) converts between this text, the <code>html</code> record and blocks. Reading is forgiving and never throws:</p>
+        <ul>
+          <li>If the Markdown still matches the recorded <code>html</code>, the record is used as it is.</li>
+          <li>If the Markdown was changed in another tool, the Markdown wins. Each group is kept where its showing text can still be found, looking first in the paragraph it was in. A note by the Open icon says how many were kept.</li>
+          <li>If the comment is damaged, the file opens as plain Markdown, with a note.</li>
+          <li>A piece with no alternatives and nothing ghosted is written as plain Markdown, with no comment at all.</li>
+        </ul>
+      </section>
+
+      <section id="edit">
+        <h2>How an edit happens</h2>
+        <p>The editor is one <code>contenteditable</code> element whose children are paragraphs. <code>editor/editor.js</code> keeps the blocks and the DOM together with two kinds of edit, chosen in the <code>beforeinput</code> handler.</p>
+
+        <figure id="fig-edit">
+          <div class="plate">
+            <div class="paths">
+              <div class="path is-page">
+                <span class="hand">the browser types</span>
+                <p class="when">Plain typing and deleting inside one paragraph.</p>
+                <ol>
+                  <li><code>beforeinput</code> arrives. The edit is simple, so it is let through, and the state before it is kept.</li>
+                  <li>WebKit changes the paragraph itself. Input methods, key repeat and the caret behave as they do anywhere on a Mac.</li>
+                  <li><code>input</code> arrives. <code>syncFromDom()</code> reads the touched paragraph back into a block.</li>
+                </ol>
+              </div>
+              <div class="path is-page">
+                <span class="hand">the model edits</span>
+                <p class="when">Return, joining lines, deleting across lines, paste, drop, typing at the edge of a mark, and every command.</p>
+                <ol>
+                  <li><code>beforeinput</code> is cancelled, or a feature calls in directly.</li>
+                  <li><code>editor.change(label, fn)</code> hands <code>fn</code> a draft of the document.</li>
+                  <li><code>fn</code> rewrites the draft with the pure functions in <code>doc/blocks.js</code> and says where the caret goes.</li>
+                </ol>
+              </div>
+              <div class="join is-page">
+                <span class="hand">then, either way</span>
+                <div class="chain"><span>normaliseBlocks()</span><i>→</i><span>history.record()</span><i>→</i><span>render()</span><i>→</i><span>emit('change')</span></div>
+                <p><code>render()</code> touches only the paragraphs that differ; after the browser's own typing that is usually none. Listeners to <code>change</code> do the rest: <code>decor</code> redraws the marks, <code>files</code> lights the Save icon and schedules a draft, and the panel, Overflow and the word count follow.</p>
+              </div>
+            </div>
+          </div>
+          <figcaption><b>Fig. 5</b>The two kinds of edit. Letting WebKit type keeps typing native and fast. Doing everything structural on the data keeps the rules above true.</figcaption>
+        </figure>
+
+        <h3>Details that matter</h3>
+        <ul>
+          <li><strong>Rendering is a diff.</strong> Each block has a key that is equal for two blocks exactly when they render the same. <code>render()</code> compares keys from both ends and rewrites only the paragraphs in between.</li>
+          <li><strong>The browser is checked.</strong> After its own edit, a paragraph that holds anything unexpected (an empty span, a style attribute, a stray line break) is rendered again from the block.</li>
+          <li><strong>Undo is the document's own.</strong> <code>doc/history.js</code> keeps up to 500 snapshots of blocks, groups, Overflow and selection. Typing within 700 ms is one step, and each command is one step. WebKit's undo knows nothing about groups, so <kbd>⌘Z</kbd> in the menu is routed to the page.</li>
+          <li><strong>Paste and drop are plain text.</strong> Rich formatting commands are refused.</li>
+          <li><strong>The marks are not in the text.</strong> <code>editor/decor.js</code> measures where each group's text sits and draws underlines, dots and margin bars in an SVG laid over the page. <code>editor/wobble.js</code> shapes each line from a seed, so an underline looks hand-drawn and looks the same every time.</li>
+        </ul>
+      </section>
+
+      <section id="features">
+        <h2>Features</h2>
+        <div class="scroll wide">
+          <table>
+            <thead><tr><th>What you see</th><th>Where it lives</th><th>How it works</th></tr></thead>
+            <tbody>
+              <tr><td>Read mode, word count, the alternates toggle</td><td><code>features/readmode.js</code></td><td>Flips the <code>read</code> and <code>alternates</code> flags. CSS does the hiding.</td></tr>
+              <tr><td>Flipping a word under the pointer; deleting a variant</td><td><code>features/alternatives.js</code>, <code>doc/tone.js</code></td><td>Arrow keys while the pointer rests on a group. Traced below.</td></tr>
+              <tr><td>The alternatives panel</td><td><code>features/panel.js</code>, <code>doc/target.js</code></td><td>One editable row per variant. A word with no alternatives becomes a group of one while the panel is on it.</td></tr>
+              <tr><td>AI alternatives</td><td><code>features/ai-alternatives.js</code>, <code>ai/</code></td><td><code>??</code> in the panel or <kbd>Ctrl+Shift+G</kbd>. See <a href="#ai">the AI path</a>.</td></tr>
+              <tr><td>Ghost</td><td><code>features/ghost.js</code>, <code>doc/ghost.js</code></td><td>Marks runs as ghosted. The dimming is one CSS rule.</td></tr>
+              <tr><td>Overflow</td><td><code>features/overflow.js</code>, <code>doc/overflow.js</code></td><td>A text area whose contents belong to the document and share its undo history.</td></tr>
+              <tr><td>The Lab</td><td><code>features/lab.js</code>, <code>doc/proposal.js</code>, <code>doc/trim.js</code></td><td>Trims, marks and typo fixes, held beside the document until you accept them.</td></tr>
+              <tr><td>Right-click menu, shortcuts, the shortcut card</td><td><code>features/contextmenu.js</code>, <code>shortcuts.js</code>, <code>cards.js</code></td><td>Shortcuts are taken in the capture phase, before WebKit's own Control-key bindings see them.</td></tr>
+              <tr><td>The file as saved</td><td><code>features/sourceview.js</code></td><td>Shows exactly what Save would write now.</td></tr>
+              <tr><td>Save, Open, the unsaved mark</td><td><code>features/files.js</code></td><td>See <a href="#files">files and windows</a>.</td></tr>
+              <tr><td>Post to X, the LinkedIn button</td><td><code>features/share.js</code>, <code>fx/flee.js</code></td><td>Opens X's compose window. The LinkedIn button bolts six times and blows up on the seventh approach.</td></tr>
+              <tr><td>Ticks, the boom, the thump</td><td><code>fx/sound.js</code></td><td>Synthesised with Web Audio. There are no audio files. A tick is a triangle wave at 1,900 or 1,500 Hz, about 14 ms long.</td></tr>
+              <tr><td>Explosions</td><td><code>fx/explosion.js</code></td><td>Drawn on a canvas from a seed, so a burst is repeatable and can run backwards for undo.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>One feature, traced: flipping a word</h3>
+        <ol>
+          <li>A <code>mousemove</code> finds the group under the pointer. The arrow keys are that group's for as long as the pointer is what was last used: it has moved, clicked or scrolled since the last character was typed. Typing gives them back to the caret until the pointer moves again, so you can still edit an underlined word.</li>
+          <li>A <code>keydown</code> on an arrow key calls <code>cycle(vid, ±1)</code>. Right and down go forward, left and up go back, and they wrap.</li>
+          <li><code>editor.change('alternative', …)</code> sets the group's <code>active</code> and has <code>showVariant()</code> swap the text. For a word it also fixes a preceding a or an.</li>
+          <li>The new text blurs in, and <code>sound.tick()</code> plays. <code>ToneSession</code> picks the pitch: low when you land back on the variant you started from, high otherwise.</li>
+          <li>The <code>change</code> event fires. <code>decor</code> redraws the dots and <code>files</code> lights the Save icon.</li>
+        </ol>
+      </section>
+
+      <section id="ai">
+        <h2>The AI path</h2>
+        <p>The page writes the question and judges the answer. The shell holds the key and does the asking. The model only ever sees a request the page built, and the page only ever sees text.</p>
+
+        <figure id="fig-ai">
+          <div class="plate">
+            <div class="seq">
+              <div class="lanes" aria-hidden="true"><span class="hand is-page">the page</span><span class="hand is-shell">the shell</span><span class="hand is-out">outside</span></div>
+              <div class="step is-page"><div><span class="who">The page</span><b>Build the request.</b><p><code>alternativesRequest()</code> in <code>ai/prompts.js</code> takes the word's whole paragraph and marks the word with <code>[[double brackets]]</code>. It asks for five alternatives for a word, three for a sentence or a paragraph, one per line.</p></div></div>
+              <div class="step is-page"><div><span class="who">The page</span><b>Send it.</b><p><code>ai/client.js</code> numbers the request and calls <code>ai.start { id, messages, maxTokens, effort }</code>.</p></div></div>
+              <div class="step is-shell"><div><span class="who">The shell</span><b>Find the key.</b><p><code>Credentials</code> looks in the Keychain for a key saved in Settings, then in the app's environment, then in your login shell, which it runs once and gives five seconds.</p></div></div>
+              <div class="step is-shell"><div><span class="who">The shell</span><b>Ask the service.</b><p><code>AIClient</code> posts to <code>/chat/completions</code> with <code>stream: true</code>.</p></div></div>
+              <div class="step is-out"><div><span class="who">Outside</span><b>LunaRoute answers in pieces.</b><p><code>glm-5.3-flash</code> streams its answer as server-sent events.</p></div></div>
+              <div class="step is-shell"><div><span class="who">The shell</span><b>Pass the text on.</b><p>Each piece goes to the page as <code>ai.delta { id, text }</code>. What the model thinks on the way is dropped. The stream has to say it is finished; one that just stops counts as a lost connection.</p></div></div>
+              <div class="step is-page"><div><span class="who">The page</span><b>Check what came back.</b><p><code>LineStream</code> cuts the pieces into lines. <code>suggestionFilter()</code> strips numbering and quotes, and drops empty lines, repeats and anything past the count.</p></div></div>
+              <div class="step is-page"><div><span class="who">The page</span><b>Put it in the document.</b><p>The suggestions appear in the panel one at a time, then join the group together through <code>alternatives.addMany()</code>. That is one step to undo.</p></div></div>
+            </div>
+          </div>
+          <figcaption><b>Fig. 6</b>One request for alternatives. If anything fails, the page gets <code>ai.error</code> with one line a person can read, and the document is untouched.</figcaption>
+        </figure>
+
+        <h3>The Lab asks differently</h3>
+        <p>A Lab pass sends the whole piece as numbered paragraphs, without the ghosted text, and requires the answer in a JSON shape. The model is never allowed to rewrite:</p>
+        <ul>
+          <li><strong>A trim</strong> comes back as shortened paragraphs. <code>alignDeletion()</code> in <code>doc/trim.js</code> accepts one only if it can be reached from your text by deleting words, and reports exactly which stretches went. A paragraph that was reworded in any way is refused.</li>
+          <li><strong>A mark or a typo</strong> must quote a passage that occurs in your text, or it is discarded.</li>
+          <li><strong>Nothing changes until you say so.</strong> A proposal is held beside the document (<code>doc/proposal.js</code>) and shown with temporary spans that the editor ignores when it reads the page back. Accepting it is one <code>editor.change()</code>.</li>
+        </ul>
+        <p>This model reasons before it answers, and that reasoning counts against its token limit. A trim given room only for its answer came back empty every time. So a Lab request asks for room to think as well: 2,000 tokens plus 15 a word for a trim, 1,000 plus 4 a word for the other passes, up to 32,000. Trims are slow as a result, 9 to 50 seconds, and that was chosen over a faster way of asking that cut a third of what was requested.</p>
+
+        <h3>Settings</h3>
+        <p>The Settings window (<kbd>⌘,</kbd>) takes a key, another address, another model and the sound switch. A key typed there goes into the Keychain; one found in the environment or the login shell is held in memory only. Test connection asks a one-word question and says which key it used. Nothing in the shell prints or logs a key, and a key the service quotes back in an error is taken out before the line is shown.</p>
+      </section>
+
+      <section id="files">
+        <h2>Files and windows</h2>
+        <p>One window is one <code>DocumentWindowController</code>, one web view and one document. <code>AppDelegate</code> keeps the list. The two halves split what they know: the page can say whether the document has unsaved changes, and the shell knows which file it belongs to.</p>
+
+        <figure id="fig-save">
+          <div class="plate">
+            <div class="seq">
+              <div class="lanes" aria-hidden="true"><span class="hand is-page">the page</span><span class="hand is-shell">the shell</span><span class="hand is-out">outside</span></div>
+              <div class="step is-page"><div><span class="who">The page</span><b>Ctrl+S, ⌘S or the Save icon.</b><p>All three run the command <code>save</code>. <code>serialize(editor.getState())</code> produces the whole file as one string.</p></div></div>
+              <div class="step is-page"><div><span class="who">The page</span><b>Hand it over.</b><p><code>file.save { text, as }</code>.</p></div></div>
+              <div class="step is-shell"><div><span class="who">The shell</span><b>Decide where it goes.</b><p>A document with no file yet gets a save panel on its window, offering its first heading as the name. A document with a file is checked first: the shell remembers the text it last read or wrote there, and if the file now says something else, it asks before writing over it.</p></div></div>
+              <div class="step is-out"><div><span class="who">Outside</span><b>The file is replaced whole.</b><p><code>FileStore.write</code> writes a new file beside the old one and swaps it in. The save is all or nothing, and the file keeps its permissions and Finder tags. A link stays a link.</p></div></div>
+              <div class="step is-shell"><div><span class="who">The shell</span><b>Tidy up and answer.</b><p>The draft is discarded, the file joins Open Recent, and the dot leaves the close button. The reply is <code>{ saved: true }</code>.</p></div></div>
+              <div class="step is-page"><div><span class="who">The page</span><b>Remember what was saved.</b><p>From now on unsaved means different from this text, so undoing back to it clears the mark again.</p></div></div>
+            </div>
+          </div>
+          <figcaption><b>Fig. 7</b>Saving. The shell never parses the text it writes.</figcaption>
+        </figure>
+
+        <h3>Closing, crashing, and more than one window</h3>
+        <ul>
+          <li><strong>Closing with unsaved changes</strong> is the one time the shell asks the page a question. The shell shows Save, Cancel, Don't Save. On Save it calls <code>bridge.ask("save")</code>, the page runs the sequence above, and the window closes only if the answer is <code>{ saved: true }</code>. Quitting does this for each unsaved window in turn.</li>
+          <li><strong>Drafts.</strong> At most every three seconds the page hands unsaved work to the shell with <code>draft.write</code>. The shell keeps it as a JSON file in <code>~/Library/Application Support/Write_On/Drafts</code> and deletes it when the document is saved or let go. At launch, every draft still there reopens as an unsaved document.</li>
+          <li><strong>If only the page dies,</strong> the shell reloads it. The page asks <code>doc.start</code> again and gets its draft back, or its file.</li>
+          <li><strong>Opening a file</strong> uses the window that already has it, else a window nobody has written in, else a new one.</li>
+          <li><strong>Reading</strong> tries UTF-8, then an encoding the file declares, then Latin-1, so a file is never refused for its encoding.</li>
+        </ul>
+      </section>
+
+      <section id="testing">
+        <h2>Testing</h2>
+        <div class="scroll wide">
+          <table>
+            <thead><tr><th>Kind</th><th>What it covers</th><th>Size</th><th>Runs in</th><th>Command</th></tr></thead>
+            <tbody>
+              <tr><td class="name">Unit tests</td><td>The pure modules: file-format round trips, files edited elsewhere, normalising, word and sentence boundaries, a and an, the tone rule, history, prompts, hostile answers from the model</td><td class="name">301 tests in 16 files</td><td>Node's own test runner</td><td class="name"><code>npm test</code></td></tr>
+              <tr><td class="name">UI scenarios</td><td>Everything that needs the page or the shell: typing, marks, the panel, Overflow, the Lab, menus, files, crash recovery, the AI client</td><td class="name">33 scenarios</td><td>The built app's own web view, hidden</td><td class="name"><code>scripts/ui-test.sh &lt;name&gt;</code></td></tr>
+              <tr><td class="name">Launch check</td><td>The real app starts as Finder would start it, opens one window, reports no error and quits</td><td class="name">1 script</td><td>The real app, opened hidden</td><td class="name"><code>scripts/launch-check.sh</code></td></tr>
+              <tr><td class="name">Hands-on list</td><td>What only a person can confirm: real hover, real sound, real panels, dragging out of Overflow</td><td class="name">14 checks</td><td>You, at the Mac</td><td>In the README</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p><code>scripts/check.sh</code> runs the unit tests, a build and every scenario. It replaces <code>build/Write_On.app</code>, so quit the app first if you are running it from there.</p>
+
+        <h3>How a scenario runs</h3>
+        <figure id="fig-test">
+          <div class="plate">
+            <div class="seq">
+              <div class="lanes" aria-hidden="true"><span class="hand is-page">the page</span><span class="hand is-shell">the app, hidden</span><span class="hand is-out">your terminal</span></div>
+              <div class="step is-out"><div><span class="who">Your terminal</span><b>scripts/ui-test.sh panel --ai mock</b><p>Starts the built app with <code>--ui-test tests/ui/panel.js</code> and points it at <code>web/</code> in the working copy, so a change to the page needs no rebuild.</p></div></div>
+              <div class="step is-shell"><div><span class="who">The app</span><b>The app starts where nobody will see it.</b><p>No Dock icon, never the active app. Its window sits at (−30000, −30000), transparent, click-through and unable to take the keyboard.</p></div></div>
+              <div class="step is-shell"><div><span class="who">The app</span><b>The scenario goes into the page.</b><p>When the page says <code>app.ready</code>, the harness evaluates <code>_harness.js</code> and then the scenario, wrapped as the body of an async function with a helper <code>t</code> in scope.</p></div></div>
+              <div class="step is-page"><div><span class="who">The page</span><b>The scenario acts and checks.</b><p><code>t.key()</code>, <code>t.click()</code> and <code>t.drag()</code> ask the shell for input. Assertions read the DOM and <code>window.writeOn</code>.</p></div></div>
+              <div class="step is-shell"><div><span class="who">The app</span><b>Input takes the real path.</b><p>The harness builds native key and mouse events and hands them to the web view, so they pass through WebKit's own event handling before the page sees them.</p></div></div>
+              <div class="step is-page"><div><span class="who">The page</span><b>The scenario reports.</b><p><code>test.done { ok, failures, logs }</code>.</p></div></div>
+              <div class="step is-shell"><div><span class="who">The app</span><b>The harness adds its own verdict.</b><p>A run fails if the page logged an error, if the app came to the front or took the keyboard, if a native menu opened, or if the app's saved settings changed. It writes <code>result.json</code> and exits 0 or 1.</p></div></div>
+            </div>
+          </div>
+          <figcaption><b>Fig. 8</b>One scripted run. Pointer moves and turns of the wheel are native events like the rest, sent the way WebKit's own test runner sends them, so WebKit itself finds what is under the pointer. (At first they were not: WebKit drops an ordinary move for a window that is not in front, scenarios hovered with made-up DOM events, and a hover that only failed with a real pointer went unseen.)</figcaption>
+        </figure>
+
+        <h3>What a scripted run swaps out</h3>
+        <p>The shell was written with seams where it meets the Mac, so a run can leave your Mac as it found it. A run still needs you logged in at the console, locked or not, because WebKit will not lay out a page without a window server.</p>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>The real app uses</th><th>A scripted run uses</th></tr></thead>
+            <tbody>
+              <tr><td>Save and Open panels, alerts (<code>Panels</code>)</td><td>Answers the scenario gives in advance (<code>ScriptedAsking</code>)</td></tr>
+              <tr><td>The login Keychain (<code>KeychainSecret</code>)</td><td>Memory (<code>MemorySecret</code>)</td></tr>
+              <tr><td>UserDefaults</td><td>Settings in memory</td></tr>
+              <tr><td>The Drafts folder in Application Support</td><td>A folder of its own under <code>build/ui/</code></td></tr>
+              <tr><td>The system clipboard and recent documents</td><td>A pasteboard and a list of its own</td></tr>
+              <tr><td>Your browser</td><td>A list of what it was asked to open</td></tr>
+              <tr><td>LunaRoute</td><td>A scripted provider (<code>--ai mock</code>), or for the client itself a stand-in gateway on 127.0.0.1</td></tr>
+              <tr><td>The speakers</td><td>Silence, unless the scenario asks for sound</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="build">
+        <h2>Build and packaging</h2>
+        <ul>
+          <li><strong>No Xcode project.</strong> <code>Package.swift</code> declares one executable target for macOS 13 and later, with no dependencies. The Command Line Tools are enough to build it.</li>
+          <li><strong><code>scripts/build-app.sh</code></strong> runs <code>swift build</code>, then assembles <code>build/Write_On.app</code> by hand: the binary, <code>Info.plist</code>, a copy of <code>web/</code> in Resources, and the icon. It signs the bundle ad hoc.</li>
+          <li><strong>The page ships as source.</strong> The files in the bundle are the files in <code>web/</code>, unprocessed.</li>
+          <li><strong>The icon is drawn by code.</strong> <code>scripts/make-icon.swift</code> draws the app's own mark, a W with the pen stroke and three dots, at every size macOS asks for.</li>
+          <li><strong>Fonts are bundled:</strong> IBM Plex Mono and Caveat, both under the SIL Open Font License. <code>scripts/fetch-fonts.sh</code> records where they came from and checks them by hash.</li>
+          <li><strong>It registers as an editor for Markdown</strong> at the rank Alternate, so it appears under Open With without taking over your <code>.md</code> files.</li>
+          <li><strong>It is not notarised.</strong> The build is for this Mac. Because each build is signed anew, macOS may ask once after a rebuild for permission to read the saved key.</li>
+        </ul>
+      </section>
+
+      <section id="order">
+        <h2>The order it was built in</h2>
+        <p>The work followed the layers from the bottom up. First came the evidence: the three clips in the thread, measured frame by frame and by audio analysis. Then a written spec, in which every behaviour is marked as observed, stated by the author, or inferred, and a plan of 23 tasks. Each task was built test first. A fresh reviewer then read the whole branch, and one pass fixed what it found.</p>
+
+        <figure id="fig-order">
+          <div class="plate">
+            <svg id="timeline" role="img" aria-label="The 32 commits of 11 October 2026 by time of day, in six lanes"></svg>
+          </div>
+          <figcaption><b>Fig. 9</b>All 32 commits, 11 October 2026, by time of day. The shell's skeleton, the bridge and the test harness went in early, so every feature could be tested inside the real web view from the start. Files, the menu bar and the real AI client came last; until then scenarios used a scripted stand-in for the model.</figcaption>
+        </figure>
+        <p>The two harness commits in mid-afternoon are there because the first scripted runs took the keyboard and the pointer from the person at the Mac. They moved the runs into the background and then made them fully headless, and the harness has failed any run that comes to the front ever since.</p>
+        <p>A second pass followed on 12 October, after the app had been used for real, and is not on the chart. It changed who the arrow keys belong to (a click on an underlined word no longer takes them away), seated the dots on the display's own pixels so that they can be seen on a 1x display, put the caret in the text from the moment a window opens and kept it out of the page's faded edges, and made a keystroke in a long piece cost about a third of what it did. An independent pass through the clips then found a dozen behaviours that differed from the original: undo around alternatives, where the caret goes when a word is flipped, trim levels that are kept, and several smaller ones. The measurements behind the speed work are in <code>tests/perf</code> and the README's section on speed.</p>
+        <details>
+          <summary>All 32 commits</summary>
+          <div class="scroll">
+            <table id="commits">
+              <thead><tr><th>Time</th><th>What</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+
+      <section id="decisions">
+        <h2>Decisions and their costs</h2>
+        <dl class="decisions">
+          <div>
+            <dt>A web editor inside a native shell</dt>
+            <dd><b>Buys</b>The original's look and motion in its own medium, and real Mac behaviour around it.</dd>
+            <dd><b>Costs</b>Two languages and a bridge to keep in step. WebKit sets lines a whole number of pixels apart, so lines are 36 px apart where the clips measure 36.4.</dd>
+          </div>
+          <div>
+            <dt>No dependencies and no build step for the page</dt>
+            <dd><b>Buys</b>Nothing to install or update, and a test run reads the page straight from the working copy.</dd>
+            <dd><b>Costs</b>The editing core, the undo history and the test harness are all written here, and all this project's to maintain.</dd>
+          </div>
+          <div>
+            <dt>The data is the truth, and the browser is allowed to type</dt>
+            <dd><b>Buys</b>Native typing, with rules a browser's editing could never guarantee.</dd>
+            <dd><b>Costs</b>The most delicate code in the app: deciding in <code>beforeinput</code> which path an edit takes, and reading the DOM back correctly.</dd>
+          </div>
+          <div>
+            <dt>Undo by whole-document snapshot</dt>
+            <dd><b>Buys</b>One history for text, groups, ghost text and Overflow, in 69 lines.</dd>
+            <dd><b>Costs</b>Memory for up to 500 steps. Unchanged paragraphs are shared between snapshots, which keeps that small.</dd>
+          </div>
+          <div>
+            <dt>The key stays in the shell</dt>
+            <dd><b>Buys</b>Nothing that reaches the page, including a file someone else wrote, can read it.</dd>
+            <dd><b>Costs</b>Every request, and every piece of its answer, crosses the bridge, and the streaming client is written in Swift.</dd>
+          </div>
+          <div>
+            <dt>Markdown first, alternatives in a trailing comment</dt>
+            <dd><b>Buys</b>Any tool can read and edit the file, as the original's format allows.</dd>
+            <dd><b>Costs</b>The text is stored twice. When the two disagree the Markdown wins, and alternatives whose words are gone are dropped.</dd>
+          </div>
+          <div>
+            <dt>Tests run inside the real app</dt>
+            <dd><b>Buys</b>Scenarios exercise the same WebKit, the same bridge and the same shell code you run.</dd>
+            <dd><b>Costs</b>The harness is 974 of the shell's 3,159 lines and is compiled into the app. It does nothing unless the app is started with <code>--ui-test</code>.</dd>
+          </div>
+          <div>
+            <dt>Accuracy over speed in the Lab</dt>
+            <dd><b>Buys</b>Trims that land near the percentage asked for, every cut a clean deletion.</dd>
+            <dd><b>Costs</b>9 to 50 seconds for a trim, where the original takes a second or two.</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section id="gaps">
+        <h2>Known gaps</h2>
+        <h3>Where it had to guess</h3>
+        <p>The original is not released, so the clips and the author's replies are the whole specification. Section 9 of the spec lists 52 decisions the clips do not settle, each in one row so it can be challenged. The README summarises them.</p>
+        <h3>Differences from the original</h3>
+        <ul>
+          <li>Lines are 36 px apart, not 36.4, and Overflow's are 22, not 22.5.</li>
+          <li>WebKit draws a selection that runs past the end of a line a little differently.</li>
+          <li>Trims take much longer.</li>
+          <li>The proposal card's width for the two strongest trims is extrapolated; the clips show only the first two.</li>
+        </ul>
+        <h3>Left open after the review</h3>
+        <ul>
+          <li>Editing a group's text in the page until it matches another of its variants leaves two identical variants.</li>
+          <li>A paragraph that reads exactly <code>&lt;!-- overflow --&gt;</code> is taken for the marker when the file is opened again.</li>
+          <li>Text dragged from the page into Overflow takes two undos to put back.</li>
+          <li>Finding the key runs your login shell as a terminal would, so <code>~/.zshrc</code> is executed once. The README says so.</li>
+          <li>In the panel, emptying the row of a group's only variant leaves the row blank until the next change.</li>
+          <li>The note about recovered work also shows when only the page's process restarted.</li>
+        </ul>
+      </section>
+
+      <section id="map">
+        <h2>Code map</h2>
+        <p>The line counts are from the first build. The second pass grew some of these files a little and added three things that are not in the table: <code>web/src/features/reach.js</code> (a press beside or below the text lands in the text), <code>tests/perf/</code> (the measurements) and <code>scripts/bench.sh</code> (which runs them).</p>
+        <div class="scroll wide">
+          <table>
+            <thead><tr><th>File</th><th class="num">Lines</th><th>What it does</th></tr></thead>
+            <tbody>
+              <tr class="group"><td colspan="3"><span class="chip is-shell">shell</span>&nbsp; Sources/WriteOn</td></tr>
+              <tr><td class="name"><code>main.swift</code></td><td class="num">11</td><td>Starts the app. A scripted run becomes an accessory app with no Dock icon.</td></tr>
+              <tr><td class="name"><code>AppDelegate.swift</code></td><td class="num">286</td><td>Launch, the list of windows, opening files, menu actions, quitting with unsaved work.</td></tr>
+              <tr><td class="name"><code>DocumentWindowController.swift</code></td><td class="num">576</td><td>One window, one document: the web view, the bridge handlers, the file, save and close.</td></tr>
+              <tr><td class="name"><code>Bridge.swift</code></td><td class="num">87</td><td>Messages between page and shell: handlers, <code>emit</code>, <code>ask</code>.</td></tr>
+              <tr><td class="name"><code>AssetSchemeHandler.swift</code></td><td class="num">73</td><td>Serves the page at <code>writeon://app/</code>. Nothing outside the web root is readable.</td></tr>
+              <tr><td class="name"><code>FileStore.swift</code></td><td class="num">227</td><td>Reading and writing documents, recent documents, drafts, and the panels and alerts.</td></tr>
+              <tr><td class="name"><code>AIClient.swift</code></td><td class="num">281</td><td>Chat completions with streaming and cancellation. Turns every failure into one readable line.</td></tr>
+              <tr><td class="name"><code>Credentials.swift</code></td><td class="num">150</td><td>Finds the key: Keychain, environment, login shell.</td></tr>
+              <tr><td class="name"><code>AppSettings.swift</code></td><td class="num">85</td><td>What the app remembers, in UserDefaults or, for a scripted run, in memory.</td></tr>
+              <tr><td class="name"><code>SettingsWindowController.swift</code></td><td class="num">209</td><td>The Settings window: key, address, model, Test connection, sound.</td></tr>
+              <tr><td class="name"><code>MainMenu.swift</code></td><td class="num">177</td><td>The menu bar.</td></tr>
+              <tr><td class="name"><code>UITestHarness.swift</code></td><td class="num">881</td><td>Scripted runs: options, native input, snapshots, the guards, scripted answers.</td></tr>
+
+              <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/ and web/src</td></tr>
+              <tr><td class="name"><code>index.html</code></td><td class="num">143</td><td>The page's fixed elements: the editor, the panels, the icons, the canvas.</td></tr>
+              <tr><td class="name"><code>main.js</code></td><td class="num">81</td><td>Creates every part and wires them together.</td></tr>
+              <tr><td class="name"><code>native.js</code></td><td class="num">95</td><td>The bridge, and the stand-in used in a plain browser.</td></tr>
+              <tr><td class="name"><code>state.js</code></td><td class="num">44</td><td>Interface flags, mirrored as classes on <code>&lt;body&gt;</code>.</td></tr>
+              <tr><td class="name"><code>commands.js</code></td><td class="num">29</td><td>The table of named commands.</td></tr>
+              <tr><td class="name"><code>sample.js</code></td><td class="num">57</td><td>The welcome piece and the blank document.</td></tr>
+
+              <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/doc, pure</td></tr>
+              <tr><td class="name"><code>blocks.js</code></td><td class="num">422</td><td>Editing the document as data: split, merge, delete, insert, group, show a variant, normalise.</td></tr>
+              <tr><td class="name"><code>format.js</code></td><td class="num">558</td><td>The file format in every direction, and reading files edited elsewhere.</td></tr>
+              <tr><td class="name"><code>model.js</code></td><td class="num">92</td><td>A group and its variants: add, remove, set active, validate.</td></tr>
+              <tr><td class="name"><code>ids.js</code></td><td class="num">15</td><td>Group ids, and which ids are safe to accept from a file.</td></tr>
+              <tr><td class="name"><code>history.js</code></td><td class="num">69</td><td>Undo and redo over snapshots, with typing coalesced into bursts.</td></tr>
+              <tr><td class="name"><code>text.js</code></td><td class="num">177</td><td>Counting, the word or sentence at a position, the scope of a selection, a and an.</td></tr>
+              <tr><td class="name"><code>target.js</code></td><td class="num">96</td><td>What an alternatives command acts on.</td></tr>
+              <tr><td class="name"><code>ghost.js</code></td><td class="num">63</td><td>What the ghost command acts on.</td></tr>
+              <tr><td class="name"><code>overflow.js</code></td><td class="num">92</td><td>Moving text between the page and Overflow.</td></tr>
+              <tr><td class="name"><code>proposal.js</code></td><td class="num">194</td><td>What a Lab pass proposes, held beside the document until accepted.</td></tr>
+              <tr><td class="name"><code>trim.js</code></td><td class="num">153</td><td>Accepts a trim only if it is deletion alone.</td></tr>
+              <tr><td class="name"><code>tone.js</code></td><td class="num">54</td><td>Which tick plays.</td></tr>
+
+              <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/ai</td></tr>
+              <tr><td class="name"><code>prompts.js</code></td><td class="num">233</td><td>What the model is asked: messages, limits, the JSON shapes for the Lab.</td></tr>
+              <tr><td class="name"><code>parse.js</code></td><td class="num">191</td><td>Reading and checking what comes back.</td></tr>
+              <tr><td class="name"><code>client.js</code></td><td class="num">44</td><td>Starts a request over the bridge and receives the answer as events.</td></tr>
+
+              <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/editor</td></tr>
+              <tr><td class="name"><code>editor.js</code></td><td class="num">433</td><td>The editing surface: the two kinds of edit, history, clipboard, drag and drop.</td></tr>
+              <tr><td class="name"><code>dom.js</code></td><td class="num">99</td><td>Blocks to paragraphs and back.</td></tr>
+              <tr><td class="name"><code>selection.js</code></td><td class="num">83</td><td>The selection as <code>{ block, offset }</code> positions.</td></tr>
+              <tr><td class="name"><code>decor.js</code></td><td class="num">255</td><td>Underlines, dots and margin bars, drawn in an SVG over the text.</td></tr>
+              <tr><td class="name"><code>wobble.js</code></td><td class="num">58</td><td>Pen-like lines from a seed.</td></tr>
+
+              <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/features</td></tr>
+              <tr><td class="name"><code>alternatives.js</code></td><td class="num">394</td><td>Showing another variant, cycling under the pointer, deleting one.</td></tr>
+              <tr><td class="name"><code>panel.js</code></td><td class="num">421</td><td>The alternatives panel.</td></tr>
+              <tr><td class="name"><code>ai-alternatives.js</code></td><td class="num">91</td><td><code>??</code> and Ctrl+Shift+G.</td></tr>
+              <tr><td class="name"><code>lab.js</code></td><td class="num">535</td><td>The Lab: trims, marks, typos, the proposal card.</td></tr>
+              <tr><td class="name"><code>overflow.js</code></td><td class="num">153</td><td>The Overflow panel, stashing and using.</td></tr>
+              <tr><td class="name"><code>ghost.js</code></td><td class="num">21</td><td>The ghost command.</td></tr>
+              <tr><td class="name"><code>contextmenu.js</code></td><td class="num">149</td><td>The right-click menu.</td></tr>
+              <tr><td class="name"><code>shortcuts.js</code></td><td class="num">70</td><td>The Control shortcuts, taken before the text sees the key.</td></tr>
+              <tr><td class="name"><code>cards.js</code></td><td class="num">70</td><td>Cards over the dimmed page, such as the shortcut list.</td></tr>
+              <tr><td class="name"><code>sourceview.js</code></td><td class="num">126</td><td>The file as it would be saved now.</td></tr>
+              <tr><td class="name"><code>readmode.js</code></td><td class="num">55</td><td>Read mode, the word count, the alternates toggle.</td></tr>
+              <tr><td class="name"><code>tooltips.js</code></td><td class="num">83</td><td>Lit icons, shortcut labels, short notes from a control.</td></tr>
+              <tr><td class="name"><code>share.js</code></td><td class="num">76</td><td>Post to X, and the LinkedIn button that will not be caught.</td></tr>
+              <tr><td class="name"><code>files.js</code></td><td class="num">110</td><td>Unsaved or not, save, open, drafts.</td></tr>
+
+              <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/fx and web/styles</td></tr>
+              <tr><td class="name"><code>sound.js</code></td><td class="num">119</td><td>Tick, boom and thump, synthesised.</td></tr>
+              <tr><td class="name"><code>explosion.js</code></td><td class="num">325</td><td>Bursts on a canvas, repeatable and reversible.</td></tr>
+              <tr><td class="name"><code>flee.js</code></td><td class="num">39</td><td>Where a fleeing button goes.</td></tr>
+              <tr><td class="name"><code>styles/*.css</code></td><td class="num">1,208</td><td>Six stylesheets. <code>base.css</code> holds the fonts and every value measured from the clips as CSS variables.</td></tr>
+
+              <tr class="group"><td colspan="3">Scripts, tests and documents</td></tr>
+              <tr><td class="name"><code>scripts/</code></td><td class="num">297</td><td>Seven scripts: build the app, run everything, run one scenario, check a real launch, serve the page to a browser, draw the icon, fetch the fonts.</td></tr>
+              <tr><td class="name"><code>tests/unit/</code></td><td class="num">2,478</td><td>16 test files for the pure modules.</td></tr>
+              <tr><td class="name"><code>tests/ui/</code></td><td class="num">6,341</td><td>33 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
+              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">885</td><td>The design spec: measurements, behaviour, and the 52 inferred decisions.</td></tr>
+              <tr><td class="name"><code>docs/superpowers/plans/</code></td><td class="num">443</td><td>The 23-task plan the app was built from.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="change">
+        <h2>Where to change things</h2>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>To change</th><th>Look in</th></tr></thead>
+            <tbody>
+              <tr><td>A colour, a font, the column width</td><td><code>web/styles/base.css</code>, where the measured values are CSS variables</td></tr>
+              <tr><td>What the model is asked, or how many suggestions come back</td><td><code>web/src/ai/prompts.js</code></td></tr>
+              <tr><td>What is accepted from the model</td><td><code>web/src/ai/parse.js</code> and <code>web/src/doc/trim.js</code></td></tr>
+              <tr><td>The model or the service address</td><td>Settings, or the defaults at the top of <code>Sources/WriteOn/AIClient.swift</code></td></tr>
+              <tr><td>A shortcut</td><td><code>SHORTCUTS</code> in <code>web/src/features/shortcuts.js</code>, and its item in <code>Sources/WriteOn/MainMenu.swift</code></td></tr>
+              <tr><td>A new command</td><td><code>commands.register()</code> in a feature; add it to the two places above if it needs a key or a menu item</td></tr>
+              <tr><td>The file format</td><td><code>web/src/doc/format.js</code>, with <code>tests/unit/format.test.js</code></td></tr>
+              <tr><td>How a sound sounds</td><td><code>web/src/fx/sound.js</code></td></tr>
+              <tr><td>The welcome piece</td><td><code>web/src/sample.js</code></td></tr>
+              <tr><td>Something new the page needs from the Mac</td><td>A handler in <code>registerBridgeHandlers()</code> in <code>DocumentWindowController.swift</code>, and a stand-in in the <code>shim</code> table in <code>web/src/native.js</code></td></tr>
+              <tr><td>The window's size or title bar</td><td><code>Sources/WriteOn/DocumentWindowController.swift</code></td></tr>
+              <tr><td>The icon</td><td><code>scripts/make-icon.swift</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>For more, the README covers building, using and testing, and the spec at <code>docs/superpowers/specs/2026-10-11-write-on-replica-design.md</code> has every measurement and the reasoning behind each inferred behaviour.</p>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+  // Fig. 4: one group, shown three ways.
+  (() => {
+    const variants = ['workbench', 'easel', 'sketchpad'];
+    const fromAI = new Set(['easel']);
+    const article = (word) => (/^[aeiou]/.test(word) ? 'an' : 'a');
+    const all = (name) => document.querySelectorAll(`[data-m="${name}"]`);
+    const dots = document.querySelectorAll('#model-dots i');
+    const status = document.getElementById('model-status');
+    let active = 0;
+
+    function show() {
+      const word = variants[active];
+      all('word').forEach((el) => { el.textContent = word; });
+      all('article').forEach((el) => { el.textContent = article(word); });
+      all('active').forEach((el) => { el.textContent = String(active); });
+      dots.forEach((dot, index) => dot.classList.toggle('on', index === active));
+      status.textContent = `Showing ${active + 1} of ${variants.length}` + (fromAI.has(word) ? ', one the AI wrote' : '');
+    }
+    function step(by) {
+      active = (active + by + variants.length) % variants.length;
+      show();
+    }
+    document.getElementById('model-prev').addEventListener('click', () => step(-1));
+    document.getElementById('model-next').addEventListener('click', () => step(1));
+    const word = document.getElementById('model-word');
+    word.addEventListener('click', () => step(1));
+    word.addEventListener('keydown', (event) => {
+      const by = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+      if (!by) return;
+      event.preventDefault();
+      step(by);
+    });
+  })();
+
+  // Fig. 9: the commits, placed by the minute.
+  (() => {
+    const LANES = [
+      ['Spec and plan', 'plain'],
+      ['Page: document logic', 'page'],
+      ['Page: editor and features', 'page'],
+      ['Shell and packaging', 'shell'],
+      ['Test harness', 'plain'],
+      ['Review and fixes', 'plain'],
+    ];
+    const COMMITS = [
+      ['12:43', 0, 'Initial commit'],
+      ['12:48', 0, 'Add design spec for the Write_On macOS replica'],
+      ['13:08', 0, 'Add implementation plan; refine ghost/group rule in spec'],
+      ['13:08', 0, 'Correct task references in the plan’s Review Focus'],
+      ['13:11', 2, 'Scaffold the page: fonts, colour tokens, typography and sample document'],
+      ['13:35', 3, 'Add the native shell, bridge and scripted UI harness'],
+      ['13:35', 4, 'Add a single check script for tests, build and UI scenarios'],
+      ['13:37', 1, 'Add text utilities: counts, word and sentence ranges, scope, a/an'],
+      ['13:42', 1, 'Add the group model and the file format'],
+      ['13:44', 1, 'Add the tone rule, undo history and hand-drawn line generator'],
+      ['13:47', 1, 'Add trim checking: accept an AI trim only if it is deletion alone'],
+      ['13:49', 1, 'Add AI request builders and answer checking'],
+      ['14:00', 2, 'Add the editing surface'],
+      ['14:42', 2, 'Add the chrome, read mode and the marks for alternatives'],
+      ['15:05', 4, 'Run scripted scenarios in the background'],
+      ['15:05', 2, 'Add cycling through alternatives, the two ticks and a/an agreement'],
+      ['15:20', 2, 'Add the alternatives panel'],
+      ['15:26', 4, 'Make scripted runs headless'],
+      ['15:32', 2, 'Add the context menu, the shortcuts and the shortcut card'],
+      ['15:42', 2, 'Add explosions: deleting the alternative under the pointer'],
+      ['15:51', 2, 'Add AI alternatives'],
+      ['16:11', 2, 'Add ghost text'],
+      ['16:40', 2, 'Add Overflow'],
+      ['17:00', 2, 'Add the source view'],
+      ['17:29', 2, 'Add the Lab’s trims'],
+      ['17:38', 2, 'Add the Lab’s marks, typo pass and guide'],
+      ['18:05', 2, 'Add sharing: Post to X and the LinkedIn chase'],
+      ['18:55', 3, 'Add files, windows and the menu bar'],
+      ['19:32', 3, 'Add the AI client, the key and Settings'],
+      ['19:48', 3, 'Package the app: icon, launch check, README'],
+      ['20:31', 5, 'Fix what the review found'],
+      ['21:32', 5, 'Alternatives for the word under the pointer when the text has no caret'],
+    ];
+    const minutes = (time) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+
+    const svg = document.getElementById('timeline');
+    const NS = 'http://www.w3.org/2000/svg';
+    const W = 920, LEFT = 176, RIGHT = 22, TOP = 12, ROW = 30, AXIS = 28;
+    const H = TOP + LANES.length * ROW + AXIS;
+    const FROM = 12 * 60 + 30, TO = 22 * 60;
+    const x = (m) => LEFT + ((m - FROM) / (TO - FROM)) * (W - LEFT - RIGHT);
+    const y = (lane) => TOP + lane * ROW + ROW / 2;
+    const add = (name, attributes, text) => {
+      const el = document.createElementNS(NS, name);
+      for (const [key, value] of Object.entries(attributes)) el.setAttribute(key, value);
+      if (text !== undefined) el.textContent = text;
+      svg.append(el);
+      return el;
+    };
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const floor = TOP + LANES.length * ROW;
+    for (let hour = 13; hour <= 22; hour++) {
+      add('line', { x1: x(hour * 60), x2: x(hour * 60), y1: TOP, y2: floor + 5 });
+      add('text', { x: x(hour * 60), y: floor + 21, 'text-anchor': 'middle' }, `${hour}:00`);
+    }
+    LANES.forEach(([name], lane) => {
+      add('line', { class: 'row', x1: LEFT - 8, x2: W - RIGHT, y1: y(lane), y2: y(lane) });
+      add('text', { class: 'lane-name', x: LEFT - 16, y: y(lane) + 4, 'text-anchor': 'end' }, name);
+    });
+    const taken = new Set();
+    for (const [time, lane, subject] of COMMITS) {
+      // Two commits in the same minute and lane sit one above the other.
+      const spot = `${time}/${lane}`;
+      const lift = taken.has(spot) ? -8 : 0;
+      taken.add(spot);
+      const dot = add('circle', { class: LANES[lane][1], cx: x(minutes(time)), cy: y(lane) + lift, r: 4.5 });
+      const title = document.createElementNS(NS, 'title');
+      title.textContent = `${time}  ${subject}`;
+      dot.append(title);
+    }
+
+    const body = document.querySelector('#commits tbody');
+    for (const [time, , subject] of COMMITS) {
+      const row = body.insertRow();
+      row.insertCell().textContent = time;
+      row.insertCell().textContent = subject;
+    }
+  })();
+</script>
+
+</body>
+</html>

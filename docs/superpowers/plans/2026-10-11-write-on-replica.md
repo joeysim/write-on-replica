@@ -1,16 +1,16 @@
 # Write_On for macOS Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Historical.** This is the plan the app was first built from, on 11 October 2026, task by task (steps use checkbox syntax). It has not been kept up to date. Where it and the code disagree, the code is right, and the design spec is the document that is kept in step with it.
 
 **Goal:** Build `Write_On.app`, a macOS replica of the writing tool shown in Jason Fried's thread, matching its look, motion, sound, behaviour and file format.
 
 **Architecture:** A Swift/AppKit shell owns the window, menus, files, secrets and network, and hosts the editor in a WKWebView. The editor is a dependency-free page of plain ES modules: pure document logic at the bottom (tested in Node), a thin `contenteditable` layer above it, features on top. The page talks to the shell over a small request/reply bridge and never sees the API key.
 
-**Tech Stack:** Swift 6.3 toolchain in Swift 5 language mode, SwiftPM (no Xcode on this Mac), AppKit, WebKit, Security; HTML/CSS/ES modules with no bundler and no packages; Web Audio; Canvas 2D; Node 26 built-in test runner; LunaRoute (OpenAI-compatible) with `glm-5.3-flash`.
+**Tech Stack:** Swift 6.3 toolchain in Swift 5 language mode, SwiftPM (no Xcode), AppKit, WebKit, Security; HTML/CSS/ES modules with no bundler and no packages; Web Audio; Canvas 2D; Node 26 built-in test runner; LunaRoute (OpenAI-compatible) with `glm-5.3-flash`.
 
 **Spec:** `docs/superpowers/specs/2026-10-11-write-on-replica-design.md`. Measurements behind the spec: `reference/notes.md` (untracked). Reference clips and analysis scripts: `reference/videos/`, `reference/tools/`.
 
-**How this plan is executed.** Natively, in the session that wrote it, at the user's instruction to start building. For that reason it fixes the file map, the interfaces between tasks, the test cases and the order, and leaves the implementation code to be written test-first at execution time rather than transcribing it here first.
+**How this plan is executed.** Natively, in the session that wrote it. For that reason it fixes the file map, the interfaces between tasks, the test cases and the order, and leaves the implementation code to be written test-first at execution time rather than transcribing it here first.
 
 ## Global Constraints
 
@@ -245,7 +245,7 @@ Test cases:
 Test cases:
 - `tokenize("say, which")` → `["say", ",", " ", "which"]`; curly quotes, dashes and ellipsis are single tokens; `don’t` is one word.
 - `alignDeletion`: a middle clause removed gives one run covering the clause and its comma; the result of `applyCuts` equals the trimmed text exactly.
-- Leading words removed with the next word capitalised by the model ("Much of the struggle…" → "Struggle…") is accepted with one case fix.
+- Leading words removed with the next word capitalised by the model ("Most of the struggle…" → "Struggle…") is accepted with one case fix.
 - A reworded paragraph (any inserted or substituted word) returns `null`. Reordered words return `null`.
 - Identical text gives zero runs. Empty trimmed text gives `null` (a paragraph cannot be cut entirely by a trim).
 - Repeated words ("the big big dog" → "the big dog") gives one run of one word plus its space.

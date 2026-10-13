@@ -87,7 +87,7 @@ const SOUNDS = {
 };
 
 /**
- * @param enabled whether sounds should play just now (View ▸ Sound Effects)
+ * @param enabled whether sounds should play just now (Settings ▸ Play sounds)
  * @param context makes the audio context to play into; called once, at the first sound
  */
 export function createSound({ enabled = () => true, context = () => new AudioContext(), restAfterMs = 30000 } = {}) {

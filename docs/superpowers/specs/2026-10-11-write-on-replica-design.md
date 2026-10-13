@@ -1,7 +1,7 @@
 # Write_On for macOS — replica design
 
 - **Date:** 2026-10-11
-- **Status:** Draft, awaiting review
+- **Status:** Built. Kept in step with the app since; §9 lists what the clips left to be decided.
 - **Source:** Jason Fried's thread, <https://x.com/jasonfried/status/2105403067793584590>
 
 ## 1. Goal
@@ -15,7 +15,7 @@ screen looks the same, the ticks and booms sound the same, the same things happe
 saved by the app has the structure shown in his file-format clip. The AI features work
 against LunaRoute with `glm-5.3-flash`.
 
-**Decisions already made by the user**
+**Decisions made at the start**
 
 | Decision | Choice |
 | --- | --- |
@@ -31,7 +31,7 @@ against LunaRoute with `glm-5.3-flash`.
 - Rich Markdown rendering. Only headings are styled; everything else is literal text.
 - Really posting to LinkedIn. The button exists to be impossible to click.
 - Posting to X through the X API. The app opens X's compose window instead (§6.11).
-- Notarisation or distribution. The app is built and ad-hoc signed for this Mac.
+- Notarisation or distribution. The app is built and ad-hoc signed on the Mac that runs it.
 
 ## 2. Evidence and how far "exact" can go
 
@@ -525,7 +525,9 @@ pointed at):
    trim" was read, is there at once: no reading, no line through the text. So what the
    model says about a level is kept until the piece changes, and when the level asked for
    has been read the others are read quietly, one at a time, the deeper ones first. Each
-   is a request to the AI service.
+   is a request to the AI service. The reading lasts as long as a trim is on the page:
+   Done, Original or another pass calls off a request still on its way and leaves the
+   levels not yet read alone, and it goes on from there when a trim is out again.
 
 A proposal is temporary. It is not saved to the file and is not ghost text: it is drawn
 at twice ghost's strength and lives beside the document, not in it. Text the user has
@@ -792,7 +794,7 @@ back as `ai.delta { id, text }` events while it streams, then `ai.done { id }`, 
 `ai.error { id, message }` with one line a person can read. `ai.cancel { id }` calls it
 off.
 
-**Build.** This Mac has the Command Line Tools but no Xcode, so the app is a Swift
+**Build.** The Command Line Tools are enough, without Xcode: the app is a Swift
 package built with `swift build`, and a script assembles and ad-hoc signs
 `Write_On.app` (Info.plist, resources, fonts, icon). Minimum macOS 13.
 
@@ -817,7 +819,8 @@ Verified against the live gateway on 2026-10-11:
   room to think besides (a trim 2,000 tokens and 15 a word; the other passes 1,000 and
   4 a word), up to 32,000 in all.
 - Lab passes stay at `low`. Live, a slight trim cut 8–11% of the 164-word welcome piece
-  in 9–17 s, and 8–10% of a 570-word piece in 16–35 s, every cut a clean deletion. That
+  in 9–17 s, and 8–10% of a 570-word piece in 16–50 s, every cut a clean deletion. (A day later
+  the welcome piece, by then 170 words, took 22 s for the same trim and lost 9%.) That
   is slow beside the original, and it is the thinking: asked by proportion instead of
   by word count the model answered in 5 s and cut 2–4%, and with thinking switched off
   it cut nothing. Accuracy was chosen over speed. While it thinks the stream keeps
@@ -959,8 +962,8 @@ go another way.
 | --- | --- |
 | `contenteditable` edge cases: splitting and merging paragraphs through groups, input methods, drag and drop | One normalisation pass after every input; group invariants unit-tested; scripted editing scenarios. |
 | WebKit maps some Control keys to Emacs-style editing (Ctrl+O inserts a line) | The page handles its shortcuts on key-down and cancels the default; covered by a scripted run. |
-| This Mac's display is 1× while the clips are 2× | Geometry is compared in CSS px; glyphs look lighter at 1×. For a pixel-level comparison the page is snapshotted at 2× zoom. |
+| The display it was built on is 1× while the clips are 2× | Geometry is compared in CSS px; glyphs look lighter at 1×. For a pixel-level comparison the page is snapshotted at 2× zoom. |
 | `glm-5.3-flash` at low reasoning may choose poor cuts or miss the target length | Raise reasoning for Lab passes only; the card always reports the real numbers. |
 | The handwriting face may not be Caveat | Compare glyphs early; substitute and record. |
 | The original may differ wherever §9 guesses | All guesses are in one table and cheap to change. |
-| Real pointer hover cannot be automated on a locked Mac | Hover behaviour is driven by the page's own event handlers, which the scenarios exercise; the real pointer is on the hands-on checklist. |
+| A script cannot move the real pointer on a Mac that is in use, or locked | Scenarios send native pointer moves straight to the web view (§8), so WebKit itself finds what is under them; the pointer in a person's hand is on the hands-on checklist. |

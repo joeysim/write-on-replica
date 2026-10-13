@@ -1,23 +1,41 @@
-# Write_On for macOS
+# Write_On for macOS, an unofficial replica
 
-A replica of the writing tool Jason Fried showed in
-[this thread](https://x.com/jasonfried/status/2105403067793584590), as a Mac app. It keeps
-the other ways you tried to say something: alternatives for a word, a sentence or a whole
-paragraph stay in place, under the text, and you flip through them where they stand. Around
-that: ghosted text, an Overflow panel, AI suggestions, a Lab that marks and trims without
+A replica, as a Mac app, of the writing tool Jason Fried showed in
+[this thread](https://x.com/jasonfried/status/2105403067793584590). It keeps the other
+ways you tried to say something: alternatives for a word, a sentence or a whole paragraph
+stay in place, under the text, and you flip through them where they stand. Around that:
+ghosted text, an Overflow panel, AI suggestions, a Lab that marks and trims without
 rewriting, and one plain Markdown file that holds all of it.
 
-The look, motion, sound and file format were measured from the three clips in the thread.
-What the clips do not show had to be decided; those decisions are listed
+![The welcome piece with the tools on, and the pointer resting on a word that has alternatives](docs/images/tools.png)
+
+**This is not his Write_On.** The idea, the design and the name are Jason Fried's. He had
+no part in this project and has not endorsed it. No code, recording or picture of his is
+in this repository, and the essay he writes in the clips is not here either. What it takes
+from him is what the three clips in the thread show: how the tool looks, moves, sounds
+and saves, and the wording of its labels. In the first clip he says he hopes to release
+his own, free and open source. When he does, that is the one to use.
+
+The look, motion, sound and file format were measured from those clips. What the clips do
+not show had to be decided; those decisions are listed
 [below](#decisions-the-clips-do-not-settle).
 
 - Design: `docs/superpowers/specs/2026-10-11-write-on-replica-design.md`
 - Plan it was built from: `docs/superpowers/plans/2026-10-11-write-on-replica.md`
+- How it is built, with diagrams: `docs/architecture.html` (open it in a browser)
+
+The app was written by Claude, in Claude Code, working from that design and that plan.
 
 ## Build and run
 
-Needs macOS 13 or later and the Xcode Command Line Tools (`xcode-select --install`). Xcode
-itself is not needed. Node is needed only to run the tests.
+There is nothing to download: you build it.
+
+- macOS 13 or later is what the app is built for. It has been built and run on macOS 26
+  only.
+- The Xcode Command Line Tools (`xcode-select --install`), with Swift 5.9 or later (it
+  has been built with 6.3 only). Xcode itself is not needed.
+- For the tests only: Node. They have been run with Node 26; 22 or later should do, since
+  the test command leaves its `*.test.js` pattern to Node. Nothing is installed from npm.
 
 ```sh
 scripts/build-app.sh        # builds build/Write_On.app
@@ -53,7 +71,7 @@ and Stash.
   ticks, and the tick is lower when you land back on the version you started from.
 - **The panel.** Alternatives opens a panel on the left with a row for each version. Type a
   new one in the empty row; type `??` there to have the AI suggest some. A robot marks the
-  ones it wrote.
+  ones it wrote. ([Picture](docs/images/panel.png).)
 - **The Lab** (bottom centre) reads the page and marks what it finds: weak or long
   sentences, filler, typos, or what could go to make the piece 10, 20, 30 or 50 percent
   shorter. It fades and underlines; it never rewrites. Nothing is cut until you say so.
@@ -69,6 +87,10 @@ with no alternatives and nothing ghosted is saved as plain Markdown with no comm
 A file edited elsewhere opens with its text as it now is, and keeps the alternatives whose
 words are still there.
 
+The format follows what the third clip shows of the original's, down to the `write_on`
+comment. That is 52 seconds of one file: whether his tool would open a file saved here,
+or this one a file of his, has never been tried.
+
 Saving replaces the file's text and nothing else (its permissions and Finder tags stay,
 and a link stays a link). If something else has changed the file since the window read or
 wrote it, saving asks before writing over it.
@@ -78,20 +100,41 @@ and comes back as an unsaved document if the app is ever killed.
 
 ### The AI
 
-The app asks LunaRoute (`https://gw.lunaroute.com/v1`) for `glm-5.3-flash`. It looks for
-the key in this order:
+AI alternatives and the Lab ask a language model. Everything else works without one.
 
-1. a key saved in Settings (⌘,), which goes in your keychain;
+The app speaks OpenAI-style chat completions (`POST <address>/chat/completions`, with the
+answer streamed). Out of the box it asks LunaRoute (`https://gw.lunaroute.com/v1`) for
+`glm-5.3-flash`, and that is the only service and the only model it has been tried with.
+Settings (⌘,) takes another address, which may be a model served on this Mac, and
+another model, and has a Test connection button that says which key it used.
+`LUNAROUTE_BASE_URL` in the environment sets the address too. Another service has to
+take what every request carries: `max_tokens`, `reasoning_effort` and, from the Lab, an
+answer held to a JSON schema (`response_format`).
+
+A key is always sent, so a server that wants none still needs something typed in the
+field. The app looks for the key in this order:
+
+1. a key saved in Settings, which goes in your keychain;
 2. `LUNAROUTE_API_KEY` in the app's own environment;
 3. `LUNAROUTE_API_KEY` as your login shell sets it (so a key in `~/.zshrc` is found when the
-   app is opened from Finder).
+   app is opened from Finder). For this the app runs your login shell once, as a terminal
+   would start it, the first time it has to look further than Settings and its own
+   environment, and reads `LUNAROUTE_API_KEY` and `LUNAROUTE_BASE_URL` from it.
 
 The key never reaches the editor's page: the native side of the app makes the request and
-hands back text. Settings also takes another address (anything that speaks OpenAI-style
-chat completions, including a model served on this Mac) and another model, and has a Test
-connection button that says which key it used.
+hands back text.
 
-Alternatives come back in a second or two. **A trim is slow with this model:** 9 to 17
+**What leaves your Mac.** Nothing, until you ask the AI for something. A request for
+alternatives carries the paragraph the word is in and the versions you already have. The
+Lab sends the page's paragraphs, without the headings and without what is ghosted. A trim
+sends them once for the level you chose and then, for as long as it is on the page, once
+for each of the other three, so that they are there when you go to them; Done stops
+that. All of it goes to the address above and nowhere else, and Overflow is never sent.
+There is no telemetry and nothing checks for updates. The only other thing that goes
+anywhere is Post to X, which opens X's compose page in your browser with the piece in the
+link.
+
+Alternatives come back in a second or two. **A trim is slow with this model:** 9 to 22
 seconds for the 170-word welcome piece and 16 to 50 seconds for a 570-word one, where the
 original takes a second or two. The model reasons its way to the word count; a quicker way
 of asking took 5 seconds and cut a third of what was asked for, so accuracy was kept. The
@@ -134,6 +177,8 @@ These need someone at the Mac:
 13. **Full screen** (the green button, or fn F): the layout then matches the clips exactly,
     with no title bar above the page.
 14. **Post to X** (the X icon): the browser opens X's compose window with the piece in it.
+15. **About.** Write_On ▸ About Write_On: under the version, a line saying that this is an
+    unofficial replica.
 
 ## Decisions the clips do not settle
 
@@ -179,8 +224,9 @@ autocorrection and smart punctuation are off by default.
 - The Lab's trims take much longer (see [The AI](#the-ai)): about twenty seconds for a
   short piece against two in the clip. Nearly all of that is the model thinking before it
   answers, so the cuts, which are faded as they arrive, come in the last second of it.
-  Once a level has been read the others are read quietly, one at a time, and going to one
-  that has been read is immediate, as it is in the clip. Each is a request to the service.
+  Once a level has been read the others are read quietly, one at a time, for as long as
+  the trim is on the page, and going to one that has been read is immediate, as it is in
+  the clip. Each is a request to the service.
 - Two things the original does when it scrolls are not copied, because they look like
   slips: closing the panel jumps the page to the top, and the wheel scrolls the page
   behind the source view once the view reaches its end.
@@ -198,8 +244,12 @@ scripts/ui-test.sh smoke --zoom 2
 scripts/launch-check.sh      # start the real app once, hidden, and see that it comes up
 scripts/bench.sh typing      # one measurement from tests/perf, out of sight (see Speed)
 scripts/dev-server.sh        # serve the page at http://127.0.0.1:4173 for work in a browser
+scripts/screenshots.sh       # take the pictures in docs/images again, out of sight
 swift scripts/make-icon.swift  # draw packaging/AppIcon.icns again
 ```
+
+The scripts that run scenarios use `python3` to print their results; it comes with the
+Command Line Tools.
 
 The app is two parts. `Sources/WriteOn` is a small AppKit shell: windows, the menu bar,
 files, the key, the network. `web/` is the editor, a page of plain ES modules with no build
@@ -246,6 +296,14 @@ Pointer moves and turns of the wheel are native events too, sent the way WebKit'
 test runner sends them, so WebKit itself finds what is under the pointer and repeats the
 pointer's place when the page scrolls beneath it, as it does for a person.
 
+The harness is compiled into the app and does nothing unless the app is started with
+`--ui-test`. To move the pointer, set the display's scale and wait for a frame, a scripted
+run calls methods of `WKWebView` that Apple does not publish: `_simulateMouseMove:` and a
+few like it in `UITestHarness.swift`, and one in `DocumentWindowController.swift`. They
+are the ones WebKit's own tests use, and they may change with any release of macOS.
+Outside scripted runs the app uses one unpublished setting of the web view,
+`drawsBackground`. An app with these in it cannot go on the App Store as it stands.
+
 `WRITEON_APP=build/dev/Write_On.app` in front of `scripts/build-app.sh`, `check.sh`,
 `ui-test.sh` or `bench.sh` builds and tests a second copy, so the one in `build/` can stay
 open while you work.
@@ -255,6 +313,14 @@ One scenario does ask the real service, and steps aside unless told to run:
 ```sh
 scripts/ui-test.sh ai-live --ai live   # five words, three sentences and a trim, with your key
 ```
+
+It asks LunaRoute for `glm-5.3-flash`, and expects your login shell to set
+`LUNAROUTE_API_KEY` (a scripted run does not read the keychain). Without both it fails.
+
+Two things in the app are there for working on it and are on in every copy. Safari's Web
+Inspector can attach to the page (Develop menu), and `WRITEON_WEB_ROOT` in the app's
+environment makes it read the page from that folder and not from its own bundle, which is
+how the scripts above run a built app against the working copy.
 
 ### Speed
 
@@ -285,9 +351,30 @@ The document's own work is a few hundredths of a millisecond a keystroke, which 
 WebAssembly has nothing to offer here: in the trial a WebAssembly loop is no faster than
 the same loop in JavaScript, and three times slower once the text has been handed to it.
 
-### Fonts and reference material
+## Credits and what is whose
 
-The fonts in `web/fonts` are IBM Plex Mono and Caveat, both under the SIL Open Font
-License; `scripts/fetch-fonts.sh` records where they came from. The clips, the frames
-taken from them and the author's essay are not in the repository: `reference/` is left
-untracked, and the scenarios use text written for this project.
+- **Write_On is Jason Fried's**: the idea, the design, the name and the wording of the
+  interface. This project is not connected with him and he has not endorsed it.
+- **The fonts** in `web/fonts` are IBM Plex Mono (© IBM Corp.) and Caveat (© The Caveat
+  Project Authors), each under the SIL Open Font License 1.1. Their licences sit beside
+  them and go into the app with them. `scripts/fetch-fonts.sh` records where the files
+  came from and checks them against what was published.
+- **The marks on two buttons** are their owners': X's logo, and LinkedIn's redrawn in
+  outline, both in `web/index.html`. They are trademarks, used here only to say where a
+  button would post.
+- **Two well-known algorithms**, both in the public domain, are in
+  `web/src/editor/wobble.js`: the FNV-1a hash and the mulberry32 random number generator.
+- **The rest was made for this project.** There are no packages and no libraries. The
+  sounds are made in code, the icon is drawn by `scripts/make-icon.swift`, and the welcome
+  piece was written for it.
+- **The clips are not here**, nor frames from them, nor the essay he writes in them. The
+  tests do use words the clips show, since they check the same behaviour: the versions
+  he tries for one word, and the paperclip that becomes an eraser. Some of their
+  sentences are also built the way his opening one is. `reference/`, which git ignores,
+  is where the measurements were made.
+
+## Licence
+
+The code and documents here are under the [MIT licence](LICENSE), © 2026 Joey Simhon.
+The fonts keep their own. The licence covers what was made for this project: Write_On's
+name and design are not this project's to give.

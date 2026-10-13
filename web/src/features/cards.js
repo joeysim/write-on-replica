@@ -1,4 +1,4 @@
-// Cards: a small sheet of text over the dimmed page. The keyboard icon opens the one that
+// Cards: a small sheet of text over the page. The keyboard icon opens the one that
 // lists the shortcuts.
 
 import { SHORTCUTS } from './shortcuts.js';

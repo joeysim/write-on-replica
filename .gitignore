@@ -4,5 +4,11 @@ build/
 node_modules/
 .DS_Store
 
+# what Xcode and other tools leave behind when the package is opened in them
+.swiftpm/
+xcuserdata/
+*.xcodeproj
+.superpowers/
+
 # source clips and measurements; the videos are the author's and stay local
 reference/
