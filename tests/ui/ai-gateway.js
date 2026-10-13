@@ -46,6 +46,7 @@ const sorted = (value) =>
     ['environment', '/v1/chat/completions', 'glm-5.3-flash', true, 64, 'low', null, ['system', 'user']],
     'the request is a streamed chat completion, with the key from the environment and the default model',
   );
+  t.equal([sent.style, sent.otherKey, sent.version, sent.system], ['openai', false, null, null], 'with nothing of the other way of speaking in it: no second key, no version, the system prompt among the messages');
 }
 {
   const schema = { type: 'object', properties: { ok: { type: 'boolean' } }, required: ['ok'], additionalProperties: false };
@@ -93,7 +94,7 @@ for (const [name, message] of [
 {
   const { pieces, outcome, took } = ask('stall');
   t.equal(await outcome, 'The AI took too long to answer.', 'a stream that stops is given up on');
-  t.assert(took() > 1000 && took() < 5000, `after the wait this run was given (1.2 s, 20 s in the app): ${Math.round(took())} ms`);
+  t.assert(took() > 1000 && took() < 5000, `after the wait this run was given (1.2 s, a minute in the app): ${Math.round(took())} ms`);
   t.equal(pieces, ['a start\n'], 'what had come by then came');
 }
 
@@ -169,11 +170,15 @@ const usual = { WRITEON_BASE_URL: `${home}/v1`, WRITEON_API_KEY: 'fake-key-from-
     'Settings sends requests to another service: its address, its model, and the key saved for it',
   );
   const s = await settings({ test: true });
-  t.assert(/^Connected: their-model answered in \d+(\.\d)? s, with the key saved here\.$/.test(s.testNote), `and Test connection tries the three together: ${s.testNote}`);
+  t.assert(/^Connected: their-model answered in \d+(\.\d)? s, with the key saved here\.$/.test(s.testNote), `and Test connection tries them together: ${s.testNote}`);
   await settings({ address: `${elsewhere}/openai/v1/chat/completions` });
   t.equal((await seen()).path, '/openai/v1/chat/completions', 'an address that is the whole of it already is used as it stands');
   await settings({ address: `${elsewhere}/openai/v1/chat/completions/` });
   t.equal((await seen()).path, '/openai/v1/chat/completions', 'with or without a slash after it');
+  // An address that is the whole of where the other way's requests go, with this way chosen.
+  await settings({ address: `${elsewhere}/openai/v1/messages`, format: 'openai' });
+  t.equal((await seen()).path, '/openai/v1/chat/completions', 'an address that ends as the other way’s requests do is asked this way’s way, where Settings says so');
+  await settings({ format: 'auto' });
   await settings({ address: '', model: '', forget: true });
 }
 // The environment can name all three. The app's own names come first; LunaRoute's, which are
@@ -285,6 +290,60 @@ for (const [shell, started] of [['/bin/zsh', ['-f', '-o', 'nounset']], ['/bin/ba
   await settings({ model: 'mute-1' });
   t.equal((await settings({ test: true })).testNote, 'The service answered, but said nothing. Check the model in Settings (⌘,).', 'a test that is answered with nothing has not connected');
   await settings({ address: '', model: '' });
+}
+
+// --- room --------------------------------------------------------------------------------------------
+
+// What a model thinks is counted against the room it is given, and it may think more than was
+// allowed for. An answer cut off before it has begun is asked for again with twice the room,
+// twice at most, and that service is given as much from then on.
+{
+  let count = (await seen()).asked;
+  const again = async (extra) => {
+    const sent = await seen(extra);
+    const took = sent.asked - count;
+    count = sent.asked;
+    return { took, ...sent };
+  };
+  const RAN_OUT = 'The AI ran out of room before it finished its answer. Try again.';
+  await settings({ model: 'thinker-1' });
+  let sent = await again();
+  t.equal([sent.took, sent.max_tokens], [3, 256], 'a model that ran out of room before it said a word is asked again with twice as much, and again');
+  sent = await again({ maxTokens: 900 });
+  t.equal([sent.took, sent.max_tokens], [1, 900], 'a request with room enough is given what it asked for: nothing is carried over from the last');
+
+  await settings({ model: 'stuck-1' });
+  t.equal(await ask('echo').outcome, RAN_OUT, 'a model that never has room enough is given up on');
+  await settings({ model: '' });
+  sent = await again();
+  t.equal(sent.took, 3 + 1, 'after it has been asked three times');
+  await settings({ model: 'stuck-1' });
+  t.equal(await ask('echo', { maxTokens: 20000 }).outcome, RAN_OUT, 'and is never given more than the most a request may have');
+  await settings({ model: '' });
+  sent = await again();
+  t.equal(sent.took, 2 + 1, 'so it is asked twice where the second asking already has that much');
+
+  // A model may refuse more room than it can give. That is still a model that ran out of
+  // room, and is said to be: not a refusal of something the person never asked for.
+  await settings({ model: 'capped-1' });
+  t.equal(await ask('echo').outcome, RAN_OUT, 'a model that cannot be given more is said to have run out of room');
+  await settings({ model: '' });
+  sent = await again();
+  t.equal(sent.took, 2 + 1, 'having been asked once more and no further');
+
+  await ask('length').outcome;
+  sent = await again();
+  t.equal(sent.took, 1 + 1, 'an answer cut off after it has begun is not asked for again: what came of it is with the page already');
+  t.equal(await ask('wholeCut').outcome, RAN_OUT, 'an answer that came all at once, cut off, is one cut off');
+  sent = await again();
+  t.equal(sent.took, 3 + 1, 'and with nothing said in it, is asked for again like the other');
+}
+
+// --- answers that are not what they seem ---------------------------------------------------------------
+
+{
+  t.equal(await ask('wholeError').outcome, 'The AI service had a problem: the upstream model is not available', 'an answer that is an error, though it came as an answer, is an error');
+  t.equal(await ask('bare').outcome, 'The AI service had a problem: upstream model overloaded', 'so is an error part-way through that does not say what kind of line it is');
 }
 
 // --- where the words go ------------------------------------------------------------------------------

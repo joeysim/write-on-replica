@@ -85,15 +85,17 @@ client itself is tested against a stand-in gateway on your own Mac. Unless a run
 live one, it is given nothing of what your shell says about the AI service, and its
 client refuses every address that is not on your Mac.
 
-One scenario asks a real service, with your key, and only when told to:
+One scenario asks a real service, with your key, and only when told to. The app speaks to
+a service in one of two ways, and each is a run:
 
 ```sh
 scripts/ui-test.sh ai-live --ai live
+WRITEON_API_FORMAT=anthropic scripts/ui-test.sh ai-live --ai live
 ```
 
-It is worth running if you change `Sources/WriteOn/AIClient.swift` or the prompts in
-`web/src/ai`, and worth saying which service and model you ran it against: so far the app
-has met only one of each (see [The AI](README.md#the-ai)).
+They are worth running if you change `Sources/WriteOn/AIClient.swift`, `AIWire.swift` or
+the prompts in `web/src/ai`, and it is worth saying which service and model you ran them
+against: so far the app has met only one of each (see [The AI](README.md#the-ai)).
 
 **Never commit a key.** Keys belong in Settings, which keeps them in your keychain, or in
 your shell's environment. `scripts/check.sh` looks for one, and you can ask on its own:

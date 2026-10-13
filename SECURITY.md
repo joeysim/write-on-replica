@@ -31,7 +31,9 @@ So that you can tell a flaw from a decision:
   shown.
 - **Where requests go.** To the address in force (Settings, then the environment, then
   LunaRoute's), with the key in force, and nowhere else: a request is not sent on to
-  wherever an answer says the service has moved. A key under LunaRoute's own name in the
+  wherever an answer says the service has moved. The key travels in the header the
+  service's format uses: `Authorization: Bearer` spoken to OpenAI's way, `x-api-key`
+  spoken to Anthropic's, and never in both. A key under LunaRoute's own name in the
   environment is sent to LunaRoute and to no other service. The README says exactly
   [what is sent](README.md#the-ai). There is no telemetry and nothing checks for updates.
 - **Plain `http`** reaches only an address on this Mac or its own network (a `.local`
@@ -39,7 +41,7 @@ So that you can tell a flaw from a decision:
   it for anywhere else, and macOS does too (as tried on macOS 26), so a key does not
   cross the internet in the clear.
 - **The login shell.** To find a key set in `~/.zshrc`, the app runs your login shell
-  once, as a terminal would start it, and reads five variables from it.
+  once, as a terminal would start it, and reads six variables from it.
 - **The page.** The web view loads only the app's own page, from inside its bundle, and
   refuses every other navigation. The one thing it asks the browser to open is X's
   compose window, and the native side checks that address.

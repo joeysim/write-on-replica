@@ -12,7 +12,7 @@ struct UITestOptions {
     var aiMock = false
     /// `--ai live`: the run asks the real AI service, with the real key.
     var aiLive = false
-    /// `--ai-idle <seconds>`: how long the AI client waits on a silent stream, in place of its 20 s.
+    /// `--ai-idle <seconds>`: how long the AI client waits on a silent stream, in place of its minute.
     var aiIdle: TimeInterval?
     /// Interface settings the run starts with, as if left that way by an earlier launch.
     var settings: [String: Any] = [:]
@@ -250,7 +250,7 @@ final class UITestHarness {
 
     // MARK: Settings
 
-    /// test.settings { key?, forget?, address?, model?, sound?, test?, environment?, picture? } -> what the
+    /// test.settings { key?, forget?, address?, format?, model?, sound?, test?, environment?, picture? } -> what the
     /// Settings window shows afterwards. Each change is made the way a person makes it: the
     /// control is given its value and sends its action. The window itself is never put up.
     private func registerSettings() {
@@ -272,6 +272,13 @@ final class UITestHarness {
             if let address = params["address"] as? String {
                 panel.addressField.stringValue = address
                 send(panel.addressField)
+            }
+            if let format = params["format"] as? String {
+                // "auto" is the first choice; the others go by the name of the way.
+                let index = format == "auto" ? 0 : panel.formatPopup.indexOfItem(withRepresentedObject: format)
+                guard index >= 0 else { return reply(.failure(Bridge.Failure("test.settings knows no format called \(format)"))) }
+                panel.formatPopup.selectItem(at: index)
+                send(panel.formatPopup)
             }
             if let model = params["model"] as? String {
                 panel.modelField.stringValue = model
@@ -297,6 +304,8 @@ final class UITestHarness {
                     "forgettable": !panel.forgetButton.isHidden,
                     "address": panel.addressField.stringValue,
                     "addressHint": panel.addressField.placeholderString ?? "",
+                    "format": panel.formatPopup.selectedItem?.representedObject as? String ?? "auto",
+                    "formatHint": panel.formatPopup.item(at: 0)?.title ?? "",
                     "model": panel.modelField.stringValue,
                     "modelHint": panel.modelField.placeholderString ?? "",
                     "sound": panel.soundBox.state == .on,

@@ -21,14 +21,14 @@ status=0
 read -r -a OWN <<<"$(sed -n '1s|^// launch: ||p' "$SCENARIO")"
 
 # Unless the run is a live one (--ai live), the app is given nothing of what this shell says
-# about the AI service: not its key, not its address, not its model. A scenario then starts
-# the same for everyone, and a key of yours is sent nowhere by a test.
+# about the AI service: not its key, its address, its format or its model. A scenario then
+# starts the same for everyone, and a key of yours is sent nowhere by a test.
 AI=""
 for option in ${OWN[@]+"${OWN[@]}"} "$@"; do
   if [ "$AI" = "--ai" ]; then AI="$option"; break; fi
   [ "$option" = "--ai" ] && AI="--ai"
 done
-[ "$AI" = "live" ] || unset WRITEON_API_KEY WRITEON_BASE_URL WRITEON_MODEL LUNAROUTE_API_KEY LUNAROUTE_BASE_URL
+[ "$AI" = "live" ] || unset WRITEON_API_KEY WRITEON_BASE_URL WRITEON_API_FORMAT WRITEON_MODEL LUNAROUTE_API_KEY LUNAROUTE_BASE_URL
 
 # A scenario can also ask for a stand-in for the AI gateway, on its second line:
 #   // gateway: tests/ui/support/fake-gateway.mjs

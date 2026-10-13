@@ -273,9 +273,9 @@ img { max-width: 100%; }
     <h1>How Write_On is <span class="alt">built<svg viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true"><path d="M0 3.2 C 16 1.4, 34 4.6, 52 3 S 84 1.8, 100 3.4" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg><span class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></span></span></h1>
     <p class="lede">This is an unofficial replica of Write_On, the writing tool Jason Fried shows in <a href="https://x.com/jasonfried/status/2105403067793584590">his post on X</a>, and not his own. The app is a small native Mac program wrapped around a web page. The Swift part owns the windows, the files, the key and the network. The page is the editor. This report walks through both, how they talk, where each behaviour lives, and how the whole thing is tested.</p>
     <dl class="facts">
-      <div><dt>The shell</dt><dd>3,462 lines of Swift in 12 files</dd></div>
+      <div><dt>The shell</dt><dd>3,817 lines of Swift in 13 files</dd></div>
       <div><dt>The page</dt><dd>7,125 lines of JavaScript in 43 modules, 1,205 of CSS</dd></div>
-      <div><dt>Tests</dt><dd>301 unit tests, 33 scripted scenarios, 5 measurements</dd></div>
+      <div><dt>Tests</dt><dd>301 unit tests, 34 scripted scenarios, 5 measurements</dd></div>
       <div><dt>Third-party code</dt><dd>None</dd></div>
     </dl>
   </header>
@@ -308,7 +308,7 @@ img { max-width: 100%; }
         <h2>The short version</h2>
         <p>The app is two programs in one bundle, joined by a narrow channel.</p>
         <ul>
-          <li><strong>The shell</strong> is 12 Swift files built with SwiftPM. It makes the windows and the menu bar, reads and writes files, keeps the API key and talks to the AI service. It knows nothing about writing: a document passes through it as one string it never looks inside.</li>
+          <li><strong>The shell</strong> is 13 Swift files built with SwiftPM. It makes the windows and the menu bar, reads and writes files, keeps the API key and talks to the AI service. It knows nothing about writing: a document passes through it as one string it never looks inside.</li>
           <li><strong>The page</strong> is the editor: 43 plain JavaScript modules, six stylesheets and one HTML file, with no framework, no bundler and no third-party code. It runs in a <code>WKWebView</code>, the system's WebKit view. It knows nothing about files, keys or the network.</li>
           <li><strong>The bridge</strong> between them carries 14 requests from the page, 6 events from the shell, and one question the shell asks the page.</li>
         </ul>
@@ -711,7 +711,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <div class="step is-page"><div><span class="who">The page</span><b>Build the request.</b><p><code>alternativesRequest()</code> in <code>ai/prompts.js</code> takes the word's whole paragraph and marks the word with <code>[[double brackets]]</code>. It asks for five alternatives for a word, three for a sentence or a paragraph, one per line.</p></div></div>
               <div class="step is-page"><div><span class="who">The page</span><b>Send it.</b><p><code>ai/client.js</code> numbers the request and calls <code>ai.start { id, messages, maxTokens, effort }</code>.</p></div></div>
               <div class="step is-shell"><div><span class="who">The shell</span><b>Find the key.</b><p><code>Credentials</code> looks in the Keychain for a key saved in Settings, then in the app's environment, then in your login shell, which it runs once and gives five seconds. The address and the model are found the same way, and are LunaRoute's when nothing names another.</p></div></div>
-              <div class="step is-shell"><div><span class="who">The shell</span><b>Ask the service.</b><p><code>AIClient</code> posts to <code>/chat/completions</code> with <code>stream: true</code>. A service that refuses <code>max_tokens</code> or <code>reasoning_effort</code> is asked again in its own way, and that way first from then on.</p></div></div>
+              <div class="step is-shell"><div><span class="who">The shell</span><b>Ask the service.</b><p><code>AIClient</code> words the request the way the service is spoken to (<code>AIWire</code>): OpenAI's chat completions, posted to <code>/chat/completions</code>, or Anthropic's messages, posted to <code>/v1/messages</code>, either with <code>stream: true</code>. A service that refuses a part of it (<code>max_tokens</code> or <code>reasoning_effort</code> one way, the effort or the schema the other) is asked again in its own way, and that way first from then on.</p></div></div>
               <div class="step is-out"><div><span class="who">Outside</span><b>The service answers in pieces.</b><p>LunaRoute's <code>glm-5.3-flash</code>, unless another is named, streams its answer as server-sent events.</p></div></div>
               <div class="step is-shell"><div><span class="who">The shell</span><b>Pass the text on.</b><p>Each piece goes to the page as <code>ai.delta { id, text }</code>. What the model thinks on the way is dropped. The stream has to say it is finished; one that just stops counts as a lost connection.</p></div></div>
               <div class="step is-page"><div><span class="who">The page</span><b>Check what came back.</b><p><code>LineStream</code> cuts the pieces into lines. <code>suggestionFilter()</code> strips numbering and quotes, and drops empty lines, repeats and anything past the count.</p></div></div>
@@ -731,7 +731,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
         <p>This model reasons before it answers, and that reasoning counts against its token limit. A trim given room only for its answer came back empty every time. So a Lab request asks for room to think as well: 2,000 tokens plus 15 a word for a trim, 1,000 plus 4 a word for the other passes, up to 32,000. Trims are slow as a result, 9 to 50 seconds, and that was chosen over a faster way of asking that cut a third of what was requested.</p>
 
         <h3>Settings</h3>
-        <p>The Settings window (<kbd>⌘,</kbd>) takes a key, another address, another model and the sound switch. A key typed there goes into the Keychain; one found in the environment or the login shell is held in memory only. With another address the app asks that service in LunaRoute's place: anything that takes OpenAI-style chat completions, a model served on the same Mac included, which is asked without a key if there is none. A key under LunaRoute's own name in the environment is sent to LunaRoute and to no other service. Test connection asks a one-word question and says which key it used. Nothing in the shell prints or logs a key, and a key the service quotes back in an error is taken out before the line is shown.</p>
+        <p>The Settings window (<kbd>⌘,</kbd>) takes a key, another address, the format, another model and the sound switch. A key typed there goes into the Keychain; one found in the environment or the login shell is held in memory only. With another address the app asks that service in LunaRoute's place: anything that speaks OpenAI's chat completions or Anthropic's messages (Format says which, or leaves it to the address), a model served on the same Mac included, which is asked without a key if there is none. A key under LunaRoute's own name in the environment is sent to LunaRoute and to no other service. Test connection asks a one-word question and says which key it used. Nothing in the shell prints or logs a key, and a key the service quotes back in an error is taken out before the line is shown.</p>
       </section>
 
       <section id="files">
@@ -770,9 +770,9 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
             <thead><tr><th>Kind</th><th>What it covers</th><th>Size</th><th>Runs in</th><th>Command</th></tr></thead>
             <tbody>
               <tr><td class="name">Unit tests</td><td>The pure modules: file-format round trips, files edited elsewhere, normalising, word and sentence boundaries, a and an, the tone rule, history, prompts, hostile answers from the model</td><td class="name">301 tests in 16 files</td><td>Node's own test runner</td><td class="name"><code>npm test</code></td></tr>
-              <tr><td class="name">UI scenarios</td><td>Everything that needs the page or the shell: typing, marks, the panel, Overflow, the Lab, menus, files, crash recovery, the AI client</td><td class="name">33 scenarios</td><td>The built app's own web view, hidden</td><td class="name"><code>scripts/ui-test.sh &lt;name&gt;</code></td></tr>
+              <tr><td class="name">UI scenarios</td><td>Everything that needs the page or the shell: typing, marks, the panel, Overflow, the Lab, menus, files, crash recovery, the AI client</td><td class="name">34 scenarios</td><td>The built app's own web view, hidden</td><td class="name"><code>scripts/ui-test.sh &lt;name&gt;</code></td></tr>
               <tr><td class="name">Launch check</td><td>The real app starts as Finder would start it, opens one window, reports no error and quits</td><td class="name">1 script</td><td>The real app, opened hidden</td><td class="name"><code>scripts/launch-check.sh</code></td></tr>
-              <tr><td class="name">Hands-on list</td><td>What only a person can confirm: real hover, real sound, real panels, dragging out of Overflow</td><td class="name">14 checks</td><td>You, at the Mac</td><td>In the README</td></tr>
+              <tr><td class="name">Hands-on list</td><td>What only a person can confirm: real hover, real sound, real panels, dragging out of Overflow</td><td class="name">16 checks</td><td>You, at the Mac</td><td>In the README</td></tr>
             </tbody>
           </table>
         </div>
@@ -839,7 +839,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
         </figure>
         <p>The two harness commits in mid-afternoon are there because the first scripted runs took the keyboard and the pointer from the person at the Mac. They moved the runs into the background and then made them fully headless, and the harness has failed any run that comes to the front ever since.</p>
         <p>A second pass followed on 12 October, after the app had been used for real, and is not on the chart. It changed who the arrow keys belong to (a click on an underlined word no longer takes them away), seated the dots on the display's own pixels so that they can be seen on a 1x display, put the caret in the text from the moment a window opens and kept it out of the page's faded edges, and made a keystroke in a long piece cost about a third of what it did. An independent pass through the clips then found a dozen behaviours that differed from the original: undo around alternatives, where the caret goes when a word is flipped, trim levels that are kept, and several smaller ones. The measurements behind the speed work are in <code>tests/perf</code> and the README's section on speed.</p>
-        <p>Readying the repository to be published, on 12 and 13 October, is not on the chart either. Besides the licence and the documents a stranger needs, it let the AI client ask services other than LunaRoute properly: names of the app's own for the key, the address and the model in the environment, a service asked without a key, and the two parts of a request that OpenAI's service refuses asked for again in its way. It made three rules about where a key may go: one under LunaRoute's name goes to LunaRoute only, plain http goes no further than the Mac's own network, and a request is never sent on to where an answer points. And it shut scripted runs in. One scenario had been putting its last question, with a made-up key, to LunaRoute's real address; a scripted run is now given nothing of the tester's own settings, and its client asks nothing that is not on this Mac.</p>
+        <p>Readying the repository to be published, on 12 and 13 October, is not on the chart either. Besides the licence and the documents a stranger needs, it let the AI client ask services other than LunaRoute properly: names of the app's own for the key, the address and the model in the environment, a service asked without a key, and the two parts of a request that OpenAI's service refuses asked for again in its way. It taught it Anthropic's way of speaking beside OpenAI's, and to ask again with more room when a model's thinking uses its room up. It made three rules about where a key may go: one under LunaRoute's name goes to LunaRoute only, plain http goes no further than the Mac's own network, and a request is never sent on to where an answer points. And it shut scripted runs in. One scenario had been putting its last question, with a made-up key, to LunaRoute's real address; a scripted run is now given nothing of the tester's own settings, and its client asks nothing that is not on this Mac.</p>
         <details>
           <summary>All 32 commits</summary>
           <div class="scroll">
@@ -887,7 +887,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <div>
             <dt>Tests run inside the real app</dt>
             <dd><b>Buys</b>Scenarios exercise the same WebKit, the same bridge and the same shell code you run.</dd>
-            <dd><b>Costs</b>The harness is 997 of the shell's 3,462 lines and is compiled into the app. It does nothing unless the app is started with <code>--ui-test</code>.</dd>
+            <dd><b>Costs</b>The harness is 1,006 of the shell's 3,817 lines and is compiled into the app. It does nothing unless the app is started with <code>--ui-test</code>.</dd>
           </div>
           <div>
             <dt>Accuracy over speed in the Lab</dt>
@@ -921,7 +921,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
 
       <section id="map">
         <h2>Code map</h2>
-        <p>The line counts are from the first build. The second pass grew some of these files a little and added three things that are not in the table: <code>web/src/features/reach.js</code> (a press beside or below the text lands in the text), <code>tests/perf/</code> (the measurements) and <code>scripts/bench.sh</code> (which runs them). Readying the repository grew <code>AIClient.swift</code> by about two hundred lines and added two scripts: <code>scripts/screenshots.sh</code> (the README's pictures) and <code>scripts/check-secrets.sh</code> (which looks for keys in the repository and its history).</p>
+        <p>The line counts are from the first build. The second pass grew some of these files a little and added three things that are not in the table: <code>web/src/features/reach.js</code> (a press beside or below the text lands in the text), <code>tests/perf/</code> (the measurements) and <code>scripts/bench.sh</code> (which runs them). Readying the repository grew <code>AIClient.swift</code> by about two hundred lines, added <code>AIWire.swift</code> (the two ways a service is spoken to), a scenario for the second of them (<code>tests/ui/ai-anthropic.js</code>) and two scripts: <code>scripts/screenshots.sh</code> (the README's pictures) and <code>scripts/check-secrets.sh</code> (which looks for keys in the repository and its history).</p>
         <div class="scroll wide">
           <table>
             <thead><tr><th>File</th><th class="num">Lines</th><th>What it does</th></tr></thead>
@@ -933,10 +933,10 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>Bridge.swift</code></td><td class="num">87</td><td>Messages between page and shell: handlers, <code>emit</code>, <code>ask</code>.</td></tr>
               <tr><td class="name"><code>AssetSchemeHandler.swift</code></td><td class="num">73</td><td>Serves the page at <code>writeon://app/</code>. Nothing outside the web root is readable.</td></tr>
               <tr><td class="name"><code>FileStore.swift</code></td><td class="num">227</td><td>Reading and writing documents, recent documents, drafts, and the panels and alerts.</td></tr>
-              <tr><td class="name"><code>AIClient.swift</code></td><td class="num">281</td><td>Chat completions with streaming and cancellation. Turns every failure into one readable line.</td></tr>
+              <tr><td class="name"><code>AIClient.swift</code></td><td class="num">281</td><td>Asks the AI service: streaming, cancellation, asking again. Turns every failure into one readable line.</td></tr>
               <tr><td class="name"><code>Credentials.swift</code></td><td class="num">150</td><td>Finds the key: Keychain, environment, login shell.</td></tr>
               <tr><td class="name"><code>AppSettings.swift</code></td><td class="num">85</td><td>What the app remembers, in UserDefaults or, for a scripted run, in memory.</td></tr>
-              <tr><td class="name"><code>SettingsWindowController.swift</code></td><td class="num">209</td><td>The Settings window: key, address, model, Test connection, sound.</td></tr>
+              <tr><td class="name"><code>SettingsWindowController.swift</code></td><td class="num">209</td><td>The Settings window: key, address, format, model, Test connection, sound.</td></tr>
               <tr><td class="name"><code>MainMenu.swift</code></td><td class="num">177</td><td>The menu bar.</td></tr>
               <tr><td class="name"><code>UITestHarness.swift</code></td><td class="num">881</td><td>Scripted runs: options, native input, snapshots, the guards, scripted answers.</td></tr>
 

@@ -74,10 +74,13 @@ final class Credentials {
         let source: Source
     }
 
-    /// What the environment may call each thing: the app's own name, then LunaRoute's.
+    /// What the environment may call each thing: the app's own name, then LunaRoute's
+    /// where it had one.
     static let keyNames = ["WRITEON_API_KEY", "LUNAROUTE_API_KEY"]
     static let addressNames = ["WRITEON_BASE_URL", "LUNAROUTE_BASE_URL"]
     static let modelNames = ["WRITEON_MODEL"]
+    /// Which way the service is spoken to: "openai" or "anthropic" (see `AIWire`).
+    static let formatNames = ["WRITEON_API_FORMAT"]
 
     private let saved: SecretStore
     /// The app's own environment. (A scripted run may change it, to see what follows.)
@@ -120,6 +123,11 @@ final class Credentials {
     /// The model to ask, if the environment or the login shell names one.
     func model() -> String? {
         first(Self.modelNames, in: environment) ?? first(Self.modelNames, in: shell())
+    }
+
+    /// The way the service is spoken to, if the environment or the login shell says.
+    func format() -> String? {
+        first(Self.formatNames, in: environment) ?? first(Self.formatNames, in: shell())
     }
 
     /// Saves a key typed into Settings, or with nil forgets the one saved there.
@@ -165,7 +173,7 @@ enum LoginShell {
     ///   - environment: what it is given to start from; nil gives it the app's own.
     static func read(from shell: String, started: [String], environment: [String: String]?) -> [String: String] {
         // LunaRoute's names first, as they were asked for when they were the only ones.
-        let names = [Credentials.keyNames[1], Credentials.addressNames[1], Credentials.keyNames[0], Credentials.addressNames[0]] + Credentials.modelNames
+        let names = [Credentials.keyNames[1], Credentials.addressNames[1], Credentials.keyNames[0], Credentials.addressNames[0]] + Credentials.modelNames + Credentials.formatNames
         let process = Process()
         process.executableURL = URL(fileURLWithPath: shell)
         if let environment { process.environment = environment }

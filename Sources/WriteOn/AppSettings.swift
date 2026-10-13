@@ -12,6 +12,7 @@ final class AppSettings {
     private static let welcomedKey = "welcomed"
     private static let addressKey = "ai.address"
     private static let modelKey = "ai.model"
+    private static let formatKey = "ai.format"
     private let defaults: UserDefaults?
     private var memory: [String: Any]
     private var welcomedInMemory: Bool
@@ -54,6 +55,12 @@ final class AppSettings {
     var aiModel: String? {
         get { text(Self.modelKey) }
         set { setText(newValue, Self.modelKey) }
+    }
+
+    /// The way the AI service is spoken to ("openai" or "anthropic"), if Settings says.
+    var aiFormat: String? {
+        get { text(Self.formatKey) }
+        set { setText(newValue, Self.formatKey) }
     }
 
     private func text(_ key: String) -> String? {

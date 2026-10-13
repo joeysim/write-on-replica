@@ -760,8 +760,9 @@ Write_On.app
 │   ├── DocumentWindow one per document: window, web view, file URL, dirty flag
 │   ├── Bridge         typed request/reply and events between page and shell
 │   ├── Files          open/save panels, reading and writing, recents, crash snapshots
-│   ├── AIClient       chat completions (LunaRoute, or the service named), streaming, cancellation
-│   ├── Credentials    the key, the address and the model: where each is found
+│   ├── AIClient       asks LunaRoute, or the service named: streaming, cancellation, asking again
+│   ├── AIWire         the two ways a service is spoken to: OpenAI's chat completions, Anthropic's messages
+│   ├── Credentials    the key, the address, the format and the model: where each is found
 │   ├── Assets         serves the bundled page on a private URL scheme
 │   └── UITestHarness  runs a scripted scenario and writes snapshots (only when launched with --ui-test)
 └── Page (plain ES modules, no build step, no dependencies)
@@ -822,14 +823,15 @@ live gateway on 2026-10-11:
 - Lab passes stay at `low`. Live, a slight trim cut 8–11% of the 164-word welcome piece
   in 9–17 s, and 8–10% of a 570-word piece in 16–50 s, every cut a clean deletion. (A day later
   the welcome piece, by then 170 words, took 22 s for the same trim and lost 9%; and on
-  the day after that between 9 and 38 s in four askings, losing 9 to 11%, with the next
-  level read in 36 to 43 s, and once not read at all. The time is the model's thinking,
-  and it varies that much.) That
+  the day after that between 9 and 67 s in seven askings, losing 9 to 11%, with the next
+  level read in 36 to 101 s, and once not read at all. The time is the model's
+  thinking, and it varies that much, by the hour as much as by the asking.) That
   is slow beside the original, and it is the thinking: asked by proportion instead of
   by word count the model answered in 5 s and cut 2–4%, and with thinking switched off
   it cut nothing. Accuracy was chosen over speed. While it thinks the stream keeps
-  coming (the longest silence measured was 1.4 s), so the 20 s limit is on silence, not
-  on the answer.
+  coming (the longest silence measured was 1.4 s), so the limit is on silence, not on
+  the answer. The limit was 20 s until 13 October, when at a busy hour the same stream
+  fell silent for 9 s, and for 18.5 s asked Anthropic's way (below). It is now 60 s.
 
 **Key lookup**, in order: a key saved in the Keychain from Settings; the app's own
 environment; the user's login shell, read once (apps launched from Finder do not inherit
@@ -850,20 +852,71 @@ nobody answers at: a public name and a public address were refused, the local ki
 were tried), but the rule is the app's own, so it does not depend on the version of
 macOS.
 
+**Two ways of speaking.** A service is spoken to in one of two ways. OpenAI's chat
+completions (`POST …/chat/completions`, the key as a bearer token) is what LunaRoute
+is asked in and what most services and gateways speak. Anthropic's messages
+(`POST …/v1/messages`, the key in `x-api-key`, `anthropic-version: 2023-06-01`) was
+added on 13 October. The page knows nothing of the difference: it asks in its own
+terms (`ai.start`), and the shell words the request and reads the answer.
+
+Which way: as Settings says (Format); else as `WRITEON_API_FORMAT` says (`openai` or
+`anthropic`); else as the address is taken to say: Anthropic's way for an address at
+`anthropic.com` or one that ends `/messages`, OpenAI's for one that ends
+`/chat/completions` and for everything else. A gateway that speaks both has to be told.
+
+Anthropic's way, a request differs in these respects. The system messages are gathered
+into one `system` prompt, apart from the messages. `max_tokens` is always sent (4,096
+if the page gave none). The effort goes in `output_config.effort` and a Lab pass's
+schema in `output_config.format`. The answer is read from `text_delta` events; thinking,
+pings and events of any kind not known are passed over; `stop_reason: max_tokens` is
+the model run out of room, `refusal` and `model_context_window_exceeded` are failures
+with a line of their own, and `message_stop` is the end. An address is taken as
+Anthropic's own is given, stopping short of `/v1`, though one that has the `/v1` is
+taken too.
+
+A Lab pass spoken this way also asks for the shape of its answer in words, at the end
+of the system prompt, with the schema to go by. Tried against LunaRoute on 13 October,
+`output_config.format` was not held to: without the words a marking pass came back as
+prose. With them it came back as the JSON asked for, and the page's reading of an
+answer already allowed for a code fence or a stray sentence round it. (OpenAI's way the
+prompts are as they were, since there the schema is held to.)
+
+LunaRoute's endpoint for this way also took no notice of `output_config.effort`: a
+slight trim of the welcome piece then thought for a minute and ran out of room. It
+does take the effort under OpenAI's name, `reasoning_effort`, which Anthropic's own
+service would refuse as a field it has not heard of. So to LunaRoute, and only to
+LunaRoute (its own domain, or the address `LUNAROUTE_BASE_URL` gives), the effort is
+given under both names. Live that way on 13 October, in six runs: five words in 1.5
+to 3.6 s, three versions of a sentence in 1.4 to 2.0 s, a slight trim in 20 to 49 s
+(7% to 12% cut), the next level in 36 s to two minutes (once it ran out of room, before
+the app asked again with more), four hedges marked in 14 to 24 s, two planted slips
+found in 4 to 9 s. Over a trim the model thinks about twice as long as when asked OpenAI's way, where
+the schema is held to.
+
+Anthropic's own service has not been asked. What is said of it here is from its
+documentation, and the stand-in the tests use refuses what that documentation says it
+refuses: a request with no version header, with no `max_tokens`, or with a system
+message among the messages. How the real service words its refusal of an effort or a
+schema has not been seen: the asking again (below) goes by the names of those fields
+in whatever it says.
+
 **Another service.** The app asks whatever address it is given, for whatever model, with
 whatever key it finds. None of what follows is in the clips; it is what makes a service
 other than the usual one work in practice.
 
-- *The address* is a base address, and `chat/completions` is added to it. One that ends
-  that way already is used as it stands.
+- *The address* is a base address, and the rest of where requests go is added to it:
+  `chat/completions` OpenAI's way, `v1/messages` Anthropic's. One that ends that way
+  already is used as it stands. One that ends as the other way's requests do, the
+  format having been changed since it was typed, is taken back to the base first.
 - *No key.* A service named in place of the usual one is asked without a key when none
   is found, since a model served on the same Mac wants none. If it answers 401 or 403
   the line says that the service wants a key. Only the usual service is never asked
   without one: there the line is the one in §8 and nothing is sent.
-- *Parts of a request a service refuses.* Every request carries `max_tokens` and
-  `reasoning_effort`. OpenAI's own service refuses the first from its models that
-  reason, which want `max_completion_tokens`, and the second from its models that do
-  not. When a refusal (400 or 422) names the effort, the app asks again without it.
+- *Parts of a request a service refuses.* OpenAI's way, every request carries
+  `max_tokens` and `reasoning_effort`. OpenAI's own service refuses the first from its
+  models that reason, which want `max_completion_tokens`, and the second from its
+  models that do not. When a refusal (400 or 422) names the effort, the app asks again
+  without it.
   When one names `max_tokens` and says it does not know or take it, or gives the other
   name, the app asks again under the other name. (A refusal that names it for another
   reason, more room being asked for than the model can give, is passed on as it came:
@@ -871,8 +924,22 @@ other than the usual one work in practice.
   asks that way first, for that address and model, until it is quit. If that way is
   then refused, what was learnt is forgotten and the request is asked once more as the
   app words it: the same name may have come to mean another model. The last refusal is
-  the one shown. The JSON schema a Lab pass carries has no such fallback, because
-  without it the answers could not be read (above).
+  the one shown. OpenAI's way, the JSON schema a Lab pass carries has no such
+  fallback, because without it the answers could not be read (above). Anthropic's way
+  there is more that may be refused, and all of it can be done without: the effort, the
+  schema (the shape is asked for in words as well), `output_config` as a whole by a
+  service that has not heard of it, and LunaRoute's name for the effort by one that
+  takes nothing it does not know. A refusal is taken to be of a part only if it names
+  the part as a word of its own: "best-effort" and "information" name nothing.
+- *Room.* What a model thinks is counted against the room it is given, and a model may
+  think more than the page allowed for: asked Anthropic's way through LunaRoute, the
+  second trim level ran out. An answer cut off before a word of it has come is asked
+  for again with twice the room, twice at most and never more than 32,000. If the
+  service refuses the wider room, the line is the one for running out of room, since
+  that is what happened. Nothing of this is kept for the next request: what one request
+  needed says little about another of a different size, and a model refuses more room
+  than it can give. An answer cut off after it has begun is not asked for again: what
+  came of it is with the page already.
 - *Which key goes where.* The key that is found goes to the address in force, with one
   exception. A key under LunaRoute's name is LunaRoute's: it is sent to LunaRoute's own
   domain, or to the address `LUNAROUTE_BASE_URL` gives, where it comes before the app's
@@ -882,18 +949,20 @@ other than the usual one work in practice.
   address is there.
 - *Nowhere else.* A request is not sent on to wherever an answer says the service has
   moved (a 307, say): the person's words go to the address they named. The line says so.
-- *What a service still has to do.* Take the key as a bearer token; begin its answer
-  within the 20 s the app allows a silence, and not fall silent for longer; give a trim
-  the room it asks for (up to 32,000 tokens); and, for the Lab, hold an answer to a
-  schema.
+- *What a service still has to do.* Take the key the way its format carries it; begin
+  its answer within the minute the app allows a silence, and not fall silent for
+  longer; give a trim the room it asks for (up to 32,000 tokens); and, for the Lab
+  spoken to OpenAI's way, hold an answer to a schema.
 
 Only LunaRoute and `glm-5.3-flash` have been asked for real. The rest is tested against
 a stand-in that answers and refuses as those services are documented to (§10).
 
-**Settings window** (⌘,): API key, address, model, a "Test connection" button, and the
-sound toggle. Nothing else. A key typed in is saved to the Keychain and the field
-emptied; a line under it says where the key in use comes from ("saved here", "from the
-app's environment", "from your login shell") and offers to remove a saved one. While
+**Settings window** (⌘,): API key, address, format, model, a "Test connection" button,
+and the sound toggle. Nothing else. Format is a choice of three: Automatic, which says
+which way it comes to ("Automatic: OpenAI-style"), OpenAI-style and Anthropic-style. A
+key typed in is saved to the Keychain and the field emptied; a line under it says where
+the key in use comes from ("saved here", "from the app's environment", "from your login
+shell") and offers to remove a saved one. While
 they are empty the address and model fields show the ones in force: the environment's,
 or the usual ones. Test connection asks a one-word question and answers in a line:
 "Connected: glm-5.3-flash answered in 0.6 s, with the key from your login shell." (or
@@ -906,7 +975,7 @@ sound toggle reaches every open window at once.
 | Situation | Behaviour |
 | --- | --- |
 | No API key, and the service is the usual one | AI commands show one line in place: "No API key — add one in Settings (⌘,)". Nothing is sent and nothing else is blocked. (Another service is asked without a key, §7.1.) |
-| Network or gateway error, timeout (20 s of silence) | The pending animation stops, a one-line reason shows for a few seconds, the document is untouched. The lines: "The key was not accepted (401). Check it in Settings (⌘,)."; "This service wants a key (401). Add one in Settings (⌘,)." when none was sent; "Only an address on this Mac or its own network may be plain http. Use https."; "The address in Settings (⌘,) sends requests on elsewhere (307), and they are not followed."; "Too many requests, or out of quota (429). Try again in a moment."; "The AI service had a problem (503). Try again in a moment."; "The request was refused (400): …" with the service's own first line; "Could not reach the AI service. Check the network, and the address in Settings (⌘,)."; "The connection was lost before the answer was complete."; "The AI took too long to answer."; "The AI ran out of room before it finished its answer. Try again." A key the service quotes back is taken out before the line is shown. |
+| Network or gateway error, timeout (60 s of silence) | The pending animation stops, a one-line reason shows for a few seconds, the document is untouched. The lines: "The key was not accepted (401). Check it in Settings (⌘,)."; "This service wants a key (401). Add one in Settings (⌘,)." when none was sent; "Only an address on this Mac or its own network may be plain http. Use https."; "The address in Settings (⌘,) sends requests on elsewhere (307), and they are not followed."; "Too many requests, or out of quota (429). Try again in a moment."; "The AI service had a problem (503). Try again in a moment."; "The request was refused (400): …" with the service's own first line; "Could not reach the AI service. Check the network, and the address in Settings (⌘,)."; "The connection was lost before the answer was complete."; "The AI took too long to answer."; "The AI ran out of room before it finished its answer. Try again." A key the service quotes back is taken out before the line is shown. |
 | AI returns text it was not asked for | Lines that are empty, duplicate an existing variant, or (for Lab) do not occur verbatim in the document are discarded. If nothing usable remains it is treated as an error. |
 | File cannot be read or written | A standard alert with the system's reason. The document stays open and unsaved. |
 | File has a damaged metadata comment | Opens as plain Markdown; a one-line note says the alternatives could not be read. The file is not modified until the user saves. |
@@ -936,7 +1005,7 @@ go another way.
 | 15 | Heading entry | Typing `# ` converts the line; the marker is hidden. Only the hidden marker is observed. |
 | 16 | Spelling, autocorrect, smart quotes | Off by default. |
 | 17 | Several windows | ⌘N opens another window; each window is one document. The original shows one. |
-| 18 | Settings window | Exists only for the AI service's key, address and model, and for sound. |
+| 18 | Settings window | Exists only for the AI service's key, address, format and model, and for sound. |
 | 19 | Sample document | An original short piece that carries one group of each scope, a ghost run and some overflow, and tells the reader to click the word count. |
 | 20 | App identity | Display name "Write_On"; bundle id `com.thesimhons.writeon`. |
 | 21 | Ghost text in the saved Markdown | Written as ordinary text; the ghost marking lives only in the metadata. |
@@ -1003,9 +1072,11 @@ go another way.
 4. **Live AI smoke test** against LunaRoute for alternatives at each scope and for one
    trim, plus the same flows against a canned provider so tests run without a network.
    The client itself is tested over HTTP against a stand-in gateway on the same Mac,
-   which also plays another service: one at a second address, one that wants no key,
-   one that refuses parts of a request as OpenAI's does, one that changes its ways, and
-   one that says it has moved. A scripted run that is not the live one cannot ask
+   which speaks both ways and also plays another service: one at a second address, one
+   that wants no key, one that refuses parts of a request as OpenAI's does or as
+   Anthropic's is expected to, one that changes its ways, one that runs out of room
+   thinking, one that may give no more room, and one that says it has moved. The live
+   test is run both ways against LunaRoute. A scripted run that is not the live one cannot ask
    anything else: it is given nothing of what the tester's shell says about the AI
    service, and its client refuses every address that is not on this Mac.
 5. **Measurements.** `scripts/bench.sh` runs the scenarios in `tests/perf` the same way,

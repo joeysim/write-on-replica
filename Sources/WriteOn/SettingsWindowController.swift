@@ -1,8 +1,8 @@
 import AppKit
 
-/// The Settings window (design spec 7.1): the key for the AI service, its address and the
-/// model to ask, a button that tries the three together, and whether the app makes sounds.
-/// Nothing else. What is changed here is used from the next request on.
+/// The Settings window (design spec 7.1): the key for the AI service, its address, the way
+/// it is spoken to and the model to ask, a button that tries them together, and whether the
+/// app makes sounds. Nothing else. What is changed here is used from the next request on.
 final class SettingsWindowController: NSObject, NSTextFieldDelegate {
     private let settings: AppSettings
     private let credentials: Credentials
@@ -15,6 +15,9 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
     let keyNote = NSTextField(wrappingLabelWithString: "")
     let forgetButton = NSButton(title: "Remove the saved key", target: nil, action: nil)
     let addressField = NSTextField()
+    /// The way the service is spoken to. The first choice leaves it to the address (or the
+    /// environment), and says which way that comes to.
+    let formatPopup = NSPopUpButton()
     let modelField = NSTextField()
     let testButton = NSButton(title: "Test connection", target: nil, action: nil)
     let testNote = NSTextField(wrappingLabelWithString: "")
@@ -36,9 +39,14 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
         keyField.placeholderString = "Paste a key to save it in your keychain"
         addressField.placeholderString = AIClient.defaultAddress
         modelField.placeholderString = AIClient.defaultModel
+        formatPopup.addItem(withTitle: "Automatic")
+        for wire in AIWire.allCases {
+            formatPopup.addItem(withTitle: wire.title)
+            formatPopup.lastItem?.representedObject = wire.rawValue
+        }
         for (control, action) in [
             (keyField as NSControl, #selector(saveKey(_:))), (forgetButton, #selector(forgetKey(_:))),
-            (addressField, #selector(saveAddress(_:))), (modelField, #selector(saveModel(_:))),
+            (addressField, #selector(saveAddress(_:))), (formatPopup, #selector(saveFormat(_:))), (modelField, #selector(saveModel(_:))),
             (testButton, #selector(test(_:))), (soundBox, #selector(saveSound(_:))),
         ] {
             control.target = self
@@ -84,14 +92,17 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
     func refresh() {
         addressField.stringValue = settings.aiAddress ?? ""
         modelField.stringValue = settings.aiModel ?? ""
+        let chosen = AIWire(named: settings.aiFormat)
+        formatPopup.selectItem(at: chosen.flatMap { formatPopup.indexOfItem(withRepresentedObject: $0.rawValue) } ?? 0)
         soundBox.state = (settings.interface["sound"] as? Bool ?? true) ? .on : .off
         showKey()
     }
 
-    /// Where the key comes from, and in the two fields below it, while they are empty, the
-    /// address and the model in force: the environment's if it names any, else the usual
-    /// ones. Looked up off the main thread: the first time, that can mean asking the login
-    /// shell.
+    /// Where the key comes from, and what is in force where Settings itself says nothing:
+    /// in the address and model fields, while they are empty, the environment's if it
+    /// names any, else the usual ones; and beside "Automatic", the way the service is then
+    /// spoken to. Looked up off the main thread: the first time, that can mean asking the
+    /// login shell.
     private func showKey() {
         let credentials = credentials
         let chosen = settings.aiAddress
@@ -102,8 +113,9 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
             let address = credentials.address() ?? AIClient.defaultAddress
             let model = credentials.model() ?? AIClient.defaultModel
             // Which key goes depends on where: one under LunaRoute's name is LunaRoute's.
-            let found = AIClient.endpoint(chosen ?? address).map { AIClient.key(for: $0, from: credentials) }
+            let found = AIWire.web(chosen ?? address).map { AIClient.key(for: $0, from: credentials) }
             let source = found?.key?.source
+            let taken = AIClient.wire(for: chosen ?? address, chosen: nil, from: credentials)
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.pending -= 1
@@ -118,6 +130,7 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
                 self.forgetButton.isHidden = source != .settings
                 self.addressField.placeholderString = address
                 self.modelField.placeholderString = model
+                self.formatPopup.item(at: 0)?.title = "Automatic: \(taken.title)"
             }
         }
     }
@@ -145,6 +158,10 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
         showKey()
     }
 
+    @objc func saveFormat(_ sender: Any?) {
+        settings.aiFormat = formatPopup.selectedItem?.representedObject as? String
+    }
+
     @objc func saveModel(_ sender: Any?) {
         settings.aiModel = modelField.stringValue
         modelField.stringValue = settings.aiModel ?? ""
@@ -160,6 +177,7 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
         // Whatever is in the fields is what gets tried, as if Return had been pressed in each.
         saveKey(nil)
         saveAddress(nil)
+        saveFormat(nil)
         saveModel(nil)
         testButton.isEnabled = false
         testNote.stringValue = "Asking…"
@@ -198,6 +216,7 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
             [label("API key"), keyField],
             [NSGridCell.emptyContentView, keyRow],
             [label("Address"), addressField],
+            [label("Format"), formatPopup],
             [label("Model"), modelField],
             [NSGridCell.emptyContentView, testRow],
             [NSGridCell.emptyContentView, testNote],
@@ -207,7 +226,7 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
         grid.columnSpacing = 10
         grid.column(at: 0).xPlacement = .trailing
         grid.rowAlignment = .firstBaseline
-        grid.row(at: 6).topPadding = 12
+        grid.row(at: 7).topPadding = 12
         grid.translatesAutoresizingMaskIntoConstraints = false
         for field in [keyField, addressField, modelField] { field.widthAnchor.constraint(equalToConstant: 340).isActive = true }
         keyNote.preferredMaxLayoutWidth = 340

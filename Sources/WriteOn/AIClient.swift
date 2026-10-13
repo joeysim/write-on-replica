@@ -1,9 +1,10 @@
 import Foundation
 
 /// Asks the AI service on the page's behalf (design spec 7 and 7.1). The service is
-/// LunaRoute unless Settings or the environment names another: anything that takes
-/// OpenAI-style chat completions and streams the answer as server-sent events. The key
-/// stays on this side: the page sends a request and is sent back text.
+/// LunaRoute unless Settings or the environment names another: anything that speaks
+/// OpenAI's chat completions or Anthropic's messages (`AIWire`) and streams the answer as
+/// server-sent events. The key stays on this side: the page sends a request and is sent
+/// back text.
 ///
 ///     page  -> shell   ai.start  { id, messages, maxTokens, effort, schema? }
 ///     shell -> page    ai.delta  { id, text }      as the answer streams
@@ -16,6 +17,8 @@ final class AIClient {
     static let noKey = "No API key — add one in Settings (⌘,)"
     static let offLimits = "A scripted run asks only a service on this Mac."
     static let inTheClear = "Only an address on this Mac or its own network may be plain http. Use https."
+    /// The most room a request is ever given (the page asks for no more than this either).
+    static let mostRoom = 32000
 
     typealias Emit = (_ event: String, _ payload: [String: Any]) -> Void
 
@@ -33,7 +36,7 @@ final class AIClient {
     ///   - idle: how long a stream may say nothing before it is given up on.
     ///   - localOnly: ask nothing that is not on this Mac. A scripted run is held to that
     ///     unless it is a live one, so that no scenario reaches a real service by accident.
-    init(credentials: Credentials, settings: AppSettings, idle: TimeInterval = 20, localOnly: Bool = false) {
+    init(credentials: Credentials, settings: AppSettings, idle: TimeInterval = 60, localOnly: Bool = false) {
         self.credentials = credentials
         self.settings = settings
         self.localOnly = localOnly
@@ -52,19 +55,14 @@ final class AIClient {
             throw Bridge.Failure("ai.start needs an id and messages")
         }
         let name = "\(owner)/\(id)"
-        var body: [String: Any] = ["messages": messages, "stream": true]
-        if let most = params["maxTokens"] as? NSNumber { body["max_tokens"] = most.intValue }
-        if let effort = params["effort"] as? String { body["reasoning_effort"] = effort }
-        if let schema = params["schema"] as? [String: Any] {
-            body["response_format"] = ["type": "json_schema", "json_schema": ["name": "answer", "strict": true, "schema": schema] as [String: Any]] as [String: Any]
-        }
-        let chosen = Chosen(address: settings.aiAddress, model: settings.aiModel)
+        let asked = AIWire.Asked(messages: messages, maxTokens: (params["maxTokens"] as? NSNumber)?.intValue, effort: params["effort"] as? String, schema: params["schema"] as? [String: Any])
+        let chosen = chosen()
         running[name]?.cancel()
         running[name] = Task { @MainActor [weak self] in
             guard let self else { return }
             var reason: String?
             do {
-                try await self.ask(body, chosen) { text in emit("ai.delta", ["id": id, "text": text]) }
+                try await self.ask(asked, chosen) { text in emit("ai.delta", ["id": id, "text": text]) }
             } catch {
                 reason = Self.reason(for: error)
             }
@@ -93,19 +91,16 @@ final class AIClient {
     /// Asks a very short question, to see that the address, the key and the model all work.
     /// Reports in one line, on the main thread.
     func test(then report: @escaping (String) -> Void) {
-        let chosen = Chosen(address: settings.aiAddress, model: settings.aiModel)
+        let chosen = chosen()
         Task { @MainActor [weak self] in
             guard let self else { return }
             let began = Date()
-            let body: [String: Any] = [
-                "messages": [["role": "user", "content": "Reply with the single word: ok"]],
-                // Room for far more than a word: the model may think first, and what it
-                // thinks is counted too. With room for one word it sometimes ran out.
-                "stream": true, "max_tokens": 1024, "reasoning_effort": "low",
-            ]
+            // Room for far more than a word: the model may think first, and what it thinks
+            // is counted too. With room for one word it sometimes ran out.
+            let asked = AIWire.Asked(messages: [["role": "user", "content": "Reply with the single word: ok"]], maxTokens: 1024, effort: "low", schema: nil)
             do {
                 var said = ""
-                let access = try await self.ask(body, chosen) { text in said += text }
+                let access = try await self.ask(asked, chosen) { text in said += text }
                 // An answer with nothing in it is what a model that is not there, or cannot
                 // speak, tends to give.
                 guard !said.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
@@ -134,14 +129,23 @@ final class AIClient {
     private struct Chosen {
         let address: String?
         let model: String?
+        let wire: AIWire?
+    }
+
+    private func chosen() -> Chosen {
+        Chosen(address: settings.aiAddress, model: settings.aiModel, wire: AIWire(named: settings.aiFormat))
     }
 
     private struct Access {
         /// The key to send, and where it was found. None: the service is asked without one.
         let key: Credentials.Key?
-        /// Where the requests go: the address, with `chat/completions` after it.
+        /// The way the service is spoken to.
+        let wire: AIWire
+        /// Where the requests go.
         let endpoint: URL
         let model: String
+        /// Whether the service is LunaRoute, which has ways of its own.
+        let lunaRoutes: Bool
         /// What one service's ways are kept under: they differ by address and by model.
         var service: String { "\(endpoint.absoluteString) \(model)" }
     }
@@ -157,50 +161,20 @@ final class AIClient {
         let keyed: Bool
     }
 
-    /// A part of a request that not every service takes as the app words it (spec 7.1).
-    private enum Part: String, CaseIterable {
-        /// The most that may come back. OpenAI's models that reason want it called
-        /// `max_completion_tokens`; most other services know it only as `max_tokens`.
-        case room = "max_tokens"
-        /// How hard to think. A model that does not reason refuses to be told.
-        case effort = "reasoning_effort"
-
-        /// Whether `refusal` is of this part: the request had it, and the refusal names it
-        /// as something the service will not take. A refusal may name the room for another
-        /// reason (more was asked for than the model can write), which another name for it
-        /// would not cure; so for the room the refusal must also say that it does not know
-        /// the name, or give the other one.
-        func isRefused(by refusal: Refusal, of body: [String: Any]) -> Bool {
-            guard [400, 422].contains(refusal.status), body[rawValue] != nil, refusal.whole.contains(rawValue) else { return false }
-            switch self {
-            case .effort: return true
-            case .room: return refusal.whole.range(of: "max_completion_tokens|unsupported|not supported|unknown|unrecogni[sz]ed|unexpected|not permitted|not allowed", options: [.regularExpression, .caseInsensitive]) != nil
-            }
-        }
-
-        /// Words the request the way a service that refuses this part wants it.
-        func fit(_ body: inout [String: Any]) {
-            switch self {
-            case .room: if let most = body.removeValue(forKey: rawValue) { body["max_completion_tokens"] = most }
-            case .effort: body.removeValue(forKey: rawValue)
-            }
-        }
-    }
-
-    /// What each service has been found to want, for as long as the app runs. Requests
-    /// are sent from more than one thread.
+    /// The parts of a request each service has been found not to take as the app words
+    /// them, for as long as the app runs. Requests are sent from more than one thread.
     private final class Ways {
-        private var found: [String: Set<Part>] = [:]
+        private var found: [String: Set<AIWire.Part>] = [:]
         private let lock = NSLock()
 
-        func known(for service: String) -> Set<Part> {
+        func known(for service: String) -> Set<AIWire.Part> {
             lock.lock()
             defer { lock.unlock() }
             return found[service] ?? []
         }
 
         /// What was found this time is what is known from now on.
-        func learn(_ parts: Set<Part>, for service: String) {
+        func learn(_ parts: Set<AIWire.Part>, for service: String) {
             lock.lock()
             defer { lock.unlock() }
             found[service] = parts.isEmpty ? nil : parts
@@ -236,29 +210,25 @@ final class AIClient {
         let localOnly = localOnly
         return try await Task.detached(priority: .userInitiated) {
             let address = chosen.address ?? credentials.address() ?? Self.defaultAddress
-            guard let endpoint = Self.endpoint(address) else { throw Failure.notAnAddress }
+            let wire = Self.wire(for: address, chosen: chosen.wire, from: credentials)
+            guard let endpoint = wire.endpoint(address) else { throw Failure.notAnAddress }
             // macOS refuses an app plain http to anywhere but its own network. The app
             // does not leave that to the system: a key is not to cross in the clear.
             if endpoint.scheme?.lowercased() == "http", !Self.isNearby(endpoint) { throw Failure.inTheClear }
-            let key = Self.key(for: endpoint, from: credentials).key
+            let lunaRoutes = Self.isLunaRoute(endpoint, said: credentials.lunaRouteAddress())
+            let key = credentials.key(lunaRoutes: lunaRoutes)
             // The usual service takes nothing without a key, so nothing is sent it. One
             // named in its place may be a model served on this Mac, which wants none.
             if key == nil, Self.isUsual(endpoint) { throw Failure.noKey }
             if localOnly, !Self.isOnThisMac(endpoint) { throw Failure.offLimits }
-            return Access(key: key, endpoint: endpoint, model: chosen.model ?? credentials.model() ?? Self.defaultModel)
+            return Access(key: key, wire: wire, endpoint: endpoint, model: chosen.model ?? credentials.model() ?? Self.defaultModel, lunaRoutes: lunaRoutes)
         }.value
     }
 
-    /// Where requests to the service at `address` go: `chat/completions` after it, unless
-    /// that is how it ends already. Nil if it is not a web address.
-    static func endpoint(_ address: String) -> URL? {
-        guard let url = URL(string: address), let scheme = url.scheme?.lowercased(), ["https", "http"].contains(scheme), url.host != nil else { return nil }
-        // (A URL's path is given without any slash that ends it.)
-        guard url.path.hasSuffix("/chat/completions") else { return url.appendingPathComponent("chat/completions") }
-        // The whole of it already. A slash left after it would make another address of it.
-        guard var parts = URLComponents(url: url, resolvingAgainstBaseURL: false), parts.percentEncodedPath.hasSuffix("/") else { return url }
-        parts.percentEncodedPath = String(parts.percentEncodedPath.dropLast())
-        return parts.url ?? url
+    /// The way the service at `address` is spoken to: as Settings says, else as the
+    /// environment says, else as the address itself is taken to say.
+    static func wire(for address: String, chosen: AIWire?, from credentials: Credentials) -> AIWire {
+        chosen ?? AIWire(named: credentials.format()) ?? AIWire.taken(for: address)
     }
 
     /// The key that would go to the service at `endpoint`, and whether one under
@@ -272,27 +242,27 @@ final class AIClient {
     /// Whether the service is LunaRoute: at LunaRoute's own domain, or at the address its
     /// own name in the environment says it is.
     private static func isLunaRoute(_ endpoint: URL, said: String?) -> Bool {
-        let host = endpoint.host?.lowercased() ?? ""
+        let host = AIWire.host(of: endpoint)
         if host == "lunaroute.com" || host.hasSuffix(".lunaroute.com") { return true }
-        guard let theirs = said.flatMap(Self.endpoint) else { return false }
-        let place = { (url: URL) in "\(url.host?.lowercased() ?? ""):\(url.port ?? (url.scheme?.lowercased() == "http" ? 80 : 443))" }
+        guard let theirs = said.flatMap(AIWire.web) else { return false }
+        let place = { (url: URL) in "\(AIWire.host(of: url)):\(url.port ?? (url.scheme?.lowercased() == "http" ? 80 : 443))" }
         return place(theirs) == place(endpoint)
     }
 
     /// Whether the address is the usual service's own.
     private static func isUsual(_ endpoint: URL) -> Bool {
-        endpoint.host?.lowercased() == URL(string: defaultAddress)?.host
+        AIWire.host(of: endpoint) == URL(string: defaultAddress)?.host
     }
 
     /// Whether the address is this Mac's own: what is sent there goes nowhere else.
     static func isOnThisMac(_ endpoint: URL) -> Bool {
-        ["127.0.0.1", "localhost", "::1"].contains(endpoint.host?.lowercased() ?? "")
+        ["127.0.0.1", "localhost", "::1"].contains(AIWire.host(of: endpoint))
     }
 
     /// Whether the address is this Mac or on its own network: a name with no dot in it or
     /// one ending `.local`, or a number from the ranges kept for private networks.
     static func isNearby(_ endpoint: URL) -> Bool {
-        let host = endpoint.host?.lowercased() ?? ""
+        let host = AIWire.host(of: endpoint)
         if host.contains(":") {
             // IPv6: this Mac, a link-local address or a unique local one.
             return host == "::1" || host.hasPrefix("fe80:") || host.hasPrefix("fc") || host.hasPrefix("fd")
@@ -311,51 +281,76 @@ final class AIClient {
         return !host.isEmpty && (!host.contains(".") || host.hasSuffix(".local"))
     }
 
-    /// Asks, and hands on the text of the answer as it comes. A service that refuses a part
-    /// of the request as the app words it is asked again in its own way, and asked that way
-    /// first from then on: but only once asking that way has been seen to work. And what
-    /// was learnt can stop being true (the same name may come to mean another model), so a
-    /// request that is refused in a service's known way is asked once more as the app
-    /// words it, and what was known is forgotten.
+    /// Asks, and hands on the text of the answer as it comes.
+    ///
+    /// - A service that refuses a part of the request as the app words it is asked again
+    ///   without it, or with it under another name, and is asked that way first from then
+    ///   on, once that way has been seen to work.
+    /// - What was learnt can stop being true (the same name may come to mean another
+    ///   model), so a request refused in a service's known way is asked once more as the
+    ///   app words it, and what was known is forgotten.
+    /// - A model whose thinking used up its room, so that it was cut off before it had
+    ///   said a word, is asked again with twice the room, twice at most. Nothing of that
+    ///   is kept for the next request: a model may refuse more room than it can give, and
+    ///   what one request needed says little about another of a different size.
     @discardableResult
-    private func ask(_ body: [String: Any], _ chosen: Chosen, onText: @MainActor (String) -> Void) async throws -> Access {
+    private func ask(_ asked: AIWire.Asked, _ chosen: Chosen, onText: @MainActor (String) -> Void) async throws -> Access {
         let access = try await access(chosen)
-        var worded = body
-        worded["model"] = access.model
+        let wire = access.wire
         var known = ways.known(for: access.service)
-        var body = worded
-        var fitted = known
-        for part in fitted { part.fit(&body) }
-        // At most five requests: the known way, the app's own wording, and one for each part.
+        var parts = known
+        var room = 1 // times the room the page asked for
+        /// The request, worded for this service as it is now known.
+        func worded() -> [String: Any] {
+            var asked = asked
+            // Never less than was asked for, and no more than the most a request is given.
+            if let most = asked.maxTokens { asked.maxTokens = max(most, min(most * room, Self.mostRoom)) }
+            var body = wire.body(asked, model: access.model, lunaRoutes: access.lunaRoutes)
+            for part in wire.parts where parts.contains(part) { wire.fit(part, &body) }
+            return body
+        }
+        var body = worded()
+        var heard = false // whether any of an answer has been handed on
+        // It ends: a part is given up once at most, the room doubled twice at most, and
+        // what was known forgotten once.
         while true {
             do {
-                try await send(body, access, onText: onText)
-                ways.learn(fitted, for: access.service)
+                try await send(body, access) { text in
+                    heard = true
+                    onText(text)
+                }
+                // (Only what this request found out: another, still on its way, may have
+                // found out more since this one began.)
+                if parts != known { ways.learn(parts, for: access.service) }
                 return access
             } catch Failure.refused(let refusal) {
-                // A part is given up once at most: fitted, it is no longer in the request.
-                if let part = Part.allCases.first(where: { $0.isRefused(by: refusal, of: body) }) {
-                    part.fit(&body)
-                    fitted.insert(part)
-                } else if !known.isEmpty, [400, 422].contains(refusal.status) {
-                    ways.learn([], for: access.service)
+                let ofTheRequest = [400, 422].contains(refusal.status)
+                if ofTheRequest, let part = wire.parts.first(where: { wire.refuses($0, in: body, saying: refusal.whole) }) {
+                    parts.insert(part)
+                } else if ofTheRequest, room > 1 {
+                    // It had run out of room, and will not be given more: that is the
+                    // story, not the refusal of a room the person never asked for.
+                    throw Failure.cutShort
+                } else if ofTheRequest, !known.isEmpty {
                     known = []
-                    fitted = []
-                    body = worded
+                    parts = []
+                    ways.learn([], for: access.service)
                 } else {
                     throw Failure.refused(refusal)
                 }
+                body = worded()
+            } catch Failure.cutShort {
+                // What had begun to arrive is with the page already, and cannot be asked for again.
+                guard !heard, room < 4, let most = asked.maxTokens, most * room < Self.mostRoom else { throw Failure.cutShort }
+                room *= 2
+                body = worded()
             }
         }
     }
 
     /// Sends one request and hands on the text of the answer as it comes.
     private func send(_ body: [String: Any], _ access: Access, onText: @MainActor (String) -> Void) async throws {
-        var request = URLRequest(url: access.endpoint)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
-        if let key = access.key { request.setValue("Bearer \(key.value)", forHTTPHeaderField: "Authorization") }
+        var request = access.wire.request(to: access.endpoint, key: access.key?.value)
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (bytes, response) = try await session.bytes(for: request, delegate: stays)
@@ -366,40 +361,33 @@ final class AIClient {
             for try await byte in bytes.prefix(4096) { said.append(byte) }
             throw Failure.refused(Refusal(status: status, said: Self.words(in: said, without: access.key?.value), whole: String(decoding: said, as: UTF8.self), keyed: access.key != nil))
         }
+        // A line that goes dead part-way looks, from here, like an answer that simply ended.
+        // So the answer has to say that it is finished, in whichever way the service does.
+        var finished = false
+        /// Takes what one line of the stream, or an answer that came whole, amounts to.
+        /// True when nothing more need be read.
+        func take(_ read: () throws -> AIWire.Heard) async throws -> Bool {
+            let heard: AIWire.Heard
+            do {
+                heard = try read()
+            } catch let failed as AIWire.Failed {
+                throw Failure.failed(Self.words(of: failed.error, without: access.key?.value) ?? "it gave no reason")
+            }
+            if let text = heard.text, !text.isEmpty { await onText(text) }
+            if heard.cutShort { throw Failure.cutShort }
+            if heard.finished { finished = true }
+            return heard.over
+        }
         if http?.mimeType == "application/json" {
-            // A gateway that takes no notice of "stream" and answers all at once.
+            // A service that takes no notice of "stream" and answers all at once.
             var whole = Data()
             for try await byte in bytes { whole.append(byte) }
-            let answer = (try? JSONSerialization.jsonObject(with: whole)) as? [String: Any]
-            let message = (answer?["choices"] as? [[String: Any]])?.first?["message"] as? [String: Any]
-            if let text = message?["content"] as? String, !text.isEmpty { await onText(text) }
+            _ = try await take { try access.wire.whole(whole) }
             return
         }
-        // A line that goes dead part-way looks, from here, like an answer that simply ended.
-        // So the answer has to say that it is finished: with [DONE], or a reason for stopping.
-        var finished = false
-        /// Takes one line of the stream. True when the stream has said it is done.
-        func take(_ bytes: [UInt8]) async throws -> Bool {
-            guard let line = String(bytes: bytes, encoding: .utf8), line.hasPrefix("data:") else { return false }
-            let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
-            if payload == "[DONE]" {
-                finished = true
-                return true
-            }
-            guard let event = (try? JSONSerialization.jsonObject(with: Data(payload.utf8))) as? [String: Any] else { return false }
-            if let error = event["error"] {
-                throw Failure.failed(Self.words(of: error, without: access.key?.value) ?? "it gave no reason")
-            }
-            let choice = (event["choices"] as? [[String: Any]])?.first
-            // Only what the model says. What it thinks on the way (reasoning_content) is not the answer.
-            if let text = (choice?["delta"] as? [String: Any])?["content"] as? String, !text.isEmpty { await onText(text) }
-            if let reason = choice?["finish_reason"] as? String {
-                // Stopped at its limit, with thinking and answer both counted against it:
-                // whatever it had begun to say is not an answer.
-                if reason == "length" { throw Failure.cutShort }
-                finished = true
-            }
-            return false
+        func hear(_ line: [UInt8]) async throws -> Bool {
+            guard let line = String(bytes: line, encoding: .utf8) else { return false }
+            return try await take { try access.wire.hear(line) }
         }
         // The stream's lines end at a line feed and nowhere else. (The system's own way of
         // reading lines also ends one at U+2028, U+2029 and U+0085, which JSON may carry
@@ -411,11 +399,11 @@ final class AIClient {
                 continue
             }
             if line.last == 0x0D { line.removeLast() }
-            let done = try await take(line)
+            let over = try await hear(line)
             line.removeAll(keepingCapacity: true)
-            if done { break read }
+            if over { break read }
         }
-        if !finished, !line.isEmpty { _ = try await take(line) }
+        if !finished, !line.isEmpty { _ = try await hear(line) }
         guard finished else { throw URLError(.networkConnectionLost) }
     }
 

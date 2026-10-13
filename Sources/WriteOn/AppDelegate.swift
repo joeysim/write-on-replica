@@ -72,10 +72,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
             // not on this Mac, whatever address and key a scenario gives it.
             var environment = ProcessInfo.processInfo.environment
             let named = Credentials(saved: MemorySecret(), environment: environment, readShell: nil).address()
-            let local = named.flatMap(AIClient.endpoint).map(AIClient.isOnThisMac) ?? false
+            let local = named.flatMap(AIWire.web).map(AIClient.isOnThisMac) ?? false
             if !test.aiLive, !local { (Credentials.keyNames + Credentials.addressNames).forEach { environment[$0] = nil } }
+            // Which way a service is spoken to and which model is asked are a scenario's
+            // to say, not whoever runs it.
+            if !test.aiLive { (Credentials.formatNames + Credentials.modelNames).forEach { environment[$0] = nil } }
             credentials = Credentials(saved: MemorySecret(), environment: environment, readShell: test.aiLive ? LoginShell.read : nil)
-            client = AIClient(credentials: credentials, settings: settings, idle: test.aiIdle ?? 20, localOnly: !test.aiLive)
+            client = AIClient(credentials: credentials, settings: settings, idle: test.aiIdle ?? 60, localOnly: !test.aiLive)
 
             let start = store.drafts().first.map { DocumentStart.recovered($0) } ?? untitledStart()
             guard let controller = openWindow(start, pageSize: test.pageSize) else { exit(70) }

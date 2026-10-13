@@ -107,37 +107,47 @@ and comes back as an unsaved document if the app is ever killed.
 
 AI alternatives and the Lab ask a language model. Everything else works without one.
 
-The app speaks OpenAI-style chat completions (`POST <address>/chat/completions`, with the
-answer streamed), so it can ask any service, or any server on your own Mac, that speaks
-them too. Out of the box it asks LunaRoute (`https://gw.lunaroute.com/v1`) for
-`glm-5.3-flash`. **Settings (⌘,) is where you point it somewhere else:**
+The app can speak to a service in either of two ways: OpenAI's chat completions
+(`POST …/chat/completions`), which most services and gateways speak, or Anthropic's
+messages (`POST …/v1/messages`). Either way the answer is streamed. So it can ask any
+service, or any server on your own Mac, that speaks one of them. Out of the box it asks
+LunaRoute (`https://gw.lunaroute.com/v1`) for `glm-5.3-flash`, OpenAI's way.
+**Settings (⌘,) is where you point it somewhere else:**
 
 - **API key.** Paste it and it is saved in your keychain, and nowhere else.
 - **Address.** The service's base address: `https://api.openai.com/v1`, say, or
-  `https://openrouter.ai/api/v1`, or `http://localhost:11434/v1` for a model served on
-  this Mac. The whole address of its chat-completions endpoint will do as well.
+  `https://api.anthropic.com`, or `https://openrouter.ai/api/v1`, or
+  `http://localhost:11434/v1` for a model served on this Mac. The whole address of where
+  its requests go will do as well.
+- **Format.** Which of the two ways the service is spoken to. Left on Automatic it goes
+  by `WRITEON_API_FORMAT` if your environment sets that, and otherwise by the address:
+  Anthropic's way for Anthropic's own service and for an address that ends `/messages`,
+  OpenAI's for anything else. A gateway that speaks both, as LunaRoute does, is spoken to
+  OpenAI's way unless you choose the other here.
 - **Model.** The name the service knows the model by.
-- **Test connection** tries the three together and says how it went: that the model
+- **Test connection** tries them together and says how it went: that the model
   answered, how long it took, and which key went with the question.
 
-Left empty, Address and Model show what is in force.
+Left empty, Address and Model show what is in force, and Automatic says which way it
+comes to.
 
-The three can come from the environment as well: `WRITEON_API_KEY`, `WRITEON_BASE_URL`
-and `WRITEON_MODEL`. (`LUNAROUTE_API_KEY` and `LUNAROUTE_BASE_URL`, the names the first
-two had to begin with, are still read.) The app looks for each of the three in this
-order:
+All four can come from the environment as well: `WRITEON_API_KEY`, `WRITEON_BASE_URL`,
+`WRITEON_API_FORMAT` (`openai` or `anthropic`) and `WRITEON_MODEL`. (`LUNAROUTE_API_KEY`
+and `LUNAROUTE_BASE_URL`, the names the first two had to begin with, are still read.)
+The app looks for each in this order:
 
-1. Settings: the key saved in your keychain, and the Address and Model fields;
+1. Settings: the key saved in your keychain, and the Address, Format and Model there;
 2. the app's own environment;
 3. your login shell, so that what `~/.zshrc` sets is found when the app is opened from
    Finder. For this the app runs your login shell once, as a terminal would start it, the
    first time it has to look further than Settings and its own environment, and reads
-   those five variables from it.
+   those six variables from it.
 
-**Which key goes where.** The key the app finds is sent to the address in force, with one
-exception: a key under LunaRoute's name (`LUNAROUTE_API_KEY`) is LunaRoute's, and no other
-service is sent it. So a service you name needs a key of its own, pasted in Settings or
-set as `WRITEON_API_KEY`. A key saved in Settings goes with whatever address is there, so
+**Which key goes where.** The key the app finds is sent to the address in force, as a
+bearer token OpenAI's way and in the `x-api-key` header Anthropic's, with one exception:
+a key under LunaRoute's name (`LUNAROUTE_API_KEY`) is LunaRoute's, and no other service
+is sent it. So a service you name needs a key of its own, pasted in Settings or set as
+`WRITEON_API_KEY`. A key saved in Settings goes with whatever address is there, so
 change the two together. A server that wants no key, as a model on your own Mac usually
 does not, is asked without one. Only LunaRoute's own address is never asked without a key.
 
@@ -149,31 +159,53 @@ a service answers that it has moved, the app does not follow.
 The key never reaches the editor's page: the native side of the app makes the request and
 hands back text.
 
-**What another service has to take.**
+**What a service has to take.** Spoken to OpenAI's way:
 
-- The key as a bearer token (`Authorization: Bearer …`). There is no other way of
-  sending it.
+- The key as a bearer token (`Authorization: Bearer …`).
 - `max_tokens` and `reasoning_effort` on every request. A service that refuses one of them
   is asked again in its own way: with `max_completion_tokens`, which OpenAI's models that
-  reason want, or without `reasoning_effort`, which models that do not reason refuse. The
-  app then asks that way first, for that address and model, until it is quit or that way
-  stops working.
+  reason want, or without `reasoning_effort`, which models that do not reason refuse.
 - From the Lab, a JSON schema that the answer has to fit (`response_format`). There is no
-  way round this one: the Lab needs a model that can keep to a schema. AI alternatives
-  need only text.
+  way round this one: spoken to this way, the Lab needs a model that can keep to a schema.
+  AI alternatives need only text.
+
+Spoken to Anthropic's way:
+
+- The key in the `x-api-key` header, and `anthropic-version: 2023-06-01`.
+- `max_tokens` on every request, the system prompt apart from the messages, and in
+  `output_config` the effort and, from the Lab, the JSON schema. A service that refuses
+  the effort or the schema, or has not heard of `output_config`, is asked again without.
+- The Lab asks for the shape of its answer in words as well, so a model that is not held
+  to the schema can still give it.
+
+Either way:
+
+- Which parts of a request a service turns out not to take is remembered, for that
+  address and model, until the app is quit or that way of asking stops working.
 - Room. A trim asks for a great deal of it, because a model that reasons spends most of
   it thinking: 2,000 tokens and 15 for every word of the piece, up to 32,000. That is more
   than 8,192 from about 340 words and more than 16,384 from about 830, and a model that
-  may not write so much will refuse a longer piece.
-- An answer that begins within 20 seconds and never falls silent for longer. The app gives
-  up on one that does, the wait for its first piece included. LunaRoute's model streams
-  while it thinks; a model that thinks in silence, or a server still loading its model,
-  may be given up on.
+  may not write so much will refuse a longer piece. If a model's thinking uses its room
+  up before it has said a word, the app asks again with twice as much, twice at most,
+  for that request only.
+- An answer that begins within a minute and never falls silent for longer. The app gives
+  up on one that does. A model that thinks in silence for longer than that, or a server
+  still loading its model, may be given up on.
 
-**How far this has been tried.** For real, with LunaRoute and `glm-5.3-flash` only.
-Everything about other services is tested against a stand-in on this Mac that answers and
-refuses as they are documented to (`tests/ui/ai-gateway.js`), and not yet against the
-services themselves. [The live scenario](#ui-scenarios) will try one of yours.
+**How far this has been tried.** For real, with LunaRoute and `glm-5.3-flash` only, in
+both ways: LunaRoute speaks both. **Anthropic's own service has not been asked.** The
+Anthropic way was written to Anthropic's documentation and is tested against a stand-in
+on this Mac (`tests/ui/ai-anthropic.js`) that sends what the documentation says the
+service sends, and refuses a request with no version, no `max_tokens` or a system message
+among the messages, as it says the service does. How the real service words its refusal
+of an effort or a schema nobody here has seen, and the asking again goes by the names of
+those fields. It was also tried against LunaRoute's endpoint, which is not the same
+thing: LunaRoute takes no notice of where Anthropic puts the effort and the schema. So
+to LunaRoute, and only to LunaRoute, the app gives the effort under OpenAI's name as
+well; without that a trim thought for a minute and ran out of room. Everything about
+other services OpenAI's way is likewise tested against the stand-in
+(`tests/ui/ai-gateway.js`), and not yet against the services themselves.
+[The live scenario](#ui-scenarios) will try one of yours.
 
 **What leaves your Mac.** Nothing, until you ask the AI for something. A request for
 alternatives carries the paragraph the word is in and the versions you already have. The
@@ -185,11 +217,13 @@ and Overflow is never sent. There is no telemetry and nothing checks for updates
 only other thing that goes anywhere is Post to X, which opens X's compose page in your
 browser with the piece in the link.
 
-Alternatives come back in a second or two. **A trim is slow with `glm-5.3-flash`:** 9 to 38
-seconds for the 170-word welcome piece, differing that much from one asking to the next,
-and 16 to 50 seconds for a 570-word one, where the original takes a second or two. The
-model reasons its way to the word count; a quicker way of asking took 5 seconds and cut a
-third of what was asked for, so accuracy was kept. The measurements are in the spec, §7.1.
+Alternatives come back in a second or two. **A trim is slow with `glm-5.3-flash`:**
+anything from 9 seconds to over a minute for the 170-word welcome piece, by the hour and
+from one asking to the next, and 16 to 50 seconds for a 570-word one, where the original
+takes a second or two. Asked Anthropic's way through LunaRoute, the welcome piece's trim
+took 20 to 49 seconds. The model reasons its way to the word count; a quicker way of
+asking took 5 seconds and cut a third of what was asked for, so accuracy was kept. The
+measurements are in the spec, §7.1.
 
 ## What a person has to check
 
@@ -232,7 +266,8 @@ These need someone at the Mac:
     unofficial replica, inspired by Jason Fried's.
 16. **Another AI service.** In Settings give the address, the model and the key of a
     service other than LunaRoute, and press Test connection. Then ask for alternatives
-    (Ctrl+Shift+G) and run a pass from the Lab. Nobody has yet (see [The AI](#the-ai)).
+    (Ctrl+Shift+G) and run a pass from the Lab. Nobody has yet, OpenAI's way or
+    Anthropic's (see [The AI](#the-ai)).
 
 ## Decisions the clips do not settle
 
@@ -275,8 +310,8 @@ autocorrection and smart punctuation are off by default.
 - Lines are 36 px apart, not 36.4, and Overflow's 22, not 22.5: WebKit sets lines of text a
   whole number of pixels apart, and the original runs in a browser that does not.
 - A selection that runs past the end of a line is drawn a little differently by WebKit.
-- The Lab's trims take much longer (see [The AI](#the-ai)): ten to forty seconds for a
-  short piece against two in the clip. Nearly all of that is the model thinking before it
+- The Lab's trims take much longer (see [The AI](#the-ai)): from ten seconds to a minute
+  for a short piece against two in the clip. Nearly all of that is the model thinking before it
   answers, so the cuts, which are faded as they arrive, come in the last second of it.
   Once a level has been read the others are read quietly, one at a time, for as long as
   the trim is on the page, and going to one that has been read is immediate, as it is in
@@ -340,8 +375,9 @@ takes nothing from you. It also leaves the rest of the Mac as it found it:
 - nothing is written to the app's saved settings, and a run that changes them fails;
 - it cannot reach the real AI service, or any other. Most scenarios get a scripted
   provider; the client itself is tested over HTTP against a stand-in gateway on this Mac
-  (`tests/ui/support/fake-gateway.mjs`), with a key the stand-in knows; and the client
-  of a run that is not a live one refuses every address that is not on this Mac.
+  (`tests/ui/support/fake-gateway.mjs`), which speaks both ways, with a key the stand-in
+  knows; and the client of a run that is not a live one refuses every address that is
+  not on this Mac.
 
 `tests/ui/smoke.js` checks the first part on every run, and the harness fails any run that
 came to the front, took the keyboard or changed the saved settings. Inside, the harness
@@ -367,13 +403,17 @@ open while you work.
 One scenario does ask a real service, and steps aside unless told to run:
 
 ```sh
-scripts/ui-test.sh ai-live --ai live   # five words, three sentences and a trim, with your key
+scripts/ui-test.sh ai-live --ai live                              # with your key, OpenAI's way
+WRITEON_API_FORMAT=anthropic scripts/ui-test.sh ai-live --ai live # the same, Anthropic's way
 ```
 
-It asks what your shell names: LunaRoute and `glm-5.3-flash`, or the service and model in
-`WRITEON_BASE_URL` and `WRITEON_MODEL`. The key has to come from your login shell too
-(`WRITEON_API_KEY` or `LUNAROUTE_API_KEY`), since a scripted run does not read the
-keychain; without one it fails. The times it allows are the ones `glm-5.3-flash` needs.
+It asks for five other words, three other sentences, the hedges in the welcome piece, a
+slight trim and the level after it, and the slips in a page that has some. It asks what
+your shell names: LunaRoute and `glm-5.3-flash`, or the service and model in
+`WRITEON_BASE_URL` and `WRITEON_MODEL`, in the way `WRITEON_API_FORMAT` or the address
+says. The key has to come from your login shell too (`WRITEON_API_KEY` or
+`LUNAROUTE_API_KEY`), since a scripted run does not read the keychain; without one it
+fails. A run takes two or three minutes, nearly all of it the model thinking.
 
 Two things in the app are there for working on it and are on in every copy. Safari's Web
 Inspector can attach to the page (Develop menu), and `WRITEON_WEB_ROOT` in the app's
