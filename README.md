@@ -1,20 +1,25 @@
 # Write_On for macOS, an unofficial replica
 
-A replica, as a Mac app, of the writing tool Jason Fried showed in
-[this thread](https://x.com/jasonfried/status/2105403067793584590). It keeps the other
-ways you tried to say something: alternatives for a word, a sentence or a whole paragraph
-stay in place, under the text, and you flip through them where they stand. Around that:
-ghosted text, an Overflow panel, AI suggestions, a Lab that marks and trims without
-rewriting, and one plain Markdown file that holds all of it.
+Inspired by [Jason Fried's post on X](https://x.com/jasonfried/status/2105403067793584590),
+where he shows Write_On, a writing tool he built for himself. This is a Mac app made to
+look and behave like the one in his three clips.
+
+> **The original is Jason Fried's, and it is not out yet.** In the first clip he says he
+> hopes to release it, open source and free. As of October 2026 he has not. When he does,
+> I'll link to it here, and that is the one to use.
+
+It keeps the other ways you tried to say something: alternatives for a word, a sentence or
+a whole paragraph stay in place, under the text, and you flip through them where they
+stand. Around that: ghosted text, an Overflow panel, AI suggestions, a Lab that marks and
+trims without rewriting, and one plain Markdown file that holds all of it.
 
 ![The welcome piece with the tools on, and the pointer resting on a word that has alternatives](docs/images/tools.png)
 
 **This is not his Write_On.** The idea, the design and the name are Jason Fried's. He had
 no part in this project and has not endorsed it. No code, recording or picture of his is
 in this repository, and the essay he writes in the clips is not here either. What it takes
-from him is what the three clips in the thread show: how the tool looks, moves, sounds
-and saves, and the wording of its labels. In the first clip he says he hopes to release
-his own, free and open source. When he does, that is the one to use.
+from him is what the three clips in the post's thread show: how the tool looks, moves,
+sounds and saves, and the wording of its labels.
 
 The look, motion, sound and file format were measured from those clips. What the clips do
 not show had to be decided; those decisions are listed
@@ -224,7 +229,10 @@ These need someone at the Mac:
     with no title bar above the page.
 14. **Post to X** (the X icon): the browser opens X's compose window with the piece in it.
 15. **About.** Write_On ▸ About Write_On: under the version, a line saying that this is an
-    unofficial replica.
+    unofficial replica, inspired by Jason Fried's.
+16. **Another AI service.** In Settings give the address, the model and the key of a
+    service other than LunaRoute, and press Test connection. Then ask for alternatives
+    (Ctrl+Shift+G) and run a pass from the Lab. Nobody has yet (see [The AI](#the-ai)).
 
 ## Decisions the clips do not settle
 

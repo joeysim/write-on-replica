@@ -2,7 +2,7 @@
 
 - **Date:** 2026-10-11
 - **Status:** Built. Kept in step with the app since; §9 lists what the clips left to be decided.
-- **Source:** Jason Fried's thread, <https://x.com/jasonfried/status/2105403067793584590>
+- **Source:** Jason Fried's post on X and the thread under it, <https://x.com/jasonfried/status/2105403067793584590>
 
 ## 1. Goal
 

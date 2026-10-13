@@ -1,5 +1,6 @@
 {
   "name": "write-on",
+  "description": "An unofficial macOS replica of Write_On, inspired by Jason Fried's post on X",
   "private": true,
   "license": "MIT",
   "type": "module",
