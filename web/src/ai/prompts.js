@@ -3,6 +3,7 @@
 // network; the shell does that with the key the page never sees.
 
 import { countWords } from '../doc/text.js';
+import { trimUnits } from '../doc/trim.js';
 
 export const SUGGESTION_COUNTS = { word: 5, sentence: 3, paragraph: 3 };
 const TOKEN_FLOORS = { word: 120, sentence: 400, paragraph: 1500 };
@@ -105,7 +106,7 @@ const object = (properties) => ({
 const listOf = (name, properties) => object({ [name]: { type: 'array', items: object(properties) } });
 
 const SCHEMAS = {
-  trim: listOf('paragraphs', { n: { type: 'integer' }, text: { type: 'string' } }),
+  trim: listOf('sentences', { s: { type: 'integer' }, text: { type: 'string' }, need: { type: 'integer' } }),
   marks: listOf('marks', { n: { type: 'integer' }, text: { type: 'string' }, reason: { type: 'string' } }),
   typos: listOf('fixes', { n: { type: 'integer' }, find: { type: 'string' }, replace: { type: 'string' }, reason: { type: 'string' } }),
 };
@@ -136,50 +137,60 @@ const MARK_TASKS = {
 const numbered = (paragraphs) => paragraphs.map((p) => `[${p.n}] ${p.text}`).join('\n');
 
 // What the model thinks before it answers is counted against the same limit as the answer.
-// Measured on glm-5.3-flash at low effort: to cut 570 words by a tenth it thought for 1,300
-// to 3,300 tokens, by 30% for 6,300, and with no room for that it answered nothing; a
-// marking pass over 164 words thought for up to 400. So each pass asks for its answer and
-// room to think besides, up to what a model will give.
-const THINKING = { trim: (words) => 2000 + 15 * words, mark: (words) => 1000 + 4 * words };
+// Measured on glm-5.3-flash at low effort: asked what each sentence could lose, it mostly
+// answers at once (1 to 11 tokens of thought) and now and then thinks first, 1,281 tokens
+// over 491 words; a marking pass over 164 words thought for up to 400; and with no room for
+// its thinking it answers nothing. So each pass asks for its answer and room to think
+// besides, up to what a model will give.
+const THINKING = { trim: (words) => 2000 + 6 * words, mark: (words) => 1000 + 4 * words };
 const MOST_TOKENS = 32000;
 const room = (answer, thinking) => Math.min(MOST_TOKENS, Math.max(600, answer) + thinking);
 
 /**
  * A request for one Lab pass over the document.
+ *
+ * A trim is one question whatever the level: of every sentence, what it could lose and how
+ * much the piece needs it. How much is then cut is counted by the app (doc/trim.js), so
+ * the one answer serves all four levels. Asked instead to cut to a number of words, a
+ * model that reasons spends a minute or more on the arithmetic for each level, and on a
+ * draft of any length comes back far short.
+ *
  * @param kind one of LAB_KINDS
  * @param paragraphs [{ n, text }]: the paragraphs offered to the model, numbered
- * @param percent for 'trim', how much to cut
  * @returns {{messages, maxTokens: number, effort: string, schema: object}}
  */
-export function labRequest(kind, paragraphs, { percent = 10 } = {}) {
+export function labRequest(kind, paragraphs) {
   const draft = numbered(paragraphs);
   const words = paragraphs.reduce((sum, p) => sum + countWords(p.text), 0);
   const chars = paragraphs.reduce((sum, p) => sum + p.text.length, 0);
 
   if (kind === 'trim') {
-    const target = Math.round(words * (1 - percent / 100));
+    const units = trimUnits(paragraphs);
+    const sentences = paragraphs.map((p) => units.filter((unit) => unit.n === p.n).map((unit) => `[${unit.s}] ${unit.text}`).join('\n'));
     return {
       messages: [
         { role: 'system', content: 'You are a careful copy editor. You shorten writing only by deleting. You never add, replace or reorder words.' },
         {
           role: 'user',
           content: [
-            `Below is a draft, one numbered paragraph per line. Cut it by about ${percent}%: from ${words} words to about ${target}.`,
+            'Below is a draft, one numbered sentence per line, with a blank line between paragraphs. The writer wants it shorter and has not said by how much: it may be a tenth, it may be half.',
+            '',
+            'Go through it a sentence at a time. For every sentence, in order, give:',
+            '- text: the sentence with what it can lose deleted: filler, hedges, throat-clearing, asides, words that say again what has been said. If it can lose nothing, give it as it is.',
+            '- need: how much the piece needs the sentence at all, from 1 to 5. 1: the piece is better without it. 2: little would be lost. 3: it adds something, but the piece stands without it. 4: the piece would be poorer without it. 5: the piece does not work without it.',
             '',
             'Rules:',
-            '- Deletion only. Every word you keep must stay exactly as written and in the same order. Do not add, change or move any word.',
-            '- After your cuts every sentence must still be grammatical and read naturally. You may change the capital letter of a word that now starts a sentence, and nothing else.',
-            '- Cut what the piece can best lose: filler, hedges, repetition, asides, sentences that add little. Keep the writer’s points and voice.',
-            `- Get close to ${target} words. Do not cut much more or much less, and spread the cuts through the piece.`,
-            '- Never cut a paragraph down to nothing.',
+            '- Deletion only. A shortened sentence is the original with words deleted: every word it keeps is exactly as written and in the same order. Do not add, change or move a word. You may change the capital letter of the word that now starts it, and nothing else.',
+            '- A shortened sentence must be grammatical and read naturally, by itself and in its place.',
+            '- Be hard on the draft. Most sentences can lose a word or two. To halve it about half of its sentences would have to go, so use the whole scale in every paragraph, and give a 5 to no more than one sentence in three.',
+            '- Do not count words. How much goes is worked out afterwards, from what you say here.',
             '',
-            'Return each paragraph you changed, in full after your cuts, with its number. Leave out paragraphs you did not change.',
-            '',
-            draft,
+            sentences.join('\n\n'),
           ].join('\n'),
         },
       ],
-      maxTokens: room(Math.ceil(chars / 3) + 400, THINKING.trim(words)),
+      // The answer is every sentence over again, with two numbers beside each.
+      maxTokens: room(Math.ceil(chars / 3) + 12 * units.length + 400, THINKING.trim(words)),
       effort: 'low',
       schema: SCHEMAS.trim,
     };

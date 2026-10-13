@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes } from '../../web/src/doc/proposal.js';
-import { alignDeletion } from '../../web/src/doc/trim.js';
+import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes, wordsIn } from '../../web/src/doc/proposal.js';
+import { alignDeletion, chooseCuts } from '../../web/src/doc/trim.js';
+import { parseLabResponse } from '../../web/src/ai/parse.js';
 import { htmlToBlocks, blocksToHtml } from '../../web/src/doc/format.js';
 import { textOf, normaliseBlocks } from '../../web/src/doc/blocks.js';
 
@@ -150,6 +151,162 @@ test('characters beyond the basic plane survive a cut beside them', () => {
   const blocks = B('<p>Really 👍🏽 good, honestly, and done.</p>');
   const proposal = propose(blocks, { 1: '👍🏽 good and done.' });
   assert.equal(textOf(applyProposal(blocks, proposal)[0]), '👍🏽 good and done.');
+});
+
+// --- a paragraph that goes whole ----------------------------------------------------------------------
+//
+// A trim chooses among sentences, and where every sentence of a paragraph goes the paragraph
+// goes: with a blank line, so that those around it stay one blank line apart.
+
+const LINES = '<p><br></p><p># A title</p><p><br></p><p>The first stays.</p><p><br></p><p>The second goes. All of it.</p><p><br></p><p>The third stays.</p>';
+/** A proposal that cuts the paragraphs numbered in `whole` down to nothing. */
+const cutWhole = (blocks, ...whole) => {
+  const paragraphs = offered(blocks);
+  return makeProposal(paragraphs, whole.map((n) => ({ n, runs: [{ index: 0, start: 0, end: paragraphs.find((p) => p.n === n).text.length }], caseFixes: [] })));
+};
+
+test('a paragraph cut to nothing goes, and a blank line with it', () => {
+  const blocks = B(LINES);
+  assert.equal(H(applyProposal(blocks, cutWhole(blocks, 2))), '<p><br></p><p># A title</p><p><br></p><p>The first stays.</p><p><br></p><p>The third stays.</p>');
+  assert.deepEqual(counts(blocks, cutWhole(blocks, 2)), { before: 14, after: 8 });
+});
+
+test('the last paragraph takes the blank line before it, and the first the one after', () => {
+  const blocks = B(LINES);
+  assert.equal(H(applyProposal(blocks, cutWhole(blocks, 3))), '<p><br></p><p># A title</p><p><br></p><p>The first stays.</p><p><br></p><p>The second goes. All of it.</p>');
+  assert.equal(H(applyProposal(blocks, cutWhole(blocks, 1))), '<p><br></p><p># A title</p><p><br></p><p>The second goes. All of it.</p><p><br></p><p>The third stays.</p>');
+});
+
+test('two paragraphs together go together, and leave one blank line', () => {
+  const blocks = B(LINES);
+  assert.equal(H(applyProposal(blocks, cutWhole(blocks, 1, 2))), '<p><br></p><p># A title</p><p><br></p><p>The third stays.</p>');
+  assert.equal(H(applyProposal(blocks, cutWhole(blocks, 2, 3))), '<p><br></p><p># A title</p><p><br></p><p>The first stays.</p>');
+});
+
+test('paragraphs with no blank lines between them close up without taking one', () => {
+  const blocks = B('<p>One.</p><p>Two.</p><p>Three.</p><p><br></p><p>Four.</p>');
+  assert.equal(H(applyProposal(blocks, cutWhole(blocks, 2))), '<p>One.</p><p>Three.</p><p><br></p><p>Four.</p>');
+});
+
+test('a paragraph that keeps a sentence, or has ghosted words in it, stays', () => {
+  const blocks = B('<p>Goes. <span data-ghost>Set aside.</span></p><p><br></p><p>One goes. One stays.</p>');
+  const paragraphs = offered(blocks);
+  const proposal = makeProposal(paragraphs, [
+    { n: 1, runs: [{ index: 0, start: 0, end: 5 }], caseFixes: [] },
+    { n: 2, runs: [{ index: 0, start: 0, end: 9 }, { index: 1, start: 10, end: 20 }], caseFixes: [] },
+  ]);
+  assert.equal(H(applyProposal(blocks, proposal, new Set(['c3']))), '<p><span data-ghost>Set aside.</span></p><p><br></p><p>One stays.</p>');
+});
+
+// Found with the real model, on the welcome piece: cut in half, it read "open the Lab.You decide".
+test('a sentence cut from beside ghosted text leaves the words around it a space apart, and none at the end', () => {
+  const blocks = B('<p>Open the Lab. It reads the page. <span data-ghost>You decide.</span> It never rewrites.</p>');
+  const paragraphs = offered(blocks);
+  const { text } = paragraphs[0];
+  assert.equal(text, 'Open the Lab. It reads the page. It never rewrites.');
+  const at = (sentence) => ({ start: text.indexOf(sentence), end: text.indexOf(sentence) + sentence.length });
+  const proposal = makeProposal(paragraphs, [{ n: 1, runs: [{ index: 0, ...at('It reads the page.') }, { index: 1, ...at('It never rewrites.') }], caseFixes: [] }]);
+  assert.equal(H(applyProposal(blocks, proposal)), '<p>Open the Lab. <span data-ghost>You decide.</span></p>', 'both cut');
+  assert.equal(H(applyProposal(blocks, proposal, new Set(['c1']))), '<p>Open the Lab. It reads the page. <span data-ghost>You decide.</span></p>', 'the last only');
+  assert.equal(H(applyProposal(blocks, proposal, new Set(['c2']))), '<p>Open the Lab. <span data-ghost>You decide.</span> It never rewrites.</p>', 'the middle only');
+});
+
+test('a sentence cut from before ghosted text at the start leaves no space ahead of what follows', () => {
+  const blocks = B('<p>Goes first. <span data-ghost>Set aside.</span> Then this stays.</p>');
+  const paragraphs = offered(blocks);
+  const proposal = makeProposal(paragraphs, [{ n: 1, runs: [{ index: 0, start: 0, end: 11 }], caseFixes: [] }]);
+  assert.equal(H(applyProposal(blocks, proposal)), '<p><span data-ghost>Set aside.</span> Then this stays.</p>');
+});
+
+test('a cut that takes its own spaces is left as the model made it', () => {
+  // Nothing is put back between a bracket and the word that now follows it.
+  const blocks = B('<p>The tool (really very simple) works.</p>');
+  const proposal = propose(blocks, { 1: 'The tool (simple) works.' });
+  assert.equal(textOf(applyProposal(blocks, proposal)[0]), 'The tool (simple) works.');
+});
+
+// --- found in review: the joins a cut leaves ----------------------------------------------------------
+//
+// What a level of trim would do to a page, from the model's answer to the page as it would be
+// left: `sentences` is what the model says, `percent` the level.
+const trimmed = (html, sentences, percent = 10) => {
+  const blocks = B(html);
+  const paragraphs = offered(blocks);
+  const said = parseLabResponse('trim', JSON.stringify({ sentences }), paragraphs);
+  const proposal = makeProposal(paragraphs, chooseCuts(paragraphs, said.items, { percent, of: wordsIn(blocks) }));
+  return { blocks, proposal, page: H(applyProposal(blocks, proposal)) };
+};
+const REST = 'The rest of this paragraph is here to make up the number of words that are needed.';
+
+test('a word cut from after ghosted words leaves them a space from what is before, and none before the stop', () => {
+  const stop = trimmed(`<p>It works <span data-ghost>in most cases</span> well. ${REST}</p>`, [{ s: 1, text: 'It works.', need: 5 }, { s: 2, text: REST, need: 5 }]);
+  assert.equal(stop.page, `<p>It works <span data-ghost>in most cases</span>. ${REST}</p>`);
+  const comma = trimmed(`<p>It reads the page <span data-ghost>slowly and carefully</span> twice, then dims what could go. ${REST}</p>`, [{ s: 1, text: 'It reads the page, then dims what could go.', need: 5 }, { s: 2, text: REST, need: 5 }]);
+  assert.equal(comma.page, `<p>It reads the page <span data-ghost>slowly and carefully</span>, then dims what could go. ${REST}</p>`);
+  const before = trimmed(`<p>It is simple really<span data-ghost>, in my view,</span> and it works. ${REST}</p>`, [{ s: 1, text: 'It is simple and it works.', need: 5 }, { s: 2, text: REST, need: 5 }]);
+  assert.equal(before.page, `<p>It is simple<span data-ghost>, in my view,</span> and it works. ${REST}</p>`);
+});
+
+test('a sentence that goes from among ghosted words leaves one space between what stays', () => {
+  const stays = 'And this one stays as well, to the end of it, every word.';
+  const inside = trimmed(`<p>Up to here it stays. Then this one<span data-ghost> with an aside</span> goes away. ${stays}</p>`, [{ s: 1, text: 'Up to here it stays.', need: 5 }, { s: 2, text: 'Then this one goes away.', need: 1 }, { s: 3, text: stays, need: 5 }]);
+  assert.equal(inside.page, `<p>Up to here it stays.<span data-ghost> with an aside</span> ${stays}</p>`);
+  const between = trimmed(`<p>This stays here for good. <span data-ghost>Set aside one.</span> This one goes. <span data-ghost>Set aside two.</span> ${stays}</p>`, [{ s: 1, text: 'This stays here for good.', need: 5 }, { s: 2, text: 'This one goes.', need: 1 }, { s: 3, text: stays, need: 5 }]);
+  assert.equal(between.page, `<p>This stays here for good. <span data-ghost>Set aside one.</span> <span data-ghost>Set aside two.</span> ${stays}</p>`);
+  const last = trimmed(`<p>${stays} <span data-ghost>Set aside one.</span> This one goes. <span data-ghost>Set aside two.</span></p>`, [{ s: 1, text: stays, need: 5 }, { s: 2, text: 'This one goes.', need: 1 }], 30);
+  assert.equal(last.page, `<p>${stays} <span data-ghost>Set aside one.</span> <span data-ghost>Set aside two.</span></p>`);
+  const first = trimmed(`<p><span data-ghost>Old opening.</span> Goes away now. ${stays}</p>`, [{ s: 1, text: 'Goes away now.', need: 1 }, { s: 2, text: stays, need: 5 }], 30);
+  assert.equal(first.page, `<p><span data-ghost>Old opening.</span> ${stays}</p>`);
+});
+
+test('ghosted words either side of a cut are not run together', () => {
+  const made = trimmed(`<p>Keep<span data-ghost> really</span> <span data-ghost>truly </span>this. ${REST}</p>`, [{ s: 1, text: 'This.', need: 5 }, { s: 2, text: REST, need: 5 }]);
+  assert.equal(made.page, `<p><span data-ghost> really</span> <span data-ghost>truly </span>This. ${REST}</p>`);
+});
+
+test('a paragraph with spaces at its ends, cut whole, goes like any other', () => {
+  const made = trimmed('<p>First stays, with enough words to be most of the piece, and a few more.</p><p><br></p><p> Goes whole. </p><p><br></p><p>Last stays, with enough words to be the rest of the piece.</p>', [
+    { s: 1, text: 'First stays, with enough words to be most of the piece, and a few more.', need: 5 },
+    { s: 2, text: 'Goes whole.', need: 1 },
+    { s: 3, text: 'Last stays, with enough words to be the rest of the piece.', need: 5 },
+  ]);
+  assert.equal(made.page, '<p>First stays, with enough words to be most of the piece, and a few more.</p><p><br></p><p>Last stays, with enough words to be the rest of the piece.</p>');
+});
+
+test('a paragraph of two sentences that both go, goes', () => {
+  const made = trimmed('<p>Stays, this one, and it is long enough to be most of the words here.</p><p><br></p><p>Goes first. Goes second.</p>', [
+    { s: 1, text: 'Stays, this one, and it is long enough to be most of the words here.', need: 5 },
+    { s: 2, text: 'Goes first.', need: 1 },
+    { s: 3, text: 'Goes second.', need: 1 },
+  ], 30);
+  assert.equal(made.proposal.cuts.length, 2, 'a cut for each sentence');
+  assert.equal(made.page, '<p>Stays, this one, and it is long enough to be most of the words here.</p>');
+  assert.equal(H(applyProposal(made.blocks, made.proposal, new Set(['c1']))), '<p>Stays, this one, and it is long enough to be most of the words here.</p><p><br></p><p>Goes first.</p>', 'keep one and the paragraph stays, with it');
+});
+
+// Whatever a proposal holds, making the cuts takes nothing but what was faded and the
+// spaces beside it. (A fix with other letters in it once cost a paragraph everything after.)
+test('nothing outside a cut is ever lost but a space', () => {
+  const blocks = B("<p>Honestly, it's fine. The second sentence stays as it is. And so does the third.</p>");
+  const paragraphs = offered(blocks);
+  const hostile = makeProposal(paragraphs, [{ n: 1, runs: [{ index: 0, start: 0, end: 10 }], caseFixes: [{ start: 10, end: 14, text: 'It’s!', run: 0 }] }]);
+  assert.equal(textOf(applyProposal(blocks, hostile)[0]), "It's fine. The second sentence stays as it is. And so does the third.");
+  const honest = trimmed("<p>Honestly, it's fine. The second sentence stays as it is. And so does the third.</p>", [{ s: 1, text: 'It’s fine.', need: 5 }]);
+  assert.equal(honest.page, "<p>It's fine. The second sentence stays as it is. And so does the third.</p>");
+});
+
+test('a paragraph group that goes whole goes with its paragraph', () => {
+  const blocks = B('<p>Stays.</p><p><br></p><p data-vid="bbbbbbb">Goes, every word.</p>');
+  const made = normaliseBlocks(applyProposal(blocks, cutWhole(blocks, 2)), { bbbbbbb: { scope: 'paragraph', variants: ['Goes, every word.', 'Another.'], active: 0 } });
+  assert.equal(H(made.blocks), '<p>Stays.</p>');
+  assert.deepEqual(made.groups, {});
+});
+
+test('the words a trim is reckoned on are those the card counts: all that is not ghosted, headings included', () => {
+  // DOC: three words in the heading, fifteen and six in the paragraphs, and two more that are ghosted.
+  assert.equal(wordsIn(B(DOC)), 24);
+  assert.equal(wordsIn(B('<p># Only a heading here</p>')), 4);
+  assert.equal(wordsIn(B('<p><span data-ghost>All of it set aside.</span></p>')), 0);
 });
 
 // --- marks and fixes --------------------------------------------------------------------------------

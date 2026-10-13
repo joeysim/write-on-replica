@@ -13,7 +13,7 @@ export const SHORTCUTS = [
   { keys: 'Ctrl+/', command: 'ghost', label: 'Ghost it, or revive it', feature: true },
   { keys: 'Ctrl+Shift+X', command: 'stash', label: 'Stash in Overflow', feature: true },
   { keys: 'Ctrl+Shift+D', command: 'overflow', label: 'Overflow panel', feature: true },
-  { keys: 'Ctrl+U', command: 'source', label: 'The file as saved', feature: true },
+  { keys: 'Ctrl+U', command: 'source', label: 'The piece as Markdown, and its file', feature: true },
   { keys: 'Ctrl+S', command: 'save', label: 'Save' },
   { keys: 'Ctrl+O', command: 'open', label: 'Open' },
   { keys: 'Ctrl+Shift+P', command: 'post', label: 'Post to X' },

@@ -1,8 +1,11 @@
-// The source view (design spec 6.11): the file as it would be saved now, in a card over
-// the page. "As saved" is exactly what Save writes; "Readable" lays the recorded state out
-// for a person and jumps to it. It is for reading: nothing in it changes the document.
+// The source view (design spec 6.11): the piece and its file, in a card over the page.
+// "Markdown" is the piece as it reads now, to take elsewhere: the version of each thing
+// that is showing, with nothing ghosted, nothing from Overflow and none of what the file
+// keeps for this app. "As saved" is exactly what Save writes; "Readable" lays the recorded
+// state out for a person and jumps to it. It is for reading: nothing in it changes the
+// document. (The clip's card has the last two tabs. The first is this replica's own.)
 
-import { serialize, readable, sourceLines } from '../doc/format.js';
+import { serialize, readable, sourceLines, plainText } from '../doc/format.js';
 
 const ABOVE = 7.7; // how far below the top of the view the jump to the recorded state leaves it
 const COPIED_MS = 1500;
@@ -13,13 +16,20 @@ export function createSourceView({ editor, ui, commands, native }) {
   const tabs = [...card.querySelectorAll('.tab')];
   const bytes = card.querySelector('.bytes');
   const copy = card.querySelector('.copy');
-  let view = 'saved';
+  let view = 'markdown';
   // The card comes back as it was left: on the same tab, at the same place in the file.
   let left = null; // { view, top, pad } from the last closing; null for a document not yet looked at
   let caret = null; // the page's selection, to give back on closing
   let relabel = 0;
 
-  const text = () => (view === 'readable' ? readable(editor.getState()) : serialize(editor.getState()));
+  /** The piece as it reads now, as Markdown. Not a file: no line break is added at its end. */
+  const markdown = (state) => plainText(state, { withoutGhost: true });
+  /** What the tab that is showing shows, and what Copy copies. */
+  const text = () => {
+    const state = editor.getState();
+    if (view === 'markdown') return markdown(state);
+    return view === 'readable' ? readable(state) : serialize(state);
+  };
 
   function line({ kind, text: content }) {
     const node = document.createElement('div');
@@ -32,15 +42,19 @@ export function createSourceView({ editor, ui, commands, native }) {
   }
 
   /**
-   * Shows the file on tab `next`. Readable jumps to the recorded state; `at`, if given, is
-   * a place to go back to instead ({ top, pad } as left on closing).
+   * Shows tab `next`. Readable jumps to the recorded state; `at`, if given, is a place to
+   * go back to instead ({ top, pad } as left on closing).
    */
   function show(next, at = null) {
     view = next;
     for (const tab of tabs) tab.classList.toggle('active', tab.dataset.view === view);
     const state = editor.getState();
-    body.replaceChildren(...sourceLines(state, { readable: view === 'readable' }).map(line));
-    const size = new TextEncoder().encode(serialize(state)).length;
+    const piece = view === 'markdown' ? markdown(state) : null;
+    const shown = piece === null ? sourceLines(state, { readable: view === 'readable' }) : piece.split('\n').map((content) => ({ kind: 'text', text: content }));
+    body.replaceChildren(...shown.map(line));
+    // The size is the file's, as in the clip, whichever way the file is laid out; on
+    // Markdown, which is not the file, it is the size of what is there to copy.
+    const size = new TextEncoder().encode(piece ?? serialize(state)).length;
     bytes.textContent = `${size.toLocaleString('en-US')} bytes`;
     fit();
     body.style.paddingTop = at?.pad ?? '';
@@ -74,7 +88,7 @@ export function createSourceView({ editor, ui, commands, native }) {
     caret = editor.selection();
     ui.set({ source: true, read: false });
     if (left) show(left.view, left);
-    else show('saved');
+    else show('markdown');
     body.focus({ preventScroll: true }); // the keys now scroll the file, and none reach the page
   }
 

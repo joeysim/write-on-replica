@@ -175,7 +175,7 @@ t.same(html(), before, 'and the text is untouched');
 await act('Done');
 
 // A pass replaces whatever pass was out.
-await answer({ paragraphs: [{ n: 3, text: 'The third is.' }] });
+await answer({ sentences: [{ s: 3, text: 'The third is.', need: 5 }] });
 await openMenu();
 await t.click(...t.center([...menu.querySelectorAll('.level')][1]));
 await t.until(() => editor.root.querySelectorAll('[data-trim]').length > 0, 4000, 'a trim proposal');
@@ -183,7 +183,7 @@ await answer(MARKS);
 await pick('Mark hedges and filler');
 t.equal(editor.root.querySelectorAll('[data-trim]').length, 0, 'starting a marking pass puts a trim proposal away');
 await t.until(() => marked().length === 2, 4000, 'the marks');
-await answer({ paragraphs: [{ n: 3, text: 'The third is.' }] });
+await answer({ sentences: [{ s: 3, text: 'The third is.', need: 5 }] });
 await openMenu();
 await t.click(...t.center([...menu.querySelectorAll('.level')][1]));
 t.equal(marked().length, 0, 'and a trim puts marks away');

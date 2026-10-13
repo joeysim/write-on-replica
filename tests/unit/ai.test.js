@@ -102,9 +102,9 @@ const PARAGRAPHS = [
   { n: 2, text: 'The first draft is basically a way of finding out what I think. So I keep options open.' },
 ];
 
-test('every lab request sends numbered paragraphs and a strict schema', () => {
+test('every lab request sends the piece, numbered, and a strict schema', () => {
   for (const kind of LAB_KINDS) {
-    const request = labRequest(kind, PARAGRAPHS, { percent: 20 });
+    const request = labRequest(kind, PARAGRAPHS);
     const user = request.messages.at(-1).content;
     assert.ok(user.includes('[1] Writing tools assume'), kind);
     assert.ok(user.includes('[2] The first draft'), kind);
@@ -115,11 +115,28 @@ test('every lab request sends numbered paragraphs and a strict schema', () => {
   }
 });
 
-test('a trim request states the target in words', () => {
-  const user = labRequest('trim', PARAGRAPHS, { percent: 20 }).messages.at(-1).content;
-  assert.match(user, /20%/);
-  assert.match(user, /\b33\b/, 'word count now');
-  assert.match(user, /\b26\b/, 'word count to aim for');
+// A trim is asked for once, whatever the level: the model says of each sentence how much the
+// piece needs it and what it could lose, and the app counts (doc/trim.js). Asked to cut to a
+// number of words, the model the app was built against reasoned for a minute or more.
+test('a trim request offers the piece a sentence at a time, a blank line between paragraphs', () => {
+  const user = labRequest('trim', PARAGRAPHS).messages.at(-1).content;
+  assert.ok(
+    user.endsWith(
+      '\n\n[1] Writing tools assume you know what to say, which is honestly almost never the case.\n\n[2] The first draft is basically a way of finding out what I think.\n[3] So I keep options open.',
+    ),
+    user.slice(-260),
+  );
+});
+
+test('a trim request names no amount, and asks of every sentence what it could lose and how much it is needed', () => {
+  const request = labRequest('trim', PARAGRAPHS);
+  const user = request.messages.at(-1).content;
+  assert.doesNotMatch(user, /%|\b33\b|\b26\b|\bwords to\b/, 'no percentage, and no count of words to reach');
+  assert.match(user, /Do not count/i);
+  const item = request.schema.properties.sentences.items;
+  assert.deepEqual(Object.keys(item.properties), ['s', 'text', 'need']);
+  assert.deepEqual(item.required, ['s', 'text', 'need']);
+  assert.deepEqual(labRequest('trim', PARAGRAPHS, { percent: 50 }), request, 'the level asked for makes no difference to the question');
 });
 
 test('the four trim levels are the ones on the Lab buttons', () => {
@@ -131,36 +148,183 @@ test('the four trim levels are the ones on the Lab buttons', () => {
 
 // --- lab responses ------------------------------------------------------------------------
 
-test('a trim answer becomes cuts, paragraph by paragraph', () => {
-  const raw = JSON.stringify({ paragraphs: [{ n: 1, text: 'Writing tools assume you know what to say.' }, { n: 2, text: PARAGRAPHS[1].text }] });
-  const { items, rejected } = parseLabResponse('trim', raw, PARAGRAPHS);
+/** What a trim answer is read as, with each cut as the words it takes. */
+const readTrim = (sentences, paragraphs = PARAGRAPHS) => {
+  const { items, rejected } = parseLabResponse('trim', JSON.stringify({ sentences }), paragraphs);
+  const text = (n) => paragraphs.find((p) => p.n === n).text;
+  return { rejected, items: items.map((item) => ({ s: item.s, n: item.n, need: item.need, sentence: text(item.n).slice(item.start, item.end), cuts: item.runs.map((run) => text(item.n).slice(run.start, run.end)), fixes: item.caseFixes })) };
+};
+
+test('a trim answer says of each sentence how much the piece needs it and what it could lose', () => {
+  const { items, rejected } = readTrim([
+    { s: 1, text: 'Writing tools assume you know what to say.', need: 4 },
+    { s: 2, text: 'The first draft is a way of finding out what I think.', need: 5 },
+    { s: 3, text: 'So I keep options open.', need: 2 },
+  ]);
   assert.equal(rejected, 0);
-  assert.equal(items.length, 1, 'the unchanged paragraph has nothing to cut');
-  assert.equal(items[0].n, 1);
-  assert.equal(PARAGRAPHS[0].text.slice(items[0].runs[0].start, items[0].runs[0].end), ', which is honestly almost never the case');
+  assert.deepEqual(items, [
+    { s: 1, n: 1, need: 4, sentence: PARAGRAPHS[0].text, cuts: [', which is honestly almost never the case'], fixes: [] },
+    { s: 2, n: 2, need: 5, sentence: 'The first draft is basically a way of finding out what I think.', cuts: ['basically '], fixes: [] },
+    { s: 3, n: 2, need: 2, sentence: 'So I keep options open.', cuts: [], fixes: [] },
+  ]);
 });
 
-test('a trim that rewrites a paragraph is rejected, the rest kept', () => {
-  const raw = JSON.stringify({
-    paragraphs: [
-      { n: 1, text: 'Writing tools presume you know what to say.' },
-      { n: 2, text: 'The first draft is a way of finding out what I think. I keep options open.' },
-      { n: 9, text: 'No such paragraph.' },
+test('a capital that a cut calls for is placed in the paragraph, with the cut it belongs to', () => {
+  const { items } = readTrim([{ s: 1, text: 'Really, it holds.', need: 3 }, { s: 2, text: 'It stays up.', need: 3 }], [{ n: 1, text: 'Really, it holds. So it stays up.' }]);
+  assert.deepEqual(items[1].cuts, ['So ']);
+  assert.deepEqual(items[1].fixes, [{ start: 21, end: 23, text: 'It', run: 0 }], 'where it stands in the paragraph; the cut is counted within the sentence');
+  // A word that had its capital already needs none.
+  assert.deepEqual(readTrim([{ s: 3, text: 'I keep options open.', need: 3 }]).items[0].fixes, []);
+});
+
+test('a sentence that comes back reworded loses nothing, though it can still go whole', () => {
+  const { items, rejected } = readTrim([
+    { s: 1, text: 'Writing tools presume you know what to say.', need: 2 },
+    { s: 2, text: 'The first draft is a way of finding out what I think.', need: 4 },
+  ]);
+  assert.equal(rejected, 1);
+  assert.deepEqual(items.map((item) => [item.s, item.need, item.cuts]), [[1, 2, []], [2, 4, ['basically ']]]);
+});
+
+test('a sentence that was not offered, or is spoken of twice, is passed over', () => {
+  const { items, rejected } = readTrim([
+    { s: 3, text: 'So I keep options open.', need: 2 },
+    { s: 9, text: 'No such sentence.', need: 1 },
+    { s: 3, text: 'I keep options open.', need: 1 },
+    { s: '2', text: PARAGRAPHS[1].text, need: 1 },
+    { s: 1, text: 12, need: 1 },
+  ]);
+  assert.equal(rejected, 4);
+  assert.deepEqual(items.map((item) => [item.s, item.need, item.cuts]), [[3, 2, []]]);
+});
+
+// Found with the real model on a piece of eighty-five sentences: eighty-one came back, each
+// under the number of the sentence four on. Taken by their numbers, every one would have
+// been "reworded", and how much each was needed would have gone to the wrong sentence.
+const FOUR = [{ n: 1, text: 'Alpha one is here now. Beta two is really here too.' }, { n: 2, text: 'Gamma three is here as well. Delta four is here at last.' }];
+
+test('a sentence that comes back under another’s number is known by its words', () => {
+  const { items, rejected } = readTrim(
+    [
+      { s: 2, text: 'Alpha one is here now.', need: 1 },
+      { s: 3, text: 'Beta two is here too.', need: 2 },
+      { s: 4, text: 'Gamma three is here as well.', need: 3 },
+      { s: 5, text: 'Delta four is here at last.', need: 4 },
     ],
-  });
-  const { items, rejected } = parseLabResponse('trim', raw, PARAGRAPHS);
-  assert.equal(rejected, 2);
-  assert.deepEqual(items.map((i) => i.n), [2]);
+    FOUR,
+  );
+  assert.equal(rejected, 0);
+  assert.deepEqual(items.map((item) => [item.s, item.n, item.need, item.cuts]), [[1, 1, 1, []], [2, 1, 2, ['really ']], [3, 2, 3, []], [4, 2, 4, []]]);
+});
+
+test('where the numbers have slipped, a reworded sentence is taken to have slipped with them', () => {
+  const { items, rejected } = readTrim(
+    [
+      { s: 2, text: 'Alpha one is here now.', need: 1 },
+      { s: 3, text: 'Beta two is truly here.', need: 2 },
+      { s: 4, text: 'Gamma three is here as well.', need: 3 },
+    ],
+    FOUR,
+  );
+  assert.equal(rejected, 1);
+  assert.deepEqual(items.map((item) => [item.s, item.need, item.cuts]), [[1, 1, []], [2, 2, []], [3, 3, []]]);
+});
+
+// Found in review: taken one sentence at a time, a reworded sentence that happened to be its
+// neighbour with words deleted moved the numbers, and everything after it went to the wrong
+// sentence. So the numbers are only read as having slipped where that explains most of the answer.
+test('one sentence that could be its neighbour’s does not move the numbers', () => {
+  const late = [{ n: 1, text: 'It was late. It was, I think, far too late to call. Nobody answered anyway. We left.' }];
+  const { items, rejected } = readTrim(
+    [
+      { s: 1, text: 'It was too late.', need: 2 }, // reworded, and as it happens the second with words deleted
+      { s: 2, text: 'It was far too late to call.', need: 5 },
+      { s: 3, text: 'Nobody answered.', need: 3 },
+      { s: 4, text: 'We left.', need: 5 },
+    ],
+    late,
+  );
+  assert.equal(rejected, 1);
+  assert.deepEqual(items.map((item) => [item.s, item.need, item.cuts]), [[1, 2, []], [2, 5, [', I think,']], [3, 3, [' anyway']], [4, 5, []]]);
+});
+
+test('numbers that are right but for one are taken as they stand', () => {
+  const { items, rejected } = readTrim(
+    [
+      { s: 1, text: 'Alpha one is here now.', need: 5 },
+      { s: 1, text: 'Beta two is here too.', need: 4 }, // the same number again
+      { s: 3, text: 'Gamma three is here as well.', need: 3 },
+      { s: 4, text: 'Delta four is here.', need: 2 },
+    ],
+    FOUR,
+  );
+  assert.equal(rejected, 1);
+  assert.deepEqual(items.map((item) => [item.s, item.need, item.cuts]), [[1, 5, []], [3, 3, []], [4, 2, [' at last']]]);
+});
+
+// A number can also be wrong by itself, or all of them by more than is looked for. What comes
+// back under a number is then some other sentence, and what it says of how much the piece
+// needs it is not about this one.
+test('words that are nothing like the sentence of their number say nothing about it', () => {
+  const { items, rejected } = readTrim(
+    [
+      { s: 1, text: 'Gamma three is here as well.', need: 1 }, // the third sentence, under the first's number
+      { s: 2, text: 'Beta two is truly here too.', need: 2 }, // the second, with a word changed
+      { s: 4, text: 'Something else entirely.', need: 1 },
+    ],
+    FOUR,
+  );
+  assert.equal(rejected, 3);
+  assert.deepEqual(items.map((item) => [item.s, item.need, item.cuts]), [[2, 2, []]], 'a sentence reworded is still spoken of; another sentence is not');
+});
+
+test('what is said comes back a sentence at a time, in the order of the piece, whatever order it came in', () => {
+  const { items } = readTrim([
+    { s: 3, text: 'So I keep options open.', need: 2 },
+    { s: 1, text: PARAGRAPHS[0].text, need: 4 },
+  ]);
+  assert.deepEqual(items.map((item) => item.s), [1, 3]);
+});
+
+test('a sentence is looked for near its number only, and one that is nowhere near is left where it says', () => {
+  const far = [{ n: 1, text: Array.from({ length: 12 }, (_, i) => `Sentence ${i + 1} stands in its place.`).join(' ') }];
+  const { items, rejected } = readTrim([{ s: 1, text: 'Sentence 12 stands in its place.', need: 1 }], far);
+  assert.equal(rejected, 1, 'it is not the first sentence with words deleted');
+  assert.deepEqual(items.map((item) => [item.s, item.need, item.cuts]), [[1, 1, []]], 'and the twelfth is too far off to be what was meant');
+});
+
+test('how much a sentence is needed is held to 1 to 5; where it is not said, the sentence is needed', () => {
+  const needs = (need) => readTrim([{ s: 1, text: PARAGRAPHS[0].text, ...(need === undefined ? {} : { need }) }]).items[0].need;
+  assert.deepEqual([0, 1, 3, 5, 9, -2].map(needs), [1, 1, 3, 5, 5, 1]);
+  assert.deepEqual([undefined, null, 'low', 2.5, NaN].map(needs), [5, 5, 5, 5, 5]);
+});
+
+test('a trim answer comes with how many sentences were asked about, so that one that leaves most out can be told', () => {
+  const read = parseLabResponse('trim', JSON.stringify({ sentences: [{ s: 2, text: 'The first draft is a way of finding out what I think.', need: 3 }] }), PARAGRAPHS);
+  assert.equal(read.sentences, 3);
+  assert.equal(read.items.length, 1);
+});
+
+test('an empty text is a sentence with nothing to lose', () => {
+  const { items, rejected } = readTrim([{ s: 1, text: '', need: 2 }, { s: 2, text: '  ', need: 3 }]);
+  assert.equal(rejected, 0);
+  assert.deepEqual(items.map((item) => [item.s, item.need, item.cuts]), [[1, 2, []], [2, 3, []]]);
+});
+
+test('a number the model puts before a sentence, as the draft has it, is not taken for a change', () => {
+  const { items, rejected } = readTrim([{ s: 2, text: '[2] The first draft is a way of finding out what I think.', need: 4 }]);
+  assert.equal(rejected, 0);
+  assert.deepEqual(items[0].cuts, ['basically ']);
 });
 
 test('json inside a markdown fence or with words around it is still read', () => {
-  const body = JSON.stringify({ paragraphs: [{ n: 1, text: 'Writing tools assume you know what to say.' }] });
+  const body = JSON.stringify({ sentences: [{ s: 1, text: 'Writing tools assume you know what to say.', need: 3 }] });
   assert.equal(parseLabResponse('trim', '```json\n' + body + '\n```', PARAGRAPHS).items.length, 1);
   assert.equal(parseLabResponse('trim', 'Here you go:\n' + body + '\nHope that helps.', PARAGRAPHS).items.length, 1);
 });
 
 test('prose, broken json and the wrong shape are errors', () => {
-  for (const raw of ['I cut a few words for you.', '{"paragraphs": [', '{"cuts": []}', '[]', '', '{"paragraphs": "none"}']) {
+  for (const raw of ['I cut a few words for you.', '{"sentences": [', '{"cuts": []}', '{"paragraphs": []}', '[]', '', '{"sentences": "none"}']) {
     assert.throws(() => parseLabResponse('trim', raw, PARAGRAPHS), /expected form/i, raw);
   }
 });
@@ -225,16 +389,18 @@ test('typo fixes need the passage verbatim and a different replacement', () => {
 // --- room to think ---------------------------------------------------------------------------------
 
 // Measured against glm-5.3-flash at low effort (October 2026): what the model thinks before it
-// answers is counted against the same limit as the answer. A slight trim of 570 words took 1,300
-// to 3,300 tokens of thought, a 30% trim 6,300; given 1,350 in all, it thought until the limit
-// and answered nothing. Marking passes thought for up to 400 on 164 words.
+// answers is counted against the same limit as the answer. Asked what each sentence could
+// lose, it mostly answers at once (1 to 11 tokens of thought), and now and then thinks first:
+// 1,281 tokens over 491 words. Given no room for that it answers nothing. Marking passes
+// thought for up to 400 on 164 words.
 test('a Lab pass leaves the model room to think, as well as to answer', () => {
   const paragraphs = Array.from({ length: 7 }, (_, i) => ({ n: i + 1, text: Array.from({ length: 81 }, () => 'word').join(' ') })); // 567 words
   const words = 567;
   const answer = (kind) => Math.ceil(paragraphs.reduce((sum, p) => sum + p.text.length, 0) / (kind === 'trim' ? 3 : 4));
-  for (const percent of [10, 30, 50]) {
-    const room = labRequest('trim', paragraphs, { percent }).maxTokens;
-    assert.ok(room >= answer('trim') + 2000 + 15 * words, `a ${percent}% trim of ${words} words: ${room}`);
+  {
+    // A trim's answer is every sentence over again, with two numbers beside each.
+    const room = labRequest('trim', paragraphs).maxTokens;
+    assert.ok(room >= answer('trim') + 12 * paragraphs.length + 2000 + 6 * words, `a trim of ${words} words: ${room}`);
   }
   for (const kind of ['typos', 'weak', 'filler']) {
     const room = labRequest(kind, paragraphs).maxTokens;

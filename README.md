@@ -62,7 +62,7 @@ off. Every window after the first starts blank; Help ▸ The Welcome Piece bring
 | Ctrl+Shift+X | Stash the selection (or the paragraph) in Overflow |
 | Ctrl+Shift+D | Overflow panel |
 | Ctrl+Return, in Overflow | Use the selection in the page |
-| Ctrl+U | The file as saved |
+| Ctrl+U, or the M↓ icon | The piece as Markdown, to copy; and the file as saved |
 | Ctrl+S, Ctrl+O | Save, Open |
 | Ctrl+Shift+P | Post to X |
 | ⌘N, ⌘O, ⌘S, ⇧⌘S, ⌘W, ⌘Z, ⇧⌘Z, ⌘, | New, Open, Save, Save As, Close, Undo, Redo, Settings |
@@ -80,6 +80,8 @@ and Stash.
 - **The Lab** (bottom centre) reads the page and marks what it finds: weak or long
   sentences, filler, typos, or what could go to make the piece 10, 20, 30 or 50 percent
   shorter. It fades and underlines; it never rewrites. Nothing is cut until you say so.
+  A trim is read once, and all four levels are then there at once: the AI says what each
+  sentence could lose and how much the piece needs it, and the app does the counting.
 - **Edit ▸ Spelling and Grammar, Substitutions.** Spell checking, autocorrection and smart
   quotes are all off until you turn them on there, whatever the system's settings say.
 
@@ -91,6 +93,11 @@ showing and what is ghosted, are in a `<!-- write_on {…} -->` comment at the e
 with no alternatives and nothing ghosted is saved as plain Markdown with no comment at all.
 A file edited elsewhere opens with its text as it now is, and keeps the alternatives whose
 words are still there.
+
+To take the piece somewhere else, press Ctrl+U or click the M↓ icon. The card opens on
+**Markdown**: the piece as it reads now, with the version of each thing that is showing,
+nothing ghosted, nothing from Overflow and no comment, and a Copy button. The other two
+tabs, As saved and Readable, show the file itself.
 
 The format follows what the third clip shows of the original's, down to the `write_on`
 comment. That is 52 seconds of one file: whether his tool would open a file saved here,
@@ -182,12 +189,14 @@ Either way:
 
 - Which parts of a request a service turns out not to take is remembered, for that
   address and model, until the app is quit or that way of asking stops working.
-- Room. A trim asks for a great deal of it, because a model that reasons spends most of
-  it thinking: 2,000 tokens and 15 for every word of the piece, up to 32,000. That is more
-  than 8,192 from about 340 words and more than 16,384 from about 830, and a model that
-  may not write so much will refuse a longer piece. If a model's thinking uses its room
-  up before it has said a word, the app asks again with twice as much, twice at most,
-  for that request only.
+- Room. A trim's answer is every sentence of the piece over again, and a model that
+  reasons may think first, so a trim asks for room for both: eight to fourteen tokens for
+  every word of the piece, by the length of its words and sentences, and 2,400 besides,
+  up to 32,000. That is more than 8,192 from somewhere between 500 and 750 words and more
+  than 16,384 from between 1,200 and 1,700, and a model that may not write so much will
+  refuse a longer piece. If a model's thinking uses its room up
+  before it has said a word, the app asks again with twice as much, twice at most, for
+  that request only.
 - An answer that begins within a minute and never falls silent for longer. The app gives
   up on one that does. A model that thinks in silence for longer than that, or a server
   still loading its model, may be given up on.
@@ -202,7 +211,7 @@ of an effort or a schema nobody here has seen, and the asking again goes by the 
 those fields. It was also tried against LunaRoute's endpoint, which is not the same
 thing: LunaRoute takes no notice of where Anthropic puts the effort and the schema. So
 to LunaRoute, and only to LunaRoute, the app gives the effort under OpenAI's name as
-well; without that a trim thought for a minute and ran out of room. Everything about
+well; without that the model thinks at its full length. Everything about
 other services OpenAI's way is likewise tested against the stand-in
 (`tests/ui/ai-gateway.js`), and not yet against the services themselves.
 [The live scenario](#ui-scenarios) will try one of yours.
@@ -210,20 +219,23 @@ other services OpenAI's way is likewise tested against the stand-in
 **What leaves your Mac.** Nothing, until you ask the AI for something. A request for
 alternatives carries the paragraph the word is in and the versions you already have. The
 Lab sends the page's paragraphs, without the headings and without what is ghosted. A trim
-sends them once for the level you chose and then, for as long as it is on the page, once
-for each of the other three, so that they are there when you go to them; Done stops
-that. All of it goes to the address in force, with the key in force, and nowhere else,
+sends them once, whichever level you choose and however many you then look at, until the
+piece changes; an answer that leaves most of the piece out is asked for once more. All of
+it goes to the address in force, with the key in force, and nowhere else,
 and Overflow is never sent. There is no telemetry and nothing checks for updates. The
 only other thing that goes anywhere is Post to X, which opens X's compose page in your
 browser with the piece in the link.
 
-Alternatives come back in a second or two. **A trim is slow with `glm-5.3-flash`:**
-anything from 9 seconds to over a minute for the 170-word welcome piece, by the hour and
-from one asking to the next, and 16 to 50 seconds for a 570-word one, where the original
-takes a second or two. Asked Anthropic's way through LunaRoute, the welcome piece's trim
-took 20 to 49 seconds. The model reasons its way to the word count; a quicker way of
-asking took 5 seconds and cut a third of what was asked for, so accuracy was kept. The
-measurements are in the spec, §7.1.
+Alternatives come back in a second or two. **A trim takes longer with `glm-5.3-flash`:**
+4 to 26 seconds for the 170-word welcome piece (mostly under 11) and 8 to 25 for a
+500-word draft, in either way of speaking, and 40 to 50 for 1,600 words, where the
+original takes a second or two. Where sentences have words to lose, the first cuts fade about two seconds in, and
+once the answer is in, every level is immediate. Now and then the model thinks before it
+answers, and the 500-word draft takes a minute. Each level comes to within a point or two
+of what it says: 10, 20, 30 and 50% of that draft. (The lighter levels never take a
+sentence the model says the piece does not work without, so where it says that of most of
+them one can fall short; the card says what it came to.) The measurements, and the first
+way trims were asked, which took minutes and missed, are in the spec, §6.10 and §7.1.
 
 ## What a person has to check
 
@@ -271,7 +283,7 @@ These need someone at the Mac:
 
 ## Decisions the clips do not settle
 
-The full list, 52 items with the reasoning, is §9 of the spec. In short:
+The full list, 54 items with the reasoning, is §9 of the spec. In short:
 
 **Alternatives.** Groups do not nest: making a larger group over smaller ones turns the
 smaller ones back into text (undo restores them). A selection's scope follows what it
@@ -287,9 +299,13 @@ emptied row removes its version, and the last version cannot be removed.
 **Ghost, Overflow, the Lab.** Ghost with no selection takes the word at the caret. Stash
 with no selection takes the paragraph, and stashed text goes to the end of Overflow.
 Ctrl+Return moves text out of Overflow rather than copying it. "Walk through" steps through
-a trim one cut at a time (Cut, Keep, Stop). The marking passes underline in the Lab's
-crimson and give their reason on hover; a click dismisses a mark. The typo pass shows each
-fix on hover and has Fix all. The Lab guide and the keyboard icon open cards.
+a trim one cut at a time (Cut, Keep, Stop). How much a trim takes is counted by the app
+from what the AI says of each sentence: first the words sentences could lose, then whole
+sentences, the least needed first; a sentence the piece does not work without goes only
+in Cut in half, and last; and each level holds everything the lighter ones take.
+The marking passes underline in the Lab's crimson and give their reason on hover; a click
+dismisses a mark. The typo pass shows each fix on hover and has Fix all. The Lab guide and
+the keyboard icon open cards.
 
 **Files and the Mac.** Everything about being a Mac app: the blended title bar, the menu
 bar, Save As, Open Recent, the unsaved-changes question, drafts against a crash, several
@@ -299,7 +315,8 @@ that already has it, else in one nobody has written in, else in its own.
 
 **Sharing.** Post to X opens X's compose window with the piece as it reads (no heading
 mark, nothing ghosted, nothing from Overflow) and does not use X's API; a piece too long
-for a link goes to the clipboard instead, with a note. The LinkedIn button's numbers are
+for a link goes to the clipboard instead, with a note. The M↓ card opens on the same
+text with its heading marks, as Markdown to copy. The LinkedIn button's numbers are
 measured from the clip.
 
 **Typing.** `# ` at the start of a line makes a heading and hides the mark. Spell checking,
@@ -310,17 +327,21 @@ autocorrection and smart punctuation are off by default.
 - Lines are 36 px apart, not 36.4, and Overflow's 22, not 22.5: WebKit sets lines of text a
   whole number of pixels apart, and the original runs in a browser that does not.
 - A selection that runs past the end of a line is drawn a little differently by WebKit.
-- The Lab's trims take much longer (see [The AI](#the-ai)): from ten seconds to a minute
-  for a short piece against two in the clip. Nearly all of that is the model thinking before it
-  answers, so the cuts, which are faded as they arrive, come in the last second of it.
-  Once a level has been read the others are read quietly, one at a time, for as long as
-  the trim is on the page, and going to one that has been read is immediate, as it is in
-  the clip. Each is a request to the service.
+- The Lab's trims take longer (see [The AI](#the-ai)): four to twenty-five seconds for the
+  first level of a piece against two in the clip. The cuts are faded as the answer
+  arrives, from about two seconds in. Going to another level is immediate, as it is in
+  the clip, since the one answer serves all four.
+- How a trim decides what goes is this replica's own: the clip shows words and whole
+  sentences fading and the card counting them, not how they were chosen. Here the AI says
+  what each sentence could lose and how much the piece needs it, and the app takes the
+  level's share of that, the least needed first.
 - Two things the original does when it scrolls are not copied, because they look like
   slips: closing the panel jumps the page to the top, and the wheel scrolls the page
   behind the source view once the view reaches its end.
 - The proposal card's width for "Even sharper" and "Cut in half" is extrapolated; the clips
   show only the first two levels.
+- The M↓ card has a tab the original's does not: Markdown, ahead of As saved and Readable,
+  and the one it opens on. The original's card shows only the file, record and all.
 
 ## Working on it
 
@@ -408,12 +429,13 @@ WRITEON_API_FORMAT=anthropic scripts/ui-test.sh ai-live --ai live # the same, An
 ```
 
 It asks for five other words, three other sentences, the hedges in the welcome piece, a
-slight trim and the level after it, and the slips in a page that has some. It asks what
+trim of that piece and of a 500-word draft at every level, and the slips in a page that
+has some. It asks what
 your shell names: LunaRoute and `glm-5.3-flash`, or the service and model in
 `WRITEON_BASE_URL` and `WRITEON_MODEL`, in the way `WRITEON_API_FORMAT` or the address
 says. The key has to come from your login shell too (`WRITEON_API_KEY` or
 `LUNAROUTE_API_KEY`), since a scripted run does not read the keychain; without one it
-fails. A run takes two or three minutes, nearly all of it the model thinking.
+fails. A run takes about a minute, or two when the model thinks before it answers.
 
 Two things in the app are there for working on it and are on in every copy. Safari's Web
 Inspector can attach to the page (Develop menu), and `WRITEON_WEB_ROOT` in the app's

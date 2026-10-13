@@ -44,33 +44,60 @@ const choose = async (name) => {
   await t.click(...t.center(level(name)));
 };
 /**
- * What the model is made to answer, and how soon. The Lab keeps what it has been told about
- * a piece, level by level, so a new answer is only heard once what was kept is forgotten.
+ * What the model is made to say of the piece, and how soon: of each sentence, what it could
+ * lose and how much the piece needs it. The Lab keeps what it has been told about a piece,
+ * so a new answer is only heard once what was kept is forgotten.
  */
-const answer = (paragraphs, { firstMs = 60, error = null } = {}) => {
+const answer = (sentences, { firstMs = 60, error = null } = {}) => {
   lab.forget();
-  return t.call('test.ai', { set: error ? { error, firstMs } : { chunks: [JSON.stringify({ paragraphs }).slice(0, 40), JSON.stringify({ paragraphs }).slice(40)], firstMs, everyMs: 20 } });
+  return t.call('test.ai', { set: error ? { error, firstMs } : { chunks: [JSON.stringify({ sentences }).slice(0, 40), JSON.stringify({ sentences }).slice(40)], firstMs, everyMs: 20 } });
 };
 /** The same, leaving what the Lab has kept for the edit under test to deal with. */
-const answerQuietly = (paragraphs, { firstMs = 60 } = {}) =>
-  t.call('test.ai', { set: { chunks: [JSON.stringify({ paragraphs }).slice(0, 40), JSON.stringify({ paragraphs }).slice(40)], firstMs, everyMs: 20 } });
+const answerQuietly = (sentences, { firstMs = 60 } = {}) =>
+  t.call('test.ai', { set: { chunks: [JSON.stringify({ sentences }).slice(0, 40), JSON.stringify({ sentences }).slice(40)], firstMs, everyMs: 20 } });
 const asked = async () => (await t.call('test.ai')).requests;
-/** The levels the model has been asked about since `from` requests ago, as the percentages named in the questions. */
-const askedAbout = async (from = 0) => (await asked()).slice(from).map((request) => Number(/about (\d+)%/.exec(request.messages.map((m) => m.content).join('\n'))?.[1]));
 
-const P1 = 'Much of the trouble, in my view, comes from wanting every line to stay. It rarely works out that way.';
-const P3 = 'A last paragraph that the trim leaves alone.';
+const S1 = 'Much of the trouble, in my view, comes from wanting every line to stay.';
+const S2 = 'It rarely works out that way.';
+const P1 = `${S1} ${S2}`;
+// The second paragraph as the model is offered it: without what is ghosted.
+const P2 = 'Keep what earns its place and really nothing else, then stop.';
+const P3 = [
+  'A last paragraph that the trim leaves alone, at least to begin with.',
+  'It is here so that the piece is long enough for a tenth of it to be worth the taking.',
+  'What goes first is padding, and this has none.',
+  'What goes next is whatever the piece could do without, like this sentence about nothing much.',
+  'Then come the sentences that add a little, of which this is one, though only just.',
+  'And last the ones a reader would miss, if not by much.',
+  'The rest stays whatever is asked, because without it there would be no piece left to speak of.',
+];
 const DOC =
   '<p><br></p><p># The short version</p><p><br></p>' +
   `<p>${P1}</p><p><br></p>` +
   '<p>Keep <span data-ghost>this aside </span>what earns its place and <span data-vid="r3ally1">really</span> nothing else, then stop.</p><p><br></p>' +
-  `<p>${P3}</p>`;
+  `<p>${P3.join(' ')}</p>`;
 const GROUPS = { r3ally1: { scope: 'word', variants: ['really', 'truly'], active: 0 } };
-const SLIGHT = [
-  { n: 1, text: 'The trouble comes from wanting every line to stay.' },
-  { n: 2, text: 'Keep what earns its place and nothing else.' },
+// The piece has ten sentences. Of each the model says what it could lose and, from 1 to 5,
+// how much the piece needs it; the first three have padding, and the second could go.
+const SAID = [
+  { s: 1, text: 'The trouble comes from wanting every line to stay.', need: 5 },
+  { s: 2, text: 'It rarely works out that way.', need: 1 },
+  { s: 3, text: 'Keep what earns its place and nothing else.', need: 5 },
+  ...[5, 4, 5, 2, 3, 4, 5].map((need, i) => ({ s: 4 + i, text: P3[i], need })),
 ];
-const CUTS = ['Much of ', ', in my view,', ' It rarely works out that way.', 'really ', ', then stop'];
+// A slight trim takes the padding and the sentence the piece is better without.
+const CUTS = ['Much of ', ', in my view,', 'It rarely works out that way.', 'really ', ', then stop'];
+// Words that are not ghosted: 3 in the heading, then 20, 11 and 104 in the paragraphs. What
+// each level takes of them, and which sentences of the last paragraph go with the cuts above:
+// the app does the counting, and gets as near as whole sentences allow.
+const WORDS = 138;
+const LEVELS = {
+  'Slight trim': { cut: 14, also: [] },
+  'Tighten more': { cut: 30, also: [P3[3]] },
+  'Even sharper': { cut: 46, also: [P3[3], P3[4]] },
+  'Cut in half': { cut: 66, also: [P3[1], P3[3], P3[4]] },
+};
+const summary = (name, cut = LEVELS[name].cut) => `${name} ${WORDS} → ${WORDS - cut} words · −${Math.round((cut / WORDS) * 100)}%`;
 const load = async () => {
   editor.setState({ html: DOC, groups: structuredClone(GROUPS), overflow: '' });
   editor.focus();
@@ -79,10 +106,6 @@ const load = async () => {
 };
 await load();
 const before = html();
-// Words that are not ghosted: 3 in the heading, then 20, 11 and 8 in the paragraphs. The
-// answer above cuts 14 of them; 11 if ", in my view," is kept.
-const WORDS = 42;
-const summary = (name, cut) => `${name} ${WORDS} → ${WORDS - cut} words · −${Math.round((cut / WORDS) * 100)}%`;
 
 // --- the popover ----------------------------------------------------------------------------------
 
@@ -175,7 +198,7 @@ t.same(html(), before, 'none of which touches the text');
 
 // --- reading --------------------------------------------------------------------------------------
 
-await answer(SLIGHT, { firstMs: 1500 });
+await answer(SAID, { firstMs: 1500 });
 await choose('Slight trim');
 t.assert(!ui.get('lab'), 'choosing a level closes the popover');
 t.assert(shown(card), 'and puts a card at the foot of the page');
@@ -193,13 +216,16 @@ t.assert(shown(card), 'and puts a card at the foot of the page');
   await t.until(() => !shown(menu), 1000, 'the popover to be out of the way');
   await t.snap('reading');
 }
-// The model is offered the paragraphs, not the heading, and not what is ghosted.
+// The model is offered the paragraphs a sentence at a time: not the heading, and not what is
+// ghosted. It is not told how much to cut. That is counted here, from what it says.
 {
   const [request] = await asked();
   const said = request.messages.map((m) => m.content).join('\n');
-  t.assert(said.includes(`[1] ${P1}`) && said.includes('[2] Keep what earns its place and really nothing else, then stop.') && said.includes(`[3] ${P3}`), 'the paragraphs go to the model, numbered');
+  t.assert(said.includes(`[1] ${S1}\n[2] ${S2}\n\n[3] ${P2}\n\n[4] A last paragraph`), 'the sentences go to the model, numbered through, a blank line between paragraphs');
+  t.assert(said.endsWith(`[10] ${P3[6]}`), 'to the last of them');
   t.assert(!said.includes('this aside') && !said.includes('The short version'), 'without ghosted text or the heading');
-  t.assert(/about 10%/.test(said), 'with how much to cut');
+  t.assert(!/\d\s*%|\d+ words/.test(said), 'and with no amount to cut to');
+  t.equal(Object.keys(request.schema.properties), ['sentences'], 'the answer is to be a list of sentences');
 }
 // A crimson line reads down each block in turn, 300ms to a block.
 {
@@ -235,7 +261,7 @@ t.assert(!shown(scan), 'the line is gone');
 {
   const span = spanOf('in my view');
   t.equal(getComputedStyle(span).opacity, '0.22', 'faded words are drawn at 22%, twice as strong as ghosted ones');
-  t.equal(title(), summary('Slight trim', 14), 'the card counts the words before and after');
+  t.equal(title(), summary('Slight trim'), 'the card counts the words before and after: a tenth, as near as can be');
   t.equal(actions(), ['Make the cuts', 'Walk through', 'Done'], 'and offers to walk through the cuts');
   const box = card.getBoundingClientRect();
   t.near(box.width, 601.5, 0.01, 'the card is 601.5px wide now, as in the clip');
@@ -264,8 +290,9 @@ await t.key('Escape');
 await t.click(...t.center(spanOf('really')));
 t.equal(faded().length, 4, 'one cut is kept');
 await act('Make the cuts');
-t.equal(textOf(3), 'The trouble comes from wanting every line to stay.', 'the cuts are made, and the sentence starts with a capital');
+t.equal(textOf(3), 'The trouble comes from wanting every line to stay.', 'the cuts are made, the sentence starts with a capital, and the sentence that could go has gone');
 t.equal(textOf(5), 'Keep this aside what earns its place and really nothing else.', 'the kept words stay, and so does what was ghosted');
+t.equal(textOf(7), P3.join(' '), 'a paragraph with nothing proposed is as it was');
 t.equal(editor.root.querySelectorAll('[data-trim]').length, 0, 'nothing is faded any more');
 t.assert(!shown(card), 'and the card is gone');
 t.equal(Object.keys(editor.groups), ['r3ally1'], 'a group that was kept is still a group');
@@ -277,7 +304,7 @@ t.equal(textOf(3), 'The trouble comes from wanting every line to stay.', 'and re
 await load();
 
 // A cut that takes all of a group takes the group.
-await answer(SLIGHT);
+await answer(SAID);
 await choose('Slight trim');
 await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
 await act('Make the cuts');
@@ -287,7 +314,7 @@ await load();
 
 // --- putting a proposal away ----------------------------------------------------------------------
 
-await answer(SLIGHT);
+await answer(SAID);
 await choose('Slight trim');
 await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
 await act('Done');
@@ -297,118 +324,118 @@ await openMenu();
 t.equal(pending(), 'Original', 'Original is marked again');
 await t.key('Escape');
 
-// Another level replaces what is proposed.
-await answer(SLIGHT);
-await choose('Slight trim');
-await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
-await answer([{ n: 3, text: 'A last paragraph the trim leaves alone.' }], { firstMs: 400 });
-await choose('Tighten more');
-t.equal([faded().length, title()], [0, 'Tighten more Reading…'], 'choosing another level starts over');
-await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the second proposal');
-t.equal(faded(), ['that '], 'with only what the new answer would cut');
-t.equal(title(), summary('Tighten more', 1), 'under its own name');
-t.near(card.getBoundingClientRect().width, 608.5, 0.01, 'on a card one letter wider');
-t.assert((await askedAbout()).includes(20), 'having asked for 20%');
-// Original puts it away.
-await choose('Original');
-t.equal([faded().length, shown(card), ui.get('lab')], [0, false, false], 'Original puts the proposal away and closes the popover');
-
-// --- cuts arrive as the answer does ----------------------------------------------------------------
-// A trim's answer is every paragraph over again, and it takes a while to arrive. In the clip
-// the first cuts fade, and "Walk through" appears, while the card still reads "Reading…".
-{
-  lab.forget();
-  const whole = JSON.stringify({ paragraphs: SLIGHT });
-  const cut = whole.indexOf('},{') + 2; // the first paragraph whole, and the start of the next
-  t.assert(cut > 2, 'the answer has more than one paragraph');
-  await t.call('test.ai', { set: { chunks: [whole.slice(0, cut), whole.slice(cut)], firstMs: 100, everyMs: 900 } });
-  await choose('Slight trim');
-  await t.until(() => faded().length > 0, 800, 'the first paragraph’s cuts to fade while the rest is still coming');
-  t.equal(title(), 'Slight trim Reading…', 'the card still says it is reading');
-  t.assert(shown(scan), 'and the line is still going through the text');
-  t.equal(actions(), ['Make the cuts', 'Walk through', 'Done'], 'Walk through is there already');
-  const early = faded().length;
-  const text = html();
-  await act('Make the cuts');
-  t.same(html(), text, 'though nothing can be cut until the whole answer is in');
-  await t.until(() => title() === summary('Slight trim', 14), 3000, 'the whole answer');
-  t.assert(faded().length > early, `which brings the rest of the cuts: ${early}, then ${faded().length}`);
-  await act('Done');
-}
-
-// --- levels are kept ------------------------------------------------------------------------------
+// --- one answer, every level ----------------------------------------------------------------------
 // In the clip "Tighten more" is chosen some seconds after "Slight trim" was read, and its
-// card is there at once, numbers and all: no reading, no line through the text. The Lab
-// reads the level asked for, then the others quietly, one at a time, and keeps what it is
-// told for as long as the piece does not change.
+// card is there at once, numbers and all: no reading, no line through the text. The model
+// is asked once, what each sentence could lose and how much the piece needs it, and each
+// level is counted out from that for as long as the piece does not change.
 {
-  await answer(SLIGHT, { firstMs: 120 });
-  const before = (await asked()).length;
+  await answer(SAID, { firstMs: 120 });
+  const asks = (await asked()).length;
   await choose('Slight trim');
-  t.equal(title(), 'Slight trim Reading…', 'the level asked for is read');
+  t.equal(title(), 'Slight trim Reading…', 'the first level asked for is read');
   await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'its proposal');
-  t.equal((await askedAbout(before))[0], 10, 'the model was asked about that level first');
-  await t.until(async () => (await asked()).length === before + 4, 4000, 'the other three levels to be read quietly');
-  t.equal(await askedAbout(before), [10, 20, 30, 50], 'one after another, from the one asked for outwards');
-  t.equal([title(), shown(scan)], [summary('Slight trim', 14), false], 'while the proposal that was asked for stays as it is');
+  t.equal([faded(), title()], [CUTS, summary('Slight trim')], 'a tenth of the piece');
+  t.equal(lab.read(), true, 'what the model said is kept');
 
   await choose('Tighten more');
-  t.equal([title(), shown(scan), faded().length > 0], [summary('Tighten more', 14), false, true], 'another level is there at once: no reading, no line, its cuts faded');
+  t.equal([title(), shown(scan)], [summary('Tighten more'), false], 'another level is there at once: no reading, no line');
+  t.equal(faded(), [...CUTS, ...LEVELS['Tighten more'].also], 'with more faded: the sentence the piece needs least');
+  t.near(card.getBoundingClientRect().width, 608.5, 0.01, 'on a card one letter wider');
+  await openMenu();
+  t.equal(pending(), 'Tighten more', 'and it is the level marked now');
+  await t.key('Escape');
+  await choose('Even sharper');
+  t.equal([title(), faded()], [summary('Even sharper'), [...CUTS, ...LEVELS['Even sharper'].also]], 'the next takes the sentence needed next least as well');
+  await choose('Cut in half');
+  t.equal(title(), summary('Cut in half'), 'and the deepest comes as near to half as whole sentences allow');
+  t.equal(faded(), [CUTS[0], CUTS[1], CUTS[2], CUTS[3], CUTS[4], ...LEVELS['Cut in half'].also], 'leaving the sentences the piece does not work without');
   await act('Done');
   await choose('Slight trim');
-  t.equal([title(), faded().length > 0], [summary('Slight trim', 14), true], 'and so is the first again, after Done');
-  await choose('Cut in half');
-  t.equal(title(), summary('Cut in half', 14), 'and the deepest');
-  t.equal((await asked()).length, before + 4, 'none of which asked the model anything more');
+  t.equal([title(), faded()], [summary('Slight trim'), CUTS], 'the first is there again after Done, as it was');
+  t.equal((await asked()).length, asks + 1, 'and for all of it the model was asked once');
+  // Original puts it away.
+  await choose('Original');
+  t.equal([faded().length, shown(card), ui.get('lab')], [0, false, false], 'Original puts the proposal away and closes the popover');
 
   // What is kept is about the piece as it was: a change to it and the model is asked afresh.
-  await act('Done');
   editor.focus();
   editor.select({ block: 7, offset: 0 });
   await t.type('z');
-  await answerQuietly(SLIGHT, { firstMs: 300 });
+  t.equal(lab.read(), false, 'an edit, and nothing is kept');
+  await answerQuietly(SAID, { firstMs: 300 });
   await choose('Tighten more');
-  t.equal(title(), 'Tighten more Reading…', 'after an edit a level is read again');
+  t.equal(title(), 'Tighten more Reading…', 'so the next trim is read again');
   await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the new proposal');
+  t.equal((await asked()).length, asks + 2, 'from a second asking');
   await act('Done');
   await t.key('z', { meta: true });
   await load();
 }
 
-// --- putting a trim away stops the reading ---------------------------------------------------------
-// The other levels are read for as long as a trim is on the page. Done is the end of it: a
-// request still on its way is called off and the levels not yet read are left alone. What
-// has been read already is kept, and the reading goes on from there when a trim is out again.
+// --- cuts arrive as the answer does ----------------------------------------------------------------
+// The answer is every sentence over again, and it takes a while to arrive. In the clip the
+// first cuts fade, and "Walk through" appears, while the card still reads "Reading…". What
+// fades meanwhile is judged a sentence at a time, since nothing can be counted yet.
 {
-  await answer(SLIGHT, { firstMs: 400 });
-  const before = (await asked()).length;
+  lab.forget();
+  const whole = JSON.stringify({ sentences: SAID });
+  const cut = whole.indexOf('{"s":3'); // the first paragraph's two sentences whole, and no more
+  t.assert(cut > 2, 'the answer has more than two sentences');
+  await t.call('test.ai', { set: { chunks: [whole.slice(0, cut), whole.slice(cut)], firstMs: 100, everyMs: 3000 } });
   await choose('Slight trim');
-  await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
-  await t.until(async () => (await asked()).length === before + 2, 2000, 'the next level to be asked for, quietly');
-  await act('Done');
-  const { requests, cancelled } = await t.call('test.ai');
-  t.assert(cancelled.includes(requests.at(-1).id), 'Done calls off the level that was being read quietly');
-  await t.wait(1500); // long enough for the other levels to have been read, were they still asked for
-  t.equal(await askedAbout(before), [10, 20], 'and the model is asked nothing more');
-  t.equal(lab.kept(), ['slight'], 'what was read before Done is kept; what was on its way is not');
-
-  await choose('Slight trim');
-  t.equal([title(), shown(scan)], [summary('Slight trim', 14), false], 'the level that was read is there at once');
-  await t.until(async () => (await asked()).length === before + 5, 4000, 'the three levels not yet read to be read, now that a trim is out again');
-  t.equal((await askedAbout(before)).slice(2), [20, 30, 50], 'starting with the one that was called off');
+  await t.until(() => faded().length > 0, 2500, 'the first paragraph’s cuts to fade while the rest is still coming');
+  t.equal(faded(), CUTS.slice(0, 3), 'what the sentences that are in could lose, and the one that could go');
+  t.equal(title(), 'Slight trim Reading…', 'the card still says it is reading');
+  t.assert(shown(scan), 'and the line is still going through the text');
+  t.equal(actions(), ['Make the cuts', 'Walk through', 'Done'], 'Walk through is there already');
+  const text = html();
+  await act('Make the cuts');
+  t.same(html(), text, 'though nothing can be cut until the whole answer is in');
+  await t.until(() => title() === summary('Slight trim'), 10000, 'the whole answer');
+  t.equal(faded(), CUTS, 'which brings the rest of the cuts');
   await act('Done');
 
-  // The same while the level asked for is itself still being read.
-  await answer(SLIGHT, { firstMs: 600 });
+  // A deeper level shows sentences going as they come, and settles on its amount at the end.
+  lab.forget();
+  const later = whole.indexOf('{"s":9');
+  await t.call('test.ai', { set: { chunks: [whole.slice(0, later), whole.slice(later)], firstMs: 100, everyMs: 3000 } });
+  await choose('Cut in half');
+  await t.until(() => faded().length > 0, 2500, 'cuts to fade while the rest is still coming');
+  t.equal(faded(), [...CUTS, P3[3], P3[4]], 'for a deep trim, the sentences needed least among those that are in');
+  await t.until(() => title() === summary('Cut in half'), 10000, 'the whole answer');
+  t.equal(faded(), [...CUTS, ...LEVELS['Cut in half'].also], 'and then what comes to half');
+  await act('Done');
+}
+
+// --- putting a trim away stops the reading ---------------------------------------------------------
+// Done while the model is still being asked calls the request off, and nothing is kept of an
+// answer that never came: the next trim asks again.
+{
+  await answer(SAID, { firstMs: 600 });
   const asks = (await asked()).length;
   await choose('Slight trim');
-  t.equal(title(), 'Slight trim Reading…', 'a level is being read');
+  t.equal(title(), 'Slight trim Reading…', 'a trim is being read');
   await act('Done');
-  await t.wait(1700);
+  await t.wait(900);
   const after = await t.call('test.ai');
   t.equal(after.requests.length, asks + 1, 'Done while it reads: the model is asked nothing more');
   t.assert(after.cancelled.includes(after.requests.at(-1).id), 'and the request is called off');
-  t.equal(lab.kept(), [], 'with nothing kept of an answer that never came');
+  t.equal(lab.read(), false, 'with nothing kept of an answer that never came');
+  await choose('Tighten more');
+  t.equal(title(), 'Tighten more Reading…', 'so the next trim asks again');
+  await t.until(() => title() === summary('Tighten more'), 4000, 'and is answered');
+  t.equal((await asked()).length, asks + 2, 'by a request of its own');
+  // Another level chosen while the first is still being read waits for the same answer.
+  await answer(SAID, { firstMs: 2000 });
+  const again = (await asked()).length;
+  await choose('Slight trim');
+  await choose('Even sharper');
+  t.equal(title(), 'Even sharper Reading…', 'a second level chosen while the first is read is read too');
+  await t.until(() => title() === summary('Even sharper'), 4000, 'the answer');
+  t.equal(faded(), [...CUTS, ...LEVELS['Even sharper'].also], 'and it is the second that shows');
+  t.equal((await asked()).length, again + 1, 'from the one asking');
+  await act('Done');
 }
 
 // An edit, an undo or a redo makes a proposal stale, so it goes.
@@ -417,7 +444,7 @@ for (const [what, change] of [
   ['undo', () => t.key('z', { meta: true })],
   ['redo', () => t.key('z', { meta: true, shift: true })],
 ]) {
-  await answer(SLIGHT);
+  await answer(SAID);
   await choose('Slight trim');
   await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, `the proposal before ${what}`);
   editor.focus();
@@ -430,7 +457,7 @@ await load();
 
 // While it is still reading, an edit calls the request off.
 {
-  await answer(SLIGHT, { firstMs: 3000 });
+  await answer(SAID, { firstMs: 3000 });
   await choose('Slight trim');
   t.assert(shown(scan), 'reading');
   editor.focus();
@@ -443,7 +470,7 @@ await load();
 
 // Read mode is just the text: the popover and anything proposed are put away.
 {
-  await answer(SLIGHT);
+  await answer(SAID);
   await choose('Slight trim');
   await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal before read mode');
   await openMenu();
@@ -475,29 +502,105 @@ t.equal(card.querySelector('.hint').textContent, 'The AI service is busy. Try ag
 t.equal(actions(), ['Done'], 'with nothing to do but put it away');
 t.assert(!shown(scan), 'the line stops');
 t.same(html(), before, 'and the text is untouched');
+t.equal(lab.read(), false, 'nothing is kept of a request that failed');
 await act('Done');
 t.assert(!shown(card), 'Done puts it away');
 
-// A paragraph the model rewrote is left alone; one it only cut is still proposed.
+// A sentence the model rewrote is left as it is; one it only cut is still proposed.
 await answer([
-  { n: 1, text: 'Most trouble comes from wanting to keep every line.' },
-  { n: 3, text: 'A last paragraph the trim leaves alone.' },
+  { s: 1, text: 'Most trouble comes from wanting to keep every line.', need: 5 },
+  { s: 3, text: 'Keep what earns its place and nothing else.', need: 5 },
 ]);
-await choose('Cut in half');
+await choose('Even sharper');
 await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
-t.equal(faded(), ['that '], 'a paragraph that came back reworded is not touched');
+t.equal(faded(), ['really ', ', then stop'], 'a sentence that came back reworded is not touched');
+// Both are sentences the piece is said not to work without: only a trim to half takes such.
+await choose('Cut in half');
+t.equal(faded(), [S1, P2], 'to halve a piece, something it needs may have to go');
 await act('Done');
 // Nothing usable at all.
-await answer([{ n: 1, text: 'Something else entirely.' }]);
+await answer([{ s: 1, text: 'Something else entirely.', need: 5 }]);
 await choose('Cut in half');
 await t.until(() => actions().length === 1, 3000, 'the card to give up');
 t.equal(card.querySelector('.hint').textContent, 'The AI found nothing it could cut without rewording.', 'an answer with nothing usable says so');
 t.same(html(), before, 'and changes nothing');
 await act('Done');
+// A piece the model would not shorten.
+await answer(SAID.map((said, i) => ({ s: said.s, text: [S1, S2, P2][i] ?? said.text, need: 5 })));
+await choose('Slight trim');
+await t.until(() => actions().length === 1, 3000, 'the card to give up');
+t.equal(card.querySelector('.hint').textContent, 'The AI found nothing to cut.', 'an answer that would cut nothing says that');
+await act('Done');
+// An answer that leaves out most of the piece is asked for once more. (The real model did
+// it once in a dozen askings: one sentence of twenty-seven, and then it stopped.)
+{
+  await answer([SAID[0]], { firstMs: 1500 });
+  const asks = (await asked()).length;
+  await choose('Slight trim');
+  await answerQuietly(SAID, { firstMs: 200 }); // for the second asking: the first has its answer already
+  await t.until(() => lab.pass() === 'proposal', 6000, 'a proposal');
+  t.equal([title(), faded()], [summary('Slight trim'), CUTS], 'the fuller answer is the one that counts');
+  t.equal((await asked()).length, asks + 2, 'the model having been asked a second time');
+  await act('Done');
+  // If the second leaves as much out, it is taken for what it is.
+  await answer([SAID[2]], { firstMs: 100 });
+  const again = (await asked()).length;
+  await choose('Slight trim');
+  await t.until(() => lab.pass() === 'proposal', 4000, 'a proposal');
+  t.equal([title(), faded()], [summary('Slight trim', 3), ['really ', ', then stop']], 'what it does say is used');
+  t.equal((await asked()).length, again + 2, 'after two askings, and no third');
+  await act('Done');
+}
+// Done while the second asking is out calls that off too, and keeps nothing.
+{
+  await answer([SAID[0]], { firstMs: 200 });
+  const asks = (await asked()).length;
+  await choose('Slight trim');
+  await answerQuietly(SAID, { firstMs: 3000 });
+  await t.until(async () => (await asked()).length === asks + 2, 4000, 'the second asking');
+  t.equal(title(), 'Slight trim Reading…', 'the card is still reading');
+  await act('Done');
+  const { requests, cancelled } = await t.call('test.ai');
+  t.assert(cancelled.includes(requests.at(-1).id), 'Done calls the second asking off');
+  t.equal([lab.read(), shown(card)], [false, false], 'and nothing is kept of the thin answer that came first');
+  await t.wait(300);
+  t.equal((await asked()).length, asks + 2, 'nor is anything more asked');
+}
+// A level's share is of the words the card counts, the heading's among them.
+{
+  const names = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta'];
+  editor.setState({ html: `<p># One two three four five six seven eight nine ten</p><p><br></p><p>${names.map((name) => `${name} really works here now.`).join(' ')}</p>`, groups: {}, overflow: '' });
+  await t.settle();
+  await answer(names.map((name, i) => ({ s: i + 1, text: `${name} works here now.`, need: 5 })));
+  await choose('Slight trim');
+  await t.until(() => lab.pass() === 'proposal', 4000, 'a proposal');
+  t.equal(title(), 'Slight trim 40 → 36 words · −10%', 'a tenth of forty words is four of the six that could go: of the thirty offered it would be three');
+  t.equal(faded(), ['really ', 'really ', 'really ', 'really '], 'taken evenly from first to last');
+  const word = (span) => span.previousSibling.textContent.trim().split(' ').pop(); // the word a cut follows
+  t.equal([...editor.root.querySelectorAll('[data-trim]')].map(word), ['Alpha', 'Gamma', 'Delta', 'Zeta'], 'through the piece, not from its start alone');
+  await act('Done');
+  await load();
+}
+// An answer that cannot be read is not kept: asking again asks again.
+{
+  lab.forget();
+  await t.call('test.ai', { set: { chunks: ['I would cut the second sentence, ', 'and tighten the first.'], firstMs: 60, everyMs: 20 } });
+  const asks = (await asked()).length;
+  await choose('Slight trim');
+  await t.until(() => actions().length === 1, 3000, 'the card to give up');
+  t.equal(card.querySelector('.hint').textContent, 'The AI did not answer in the expected form.', 'an answer in the wrong shape says so');
+  t.equal(lab.read(), false, 'and is not kept');
+  await act('Done');
+  await answerQuietly(SAID);
+  await choose('Slight trim');
+  await t.until(() => title() === summary('Slight trim'), 4000, 'a second asking to be answered');
+  t.equal((await asked()).length, asks + 2, 'the model having been asked again');
+  await act('Done');
+}
 
 // --- walking through ------------------------------------------------------------------------------
 
-await answer(SLIGHT);
+await answer(SAID);
 await choose('Slight trim');
 await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
 await act('Walk through');
@@ -524,17 +627,35 @@ await act('Done');
 
 // Each passage is brought into view as its turn comes.
 {
-  const many = Array.from({ length: 30 }, (_, i) => `<p>Paragraph ${i + 1} is honestly a line with a word to lose.</p><p><br></p>`).join('');
+  const line = (i, padded = true) => `Paragraph ${i + 1} is ${padded ? 'honestly ' : ''}a line with a word to lose.`;
+  const many = Array.from({ length: 30 }, (_, i) => `<p>${line(i)}</p><p><br></p>`).join('');
   editor.setState({ html: many, groups: {}, overflow: '' });
   await t.settle();
   $('#scroll').scrollTop = 0;
-  await answer(Array.from({ length: 30 }, (_, i) => ({ n: i + 1, text: `Paragraph ${i + 1} is a line with a word to lose.` })).filter((p) => p.n === 1 || p.n === 30));
+  // Each paragraph is a sentence. The first and the last could lose a word.
+  const said = Array.from({ length: 30 }, (_, i) => ({ s: i + 1, text: line(i, i !== 0 && i !== 29), need: 5 }));
+  await answer(said);
   await choose('Slight trim');
-  await t.until(() => faded().length === 2, 4000, 'the proposal');
+  await t.until(() => lab.pass() === 'proposal' && faded().length === 2, 4000, 'the proposal');
   await act('Walk through');
   await act('Cut');
   const box = editor.root.querySelector('[data-trim].is-current').getBoundingClientRect();
   t.assert(box.top >= 96 && box.bottom <= card.getBoundingClientRect().top - 20, `a cut further down is scrolled to, clear of the card: ${Math.round(box.top)}..${Math.round(box.bottom)}`);
   await act('Stop');
   await act('Done');
+
+  // --- a paragraph that goes whole -----------------------------------------------------------------
+  // Where every sentence of a paragraph goes, the paragraph goes, and a blank line with it.
+  await answer(said.map((one) => (one.s === 2 ? { ...one, need: 1 } : one)));
+  $('#scroll').scrollTop = 0;
+  await choose('Slight trim');
+  await t.until(() => lab.pass() === 'proposal' && faded().length === 3, 4000, 'the proposal');
+  t.equal(faded()[1], line(1), 'a paragraph of one sentence the piece is better without is faded whole');
+  t.equal(title(), 'Slight trim 330 → 317 words · −4%', 'and counted: there is no more than that to take');
+  const blocks = editor.blocks.length;
+  await act('Make the cuts');
+  t.equal([textOf(0), textOf(1), textOf(2)], [line(0, false), '', line(2)], 'the paragraph is gone, and the two around it are one blank line apart');
+  t.equal(editor.blocks.length, blocks - 2, 'a blank line having gone with it');
+  await t.key('z', { meta: true });
+  t.equal([editor.blocks.length, textOf(2)], [blocks, line(1)], 'undo brings both back');
 }

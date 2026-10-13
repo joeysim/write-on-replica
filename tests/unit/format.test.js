@@ -360,6 +360,28 @@ test('plainText gives the document as text, optionally without ghosted runs or h
   };
   assert.equal(plainText(state), '# Title\n\nKeep this. Drop this. And this stays.');
   assert.equal(plainText(state, { withoutGhost: true, headingMarker: false }), 'Title\n\nKeep this. And this stays.');
+  assert.equal(plainText(state, { withoutGhost: true }), '# Title\n\nKeep this. And this stays.');
+});
+
+// Found in review: with the spaces either side ghosted along with the words, what was left ran together.
+test('plainText keeps the words either side of ghosted text a space apart, where the space went with it', () => {
+  const state = {
+    html: '<p>Keep this.<span data-ghost> Aside. </span>And this.</p><p><br></p><p>Half<span data-ghost>-baked</span> ideas, un<span data-ghost>believ</span>able ones<span data-ghost> at that </span>.</p>',
+    groups: {},
+    overflow: '',
+  };
+  assert.equal(plainText(state, { withoutGhost: true }), 'Keep this. And this.\n\nHalf ideas, unable ones.');
+  assert.equal(plainText(state, { withoutGhost: true, headingMarker: false }), 'Keep this. And this.\n\nHalf ideas, unable ones.');
+});
+
+test('plainText leaves out a heading with nothing left in it, mark and all', () => {
+  const state = {
+    html: '<p># <span data-ghost>A title set aside</span></p><p><br></p><p>The piece.</p><p><br></p><p>## <span data-ghost>Dropped.</span> Kept</p><p><br></p><p># </p>',
+    groups: {},
+    overflow: '',
+  };
+  assert.equal(plainText(state, { withoutGhost: true }), 'The piece.\n\n## Kept');
+  assert.equal(plainText(state), '# A title set aside\n\nThe piece.\n\n## Dropped. Kept');
 });
 
 // --- size -----------------------------------------------------------------------------------

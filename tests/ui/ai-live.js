@@ -14,8 +14,8 @@
 //   WRITEON_API_FORMAT=anthropic scripts/ui-test.sh ai-live --ai live
 //
 // It asks for five other words, three other sentences, the hedges in the welcome piece, a
-// slight trim and the next level after it, and the slips in a page that has some.
-// It never sees the key: the shell holds it and says only where it came from.
+// trim of that piece and of a longer draft at every level, and the slips in a page that has
+// some. It never sees the key: the shell holds it and says only where it came from.
 const { editor, ui, commands, lab } = window.writeOn;
 if (!(await t.call('test.options')).aiLive) {
   t.log('skipped: this run does not ask the real service (scripts/ui-test.sh ai-live --ai live does)');
@@ -26,29 +26,25 @@ await document.fonts.ready;
 await t.settle();
 
 // Which way the service is being spoken to, and how long each thing may take. These are
-// bounds for a run to end by, not what is expected: LunaRoute's model takes anything from ten
-// seconds to a minute and a half over a trim, by the hour and the level, and asked
-// Anthropic's way, where LunaRoute does not hold the answer to its schema, it thinks about
-// twice as long again. (The times measured are in the README and the spec.)
+// bounds for a run to end by, not what is expected: LunaRoute's model mostly answers a trim
+// of the welcome piece in four to eleven seconds and of the 500-word draft below in eight to
+// twenty-five, but now and then it thinks first, for half a minute or more. (The times
+// measured are in the README and the spec.)
 const anthropic = await (async () => {
   const s = await t.call('test.settings');
   return (s.format === 'auto' ? s.formatHint : s.format).toLowerCase().includes('anthropic');
 })();
-const MOST = anthropic ? { word: 15, sentence: 20, mark: 120, trim: 240, quietly: 480 } : { word: 15, sentence: 20, mark: 60, trim: 90, quietly: 240 }; // seconds
+const MOST = anthropic ? { word: 15, sentence: 20, mark: 120, trim: 120, draft: 240 } : { word: 15, sentence: 20, mark: 60, trim: 60, draft: 120 }; // seconds
 t.log(`asked ${anthropic ? 'Anthropic' : 'OpenAI'}’s way`);
 
-// How each request this scenario makes of the service ends. The Lab reads the other trim
-// levels quietly and says nothing when one of them fails, so it is noted here.
-const failures = [];
+// How many requests this scenario has made of the service.
+let asked = 0;
 {
   const client = window.writeOn.ai;
   const start = client.start;
   client.start = (request, onText) => {
-    const made = start.call(client, request, onText);
-    made.done.catch((error) => {
-      if (!error.cancelled) failures.push(error.message);
-    });
-    return made;
+    asked += 1;
+    return start.call(client, request, onText);
   };
 }
 
@@ -163,57 +159,97 @@ const mark = async (label, counted) => {
   await t.settle();
 }
 
-// --- a slight trim ------------------------------------------------------------------------------------
+// --- trims ---------------------------------------------------------------------------------------
 
-{
+// A trim is asked for once: of each sentence, what it could lose and how much the piece needs
+// it. The four levels are then counted out from that one answer, so the first is the wait and
+// the rest are there at once. (Asked level by level to cut to a number of words, this model
+// took 24 seconds to four minutes a level, and gave a twelfth where half was asked.)
+/**
+ * Reads the piece on the page at "Slight trim", then goes to each of the other levels.
+ * `bounds` is the percentage each may come to, lightest first; `most` the seconds the reading may take.
+ */
+const trims = async (what, bounds, most) => {
   const card = $('#labcard');
   const menu = $('#labmenu');
   const title = () => card.querySelector('.title').textContent.replace(/\s+/g, ' ').trim();
-  const before = editor.getState().html;
-  await t.click(...t.center('#lab'));
-  await t.until(() => ui.get('lab') && menu.getAnimations({ subtree: false }).length === 0, 2000, 'the Lab to open');
   const levelNamed = (name) => [...menu.querySelectorAll('.level')].find((level) => level.querySelector('.name').textContent === name);
-  // When the first cuts are faded: the answer is every paragraph again, and they are shown as they come.
+  const choose = async (name) => {
+    await t.click(...t.center('#lab'));
+    await t.until(() => ui.get('lab') && menu.getAnimations({ subtree: false }).length === 0, 2000, 'the Lab to open');
+    await t.click(...t.center(levelNamed(name)));
+  };
+  const cuts = () => [...new Set([...editor.root.querySelectorAll('[data-trim]')].map((span) => span.dataset.trim))].length;
+  const before = editor.getState().html;
+  const asks = asked;
+  // When the first cuts are faded: the answer is every sentence again, and they are shown as they come.
   let firstCut = null;
   const began = performance.now();
   const watcher = new MutationObserver(() => {
     if (firstCut === null && editor.root.querySelector('[data-trim]')) firstCut = performance.now() - began;
   });
   watcher.observe(editor.root, { childList: true, subtree: true });
-  await t.click(...t.center(levelNamed('Slight trim')));
-  await t.until(() => /words ·/.test(title()) || card.classList.contains('is-failed') || /Done/.test(card.textContent) && !/Reading/.test(title()), MOST.trim * 1000 + 15000, 'the trim to come back');
-  const total = performance.now() - began;
-  t.log(`a trim, in ${seconds(total)}: ${title()}`);
-  const found = /^Slight trim (\d+) → (\d+) words · −(\d+)%$/.exec(title());
-  if (t.assert(found, `the card counts the words before and after: ${title()} / ${card.querySelector('.hint')?.textContent ?? ''}`)) {
-    const [from, to, percent] = found.slice(1).map(Number);
-    const cuts = [...new Set([...editor.root.querySelectorAll('[data-trim]')].map((span) => span.dataset.trim))].length;
-    t.log(`    ${from} → ${to} words, ${percent}% for a target of 10%, in ${cuts} cuts`);
-    for (const span of editor.root.querySelectorAll('[data-trim]')) t.log(`    cut: ${span.textContent}`);
-    // The plan's bar: within half of what was asked for, either way.
-    t.assert(percent >= 5 && percent <= 15, `a slight trim cuts about a tenth: ${percent}%`);
-    t.equal(editor.getState().html, before, 'and until the writer says so, nothing is cut');
-  }
-  t.assert(total < MOST.trim * 1000, `in good time: ${seconds(total)}`);
+  await choose('Slight trim');
+  await t.until(() => /words ·/.test(title()) || lab.pass() === 'failed', most * 1000 + 15000, `the trim of ${what} to come back`);
   watcher.disconnect();
-  if (firstCut !== null) t.log(`    the first cuts were faded after ${seconds(firstCut)}, ${seconds(total - firstCut)} before the whole answer was in`);
-  await t.snap('trim');
-
-  // The next level is read quietly meanwhile, and is there at once when it is chosen.
-  const quiet = performance.now();
-  const ready = await t.until(() => lab.kept().includes('tighten') || failures.length > 0, MOST.quietly * 1000, 'the next level to be read quietly');
-  if (failures.length > 0) {
-    t.assert(false, `the next level could not be read quietly: ${failures[0]}`);
-  } else if (ready) {
-    t.log(`    "Tighten more" was read quietly in another ${seconds(performance.now() - quiet)}`);
-    await t.click(...t.center('#lab'));
-    await t.until(() => ui.get('lab') && menu.getAnimations({ subtree: false }).length === 0, 2000, 'the Lab to open again');
-    await t.click(...t.center(levelNamed('Tighten more')));
-    t.assert(/^Tighten more \d+ → \d+ words/.test(title()), `and is there at once when chosen: ${title()}`);
-    t.log(`    ${title()}`);
+  const total = performance.now() - began;
+  t.log(`a trim of ${what}, read in ${seconds(total)}${firstCut === null ? '' : `, the first cuts faded after ${seconds(firstCut)}`}`);
+  t.assert(total < most * 1000, `in good time: ${seconds(total)}`);
+  if (!t.assert(lab.pass() === 'proposal', `the reading gave a proposal: ${title()} / ${card.querySelector('.hint')?.textContent ?? ''}`)) {
+    lab.dismiss();
+    lab.forget();
+    return;
   }
+  let last = 0;
+  for (const [i, name] of ['Slight trim', 'Tighten more', 'Even sharper', 'Cut in half'].entries()) {
+    const [low, high] = bounds[i];
+    const at = performance.now();
+    if (i > 0) await choose(name);
+    const found = new RegExp(`^${name} (\\d+) → (\\d+) words · −(\\d+)%$`).exec(title());
+    if (!t.assert(found, `${name} counts the words before and after${i > 0 ? ', at once' : ''}: ${title()}`)) continue;
+    const [from, to, percent] = found.slice(1).map(Number);
+    t.log(`    ${name}: ${from} → ${to} words, −${percent}%, in ${cuts()} cuts${i > 0 ? `, there in ${seconds(performance.now() - at)}` : ''}`);
+    t.assert(percent >= low && percent <= high, `${name} takes about what it says: −${percent}% (${low} to ${high})`);
+    t.assert(percent > last, `and more than the level before: −${percent}% after −${last}%`);
+    last = percent;
+    if (i === 0) for (const span of editor.root.querySelectorAll('[data-trim]')) t.log(`        cut: ${span.textContent}`);
+    if (i === 0) await t.snap(`trim-${what.replace(/\W+/g, '-')}`);
+  }
+  t.assert(asked - asks <= 2, `for all four the model was asked once, or twice if its first answer left most of the piece out: ${asked - asks}`);
+  t.equal(editor.getState().html, before, 'and until the writer says so, nothing is cut');
+  // What the deepest would leave is still writing: every sentence whole, a space between them.
+  await t.click(...t.center([...card.querySelectorAll('.actions button')].find((button) => button.textContent === 'Make the cuts')));
+  await t.settle();
+  const left = editor.blocks.filter((block) => block.runs.length).map((block) => block.runs.map((run) => run.text).join(''));
+  // No space at either end, no two together, none before a comma or a stop, and one after every sentence.
+  const untidy = (text) => text !== text.trim() || /\s{2,}|[.!?][A-Za-z]|\s[,.;:]/.test(text);
+  t.assert(left.length > 0 && !left.some(untidy), `cut in half it still reads as text: ${JSON.stringify(left.find(untidy) ?? '')}`);
+  for (const text of left) t.log(`        | ${text}`);
+  await t.key('z', { meta: true });
+  t.equal(editor.getState().html, before, 'and one undo has it all back');
   lab.dismiss();
   lab.forget(); // nothing more is asked once this is over
+};
+
+// The welcome piece: fifteen short sentences in six paragraphs, most of them its point.
+await trims('the welcome piece', [[5, 15], [14, 26], [23, 37], [35, 60]], MOST.trim);
+
+// A draft of about five hundred words with padding in it, written for this test.
+const DRAFT = [
+  '# Why we stopped doing weekly status meetings',
+  'For about three years, we basically had a standing status meeting every single Monday morning at ten, and honestly I think most of us kind of assumed that it was just one of those things that a team has to do in order to stay coordinated.',
+  'The format was pretty simple, really. Everyone would go around the room, one person at a time, and say what they had worked on last week and what they were planning to work on this week. In theory this was supposed to keep everybody informed. In practice, though, what it actually did was make eleven people sit and listen to updates that mostly had nothing at all to do with their own work.',
+  'I want to be fair about this, because the meeting was not completely useless. Every now and then somebody would mention something in passing, and somebody else would say wait, I am working on that too, and the two of them would go and sort it out afterwards. Those moments were genuinely valuable. But they happened maybe once a month, and we were paying for them with roughly forty-four hours of meeting time, which is a lot.',
+  'So last spring we decided to try a little experiment. Instead of meeting, each person would write a short note on Monday, just three or four lines, about what they were doing and where they were stuck. The notes would all go in one shared place where anybody could read them whenever they wanted to. If something in a note concerned you, you would reply to it directly.',
+  'To be perfectly honest, I expected this to fail. I thought people would simply stop writing the notes after a couple of weeks, the way that people tend to stop doing most things that are not enforced. That is not what happened. It turned out that writing three lines is a great deal easier than preparing to speak in front of ten colleagues, and the notes kept coming.',
+  'What surprised me most of all was the quality. When people talk in a meeting they tend to ramble a bit, and they pad things out, because silence feels awkward. When they write, they get to the point. The notes were shorter than the spoken updates had been, and yet somehow they said more.',
+  'We did lose something, and I do not want to pretend otherwise. There is a kind of ambient closeness that comes from being in a room together every week, and a shared document does not really give you that. We ended up adding a much looser get-together on Fridays, with no agenda whatsoever, to make up for it.',
+  'If your team has a meeting that everyone quietly dreads, it might be worth asking what the meeting is actually for, and whether there is a cheaper way of getting the same thing. In our case there was. It took us three years to think of looking.',
+];
+{
+  editor.setState({ html: `<p><br></p>${DRAFT.map((line) => `<p>${line}</p><p><br></p>`).join('')}`, groups: {}, overflow: '' });
+  await t.settle();
+  await trims('a longer draft', [[6, 14], [15, 25], [24, 36], [42, 58]], MOST.draft);
 }
 
 // --- slips of the pen ---------------------------------------------------------------------------------

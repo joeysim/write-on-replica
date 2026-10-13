@@ -1,8 +1,9 @@
 // The Lab (design spec 6.10). A popover over the LAB button offers a few passes the model
 // can make over the piece: four trims, five kinds of mark, and a hunt for typos.
 //
-// The model never gets to rewrite. For a trim it is asked what could go, and what it names
-// is faded where it stands; for a mark it points and says why; for typos it points and
+// The model never gets to rewrite. For a trim it is asked, of each sentence, what it could
+// lose and how much the piece needs it; what the level calls for is then counted out here
+// and faded where it stands. For a mark it points and says why; for typos it points and
 // offers the correction. Whatever it sends back is only accepted where it is the writer's
 // own text, cut or quoted (ai/parse.js, doc/trim.js), and nothing changes until the writer
 // says so. Only the trims and the popover are in the author's clips; the rest is this
@@ -10,8 +11,8 @@
 
 import { TRIM_LEVELS, labRequest } from '../ai/prompts.js';
 import { parseLabResponse, arrivedSoFar } from '../ai/parse.js';
-import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes } from '../doc/proposal.js';
-import { percentChange } from '../doc/trim.js';
+import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes, wordsIn } from '../doc/proposal.js';
+import { percentChange, chooseCuts } from '../doc/trim.js';
 
 const IDEAS = [
   { kind: 'typos', label: 'Fix punctuation and typos', about: 'Finds misspellings, doubled words and slips of punctuation. Each fix is shown first, and you choose which to take.' },
@@ -377,7 +378,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     report();
   }
 
-  /** The same, and the Lab stops asking: nothing more is read of the trims either. */
+  /** The same, and the Lab stops asking: an answer about the trims still on its way is called off. */
   function dismiss() {
     putAway();
     stopReading();
@@ -408,7 +409,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     // Putting the pass away calls the request off, so an answer that arrives is always wanted.
     let answer = '';
     const offer = paragraphs.map(({ n, text }) => ({ n, text }));
-    const request = ai.start(labRequest(kind, offer, { percent: options.level?.percent }), (text) => {
+    const request = ai.start(labRequest(kind, offer), (text) => {
       answer += text;
     });
     pass.request = request;
@@ -435,84 +436,95 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     );
   }
 
-  // --- trims that are kept ----------------------------------------------------------------------
+  // --- trims ------------------------------------------------------------------------------------
 
-  // What the model has said about each level of trim for the piece as it stands. In the clip
-  // "Tighten more", chosen some seconds after "Slight trim" was read, is there at once: so the
-  // level asked for is read first, the others after it, quietly and one at a time, and each
-  // answer is kept until the piece changes. (Each is a request to the AI service.) The
-  // reading lasts as long as a trim is on the page: put away, the Lab asks nothing more.
-  const trims = { text: null, levels: new Map() }; // level id -> { request, settled, outcome }
+  // What the model has said about trimming the piece as it stands: of each sentence, what it
+  // could lose and how much the piece needs it. It is asked once, whichever level is chosen
+  // first, and every level is counted out from the one answer. So in the clip "Tighten
+  // more", chosen some seconds after "Slight trim" was read, is there at once. The answer is
+  // kept until the piece changes.
+  const trims = { text: null, reading: null }; // reading: { request, settled, outcome, answer, heard }
   const textOf = (paragraphs) => paragraphs.map(({ n, text }) => `${n}\u0000${text}`).join('\u0001');
 
-  /** Forgets every answer kept, and calls off any still on its way. */
+  /** Forgets the answer kept, and calls it off if it is still on its way. */
   function forgetTrims() {
-    for (const { request } of trims.levels.values()) request.cancel();
-    trims.levels.clear();
+    trims.reading?.request.cancel();
+    trims.reading = null;
     trims.text = null;
   }
 
-  /** Calls off what is still being read of the trims. What has been read already is kept. */
+  /** Calls off an answer still on its way. One that has come is kept. */
   function stopReading() {
-    for (const entry of trims.levels.values()) {
-      if (entry.outcome === undefined) entry.request.cancel();
-    }
+    if (trims.reading && trims.reading.outcome === undefined) trims.reading.request.cancel();
   }
 
   /**
-   * What the model says about one level, asked once. Resolves to a proposal, or to a line
-   * to show when its answer leaves nothing to do; rejects if the asking fails, and then
-   * nothing is kept, so that asking again asks again.
+   * What the model says of the piece, asked once. Resolves to the checked answer, or to a
+   * line to show when it cannot be read; rejects if the asking fails. Only an answer that
+   * could be read is kept: after anything else, asking again asks again.
+   *
+   * An answer that speaks of fewer than half the sentences is asked for once more. (The
+   * model the app was built against does it now and then: a sentence or two, and it stops.
+   * Kept, that would be all there was to cut at every level.) A second such is taken as it is.
    */
-  function readTrim(level, paragraphs) {
-    const known = trims.levels.get(level.id);
-    if (known) return known.settled;
+  function readTrims(paragraphs) {
+    if (trims.reading) return trims.reading.settled;
     const offer = paragraphs.map(({ n, text }) => ({ n, text }));
     // `answer` is what has come so far; `heard` is told each time more of it comes.
     const entry = { request: null, outcome: undefined, settled: null, answer: '', heard: null };
-    const request = ai.start(labRequest('trim', offer, { percent: level.percent }), (text) => {
-      entry.answer += text;
-      entry.heard?.();
-    });
-    entry.request = request;
-    entry.settled = request.done.then(
-      () => {
+    const drop = () => {
+      if (trims.reading === entry) trims.reading = null;
+    };
+    const ask = (again) => {
+      entry.answer = '';
+      entry.request = ai.start(labRequest('trim', offer), (text) => {
+        entry.answer += text;
+        entry.heard?.();
+      });
+      return entry.request.done.then(() => {
+        let said;
         try {
-          const { items, rejected } = parseLabResponse('trim', entry.answer, paragraphs);
-          entry.outcome = items.length === 0 ? (rejected ? NOTHING.rewritten : NOTHING.trim) : { proposal: makeProposal(paragraphs, items) };
+          said = parseLabResponse('trim', entry.answer, paragraphs);
         } catch (error) {
-          entry.outcome = error.message;
+          return error.message;
         }
-        return entry.outcome;
+        return again || said.items.length * 2 >= said.sentences ? said : ask(true);
+      });
+    };
+    entry.settled = ask(false).then(
+      (said) => {
+        if (typeof said === 'string') drop();
+        else entry.outcome = said;
+        return said;
       },
       (error) => {
-        if (trims.levels.get(level.id) === entry) trims.levels.delete(level.id);
+        drop();
         throw error;
       },
     );
-    trims.levels.set(level.id, entry);
+    trims.reading = entry;
     return entry.settled;
   }
 
-  /** Reads the levels not yet read, nearest to `from` first and deeper before shallower, one at a time. */
-  function readAhead(from, paragraphs, text) {
-    if (trims.text !== text) return; // the piece has changed since
-    const at = TRIM_LEVELS.findIndex((level) => level.id === from.id);
-    const next = [...TRIM_LEVELS.slice(at + 1), ...TRIM_LEVELS.slice(0, at).reverse()].find((level) => !trims.levels.has(level.id));
-    if (!next) return;
-    readTrim(next, paragraphs).then(
-      () => readAhead(from, paragraphs, text),
-      () => {}, // a level that could not be read quietly is read when it is asked for
-    );
+  /**
+   * What a level comes to, from what the model said: a proposal, or a line to show. Its
+   * share is of the words the card counts, and it holds all that the lighter levels take.
+   */
+  function levelOf(level, paragraphs, said) {
+    if (typeof said === 'string') return said;
+    const lighter = TRIM_LEVELS.filter((other) => other.percent < level.percent).map((other) => other.percent);
+    const items = chooseCuts(paragraphs, said.items, { percent: level.percent, after: lighter, of: wordsIn(editor.blocks) });
+    if (items.length === 0) return said.rejected ? NOTHING.rewritten : NOTHING.trim;
+    return { proposal: makeProposal(paragraphs, items) };
   }
 
-  /** A trim: what the model would cut is faded where it stands. */
+  /** A trim: what could go, to the amount the level asks, is faded where it stands. */
   function trim(level) {
     if (!level) {
       dismiss(); // Original: nothing proposed
       return;
     }
-    putAway(); // one level gives way to another, and what is being read of the rest goes on
+    putAway(); // one level gives way to another, and an answer on its way is still wanted
     const paragraphs = offered(editor.blocks);
     pass = { kind: 'trim', name: level.label, mode: 'reading', level };
     if (paragraphs.length === 0) {
@@ -526,29 +538,42 @@ export function createLab({ editor, ui, ai, commands, cards }) {
       trims.text = text;
     }
     const mine = pass;
-    const settle = (outcome) => {
+    const settle = (said) => {
       if (pass !== mine) return; // put away, or another level chosen, meanwhile
+      const outcome = levelOf(level, paragraphs, said);
       if (typeof outcome === 'string') {
         fail(outcome);
         return;
       }
       pass = { kind: 'trim', name: level.label, mode: 'proposal', level, proposal: outcome.proposal, kept: new Set() };
       stopSweep();
-      unwrap(); // what was faded as the answer came gives way to the whole of it
+      unwrap(); // what was faded as the answer came gives way to what the level comes to
       show(passages(), 'trim');
       report();
     };
-    // The answer is every paragraph over again and takes a while to come. The cuts in
-    // the paragraphs that have arrived whole are faded meanwhile, as in the clip.
+    if (trims.reading && trims.reading.outcome !== undefined) {
+      settle(trims.reading.outcome); // read already: it is there at once
+      return;
+    }
+    report();
+    startSweep();
+    const reading = readTrims(paragraphs);
+    const entry = trims.reading;
+    // The answer is every sentence over again and takes a while to come. What the sentences
+    // that have arrived could lose is faded meanwhile, as in the clip. How much the level
+    // will take cannot be counted until all of it is in, so each sentence is judged by
+    // itself, a deeper level letting more of them go: nothing once faded is unfaded by what
+    // comes after it, only by the count at the end.
+    const depth = Math.min(3, TRIM_LEVELS.indexOf(level) + 1);
     let arrived = 0;
     const hear = () => {
       if (pass !== mine) return;
-      const whole = arrivedSoFar(trims.levels.get(level.id)?.answer ?? '');
-      if (whole.length <= arrived) return;
+      const whole = arrivedSoFar(entry.answer);
+      if (whole.length === arrived) return; // (fewer than before: the answer is being asked for again)
       arrived = whole.length;
       let items;
       try {
-        ({ items } = parseLabResponse('trim', JSON.stringify({ paragraphs: whole }), paragraphs));
+        items = chooseCuts(paragraphs, parseLabResponse('trim', JSON.stringify({ sentences: whole }), paragraphs).items, { depth });
       } catch {
         return;
       }
@@ -560,26 +585,11 @@ export function createLab({ editor, ui, ai, commands, cards }) {
         report();
       }
     };
-    const known = trims.levels.get(level.id);
-    if (known && known.outcome !== undefined) {
-      settle(known.outcome); // read already: it is there at once
-      readAhead(level, paragraphs, text); // and the reading goes on from where it was left
-      return;
-    }
-    report();
-    startSweep();
-    const reading = readTrim(level, paragraphs);
-    trims.levels.get(level.id).heard = hear;
-    hear(); // a level being read quietly may have some of its answer already
-    reading.then(
-      (outcome) => {
-        settle(outcome);
-        readAhead(level, paragraphs, text);
-      },
-      (error) => {
-        if (pass === mine && !error.cancelled) fail(error.message);
-      },
-    );
+    entry.heard = hear;
+    hear(); // an answer asked for under another level may have some of itself here already
+    reading.then(settle, (error) => {
+      if (pass === mine && !error.cancelled) fail(error.message);
+    });
   }
 
   /** A marking pass, or the typo pass: what the model points at is underlined. */
@@ -664,8 +674,8 @@ export function createLab({ editor, ui, ai, commands, cards }) {
   // --- what makes a pass stale ------------------------------------------------------------------
 
   // A pass is about the text as it was when it was asked for. Any change to the document,
-  // undo and redo included, puts it away, and calls off a request still out. What was kept
-  // about the trims of the piece as it was goes too.
+  // undo and redo included, puts it away, and calls off a request still out. What the model
+  // said about trimming the piece as it was goes too.
   editor.on('change', () => {
     dismiss();
     forgetTrims();
@@ -687,9 +697,9 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     close: closeMenu,
     dismiss,
     pass: () => pass?.mode ?? null,
-    /** Forgets what the model has said about the trims of this piece: the next one asks afresh. */
+    /** Forgets what the model has said about trimming this piece: the next trim asks afresh. */
     forget: forgetTrims,
-    /** The ids of the trim levels whose answers are kept. */
-    kept: () => [...trims.levels].filter(([, entry]) => entry.outcome !== undefined).map(([id]) => id),
+    /** Whether what the model said about trimming this piece is kept. */
+    read: () => trims.reading?.outcome !== undefined,
   };
 }

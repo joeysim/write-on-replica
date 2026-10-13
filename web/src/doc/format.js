@@ -208,17 +208,22 @@ function blockText(block, { withoutGhost = false } = {}) {
   if (!withoutGhost) return block.runs.map((r) => r.text).join('');
   let text = '';
   let dropped = false;
+  let spaced = false; // whether what was dropped had a space at either end of it
   for (const run of block.runs) {
     if (run.ghost) {
       dropped = true;
+      spaced = spaced || /^\s|\s$/.test(run.text);
       continue;
     }
     let next = run.text;
     if (dropped) {
-      // Close the gap the ghosted run leaves behind.
+      // Close the gap the ghosted run leaves behind: one space where there were two, none
+      // before a stop or a comma, and one where the only space went with the ghosted words.
       if (/\s$/.test(text) && /^\s/.test(next)) next = next.trimStart();
       if (/^[,.;:!?]/.test(next)) text = text.trimEnd();
+      else if (spaced && text !== '' && !/\s$/.test(text) && !/^\s/.test(next)) text += ' ';
       dropped = false;
+      spaced = false;
     }
     text += next;
   }
@@ -517,8 +522,9 @@ export function parse(fileText) {
 export function plainText(state, { withoutGhost = false, headingMarker = true } = {}) {
   const lines = [];
   for (const block of trimBlankBlocks(htmlToBlocks(state.html))) {
+    // Nothing left of it (all of it ghosted, or a heading never written): it goes, mark and all.
+    if (block.kind !== 'blank' && blockText(block, { withoutGhost }) === '') continue;
     const line = blockToLine(block, { withoutGhost, headingMarker });
-    if (block.kind !== 'blank' && line === '') continue; // everything in it was ghosted
     if (line === '' && lines[lines.length - 1] === '') continue;
     lines.push(line);
   }

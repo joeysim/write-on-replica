@@ -122,8 +122,8 @@ body.is-source #source {
 
 /* --- the source view ---------------------------------------------------------------------- */
 
-/* The file as saved, in a card 70px clear of the top and bottom of the window (design spec
-   6.11). Measurements are from the clip of it. */
+/* The piece as Markdown and the file as saved, in a card 70px clear of the top and bottom of
+   the window (design spec 6.11). Measurements are from the clip of it. */
 #source {
   left: 0;
   right: 0;

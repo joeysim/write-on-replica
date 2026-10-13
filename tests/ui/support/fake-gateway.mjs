@@ -191,7 +191,7 @@ const CASES = {
   },
   // The model was given too little room, and stopped part-way through what it was saying.
   async length(response, body, request, say) {
-    response.write(say.begin() + say.text('{"paragraphs": [{"n": 1, "te'));
+    response.write(say.begin() + say.text('{"sentences": [{"s": 1, "te'));
     response.end(say.tooLong());
   },
   // The same, from a service that answers all at once: cut off with nothing said.

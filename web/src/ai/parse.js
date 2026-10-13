@@ -2,7 +2,7 @@
 // cleaned and de-duplicated, and Lab results are checked against the text they claim to
 // be about before the app will act on them.
 
-import { alignDeletion } from '../doc/trim.js';
+import { trimUnits, sentenceCuts } from '../doc/trim.js';
 import { countWords } from '../doc/text.js';
 
 // --- streamed suggestions ---------------------------------------------------------------
@@ -167,10 +167,72 @@ function locate(text, quote, from) {
   return plainQuotes(text).indexOf(plainQuotes(quote), from); // same length, so offsets hold
 }
 
+const REACH = 6; // how far the numbers may have slipped
+
+/**
+ * What a sentence loses in becoming what the model sent for it, or null if that is not
+ * the sentence with words deleted. Some models give it its number again, as the draft does.
+ */
+function lost(unit, entry) {
+  const shorter = entry.text.trim();
+  const bare = shorter.replace(new RegExp(`^\\[${entry.s}\\]\\s*`), '');
+  return sentenceCuts(unit, shorter) ?? (bare === shorter ? null : sentenceCuts(unit, bare));
+}
+
+/**
+ * Whether what the model sent for a sentence is that sentence at all, reworded as it may
+ * be: three in five of its words are the sentence's. A sentence reworded is still spoken
+ * of. Another sentence under this one's number is not, and how much the piece is said to
+ * need it is not to be taken as said of this one.
+ */
+function alike(unit, shorter) {
+  const words = (text) => plainQuotes(text).toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
+  const has = new Map();
+  for (const word of words(unit.text)) has.set(word, (has.get(word) ?? 0) + 1);
+  const said = words(shorter);
+  let shared = 0;
+  for (const word of said) {
+    if (!has.get(word)) continue;
+    has.set(word, has.get(word) - 1);
+    shared += 1;
+  }
+  return said.length > 0 && shared * 5 >= said.length * 3;
+}
+
+/**
+ * How far the model's numbers stand from the sentences its words are of. A long list is
+ * easily miscounted: the real model has sent a whole answer back with every sentence under
+ * the number of one four further on. That is nought, unless fewer than half of what it
+ * sent are their own sentences with words deleted and another reading explains at least
+ * two, and more than twice as many. One sentence that could pass for its neighbour moves
+ * nothing.
+ */
+function slipOf(entries, units) {
+  const fitting = (by) => entries.filter((entry) => units.has(entry.s + by) && lost(units.get(entry.s + by), entry)).length;
+  const here = fitting(0);
+  if (here * 2 >= entries.length) return 0;
+  let slip = 0;
+  let most = here;
+  for (let step = 1; step <= REACH; step++) {
+    for (const by of [step, -step]) {
+      const fits = fitting(by);
+      if (fits > most) [slip, most] = [by, fits];
+    }
+  }
+  return most >= 2 && most > here * 2 ? slip : 0;
+}
+
+/** How much the piece needs a sentence: 1 to 5, and 5 where the model does not say. */
+const needOf = (value) => (Number.isInteger(value) ? Math.min(5, Math.max(1, value)) : 5);
+
 /**
  * Checks a Lab answer against the paragraphs it was asked about.
  *
- * - 'trim':  items are { n, runs, caseFixes } for paragraphs shortened by deletion alone
+ * - 'trim':  items are { s, n, start, end, need, runs, caseFixes }, one for each sentence the
+ *            model spoke of: where it stands in its paragraph, how much the piece needs it,
+ *            and the words it could lose (none, where it came back as anything but itself
+ *            with words deleted). What is then cut is for doc/trim.js to choose. `sentences`
+ *            is how many it was asked about.
  * - 'typos': items are { n, start, end, replace, reason }
  * - marks:   items are { n, start, end, reason }
  *
@@ -184,22 +246,31 @@ export function parseLabResponse(kind, rawText, paragraphs) {
   let rejected = 0;
 
   if (kind === 'trim') {
+    const units = new Map(trimUnits(paragraphs).map((unit) => [unit.s, unit]));
+    const entries = list(data, 'sentences');
+    const said = entries.filter((entry) => Number.isInteger(entry.s) && typeof entry.text === 'string');
+    rejected += entries.length - said.length;
+    const slip = slipOf(said.filter((entry) => entry.text.trim() !== ''), units);
     const done = new Set();
-    for (const entry of list(data, 'paragraphs')) {
-      const original = byNumber.get(entry.n);
-      if (original === undefined || typeof entry.text !== 'string' || done.has(entry.n)) {
+    for (const entry of said) {
+      const unit = units.get(entry.s + slip);
+      if (!unit || done.has(unit.s)) {
         rejected += 1;
         continue;
       }
-      const aligned = alignDeletion(original, entry.text);
-      if (!aligned) {
+      // Reworded, it loses nothing, though it may still go whole. So does one left empty.
+      // Words that are not the sentence's at all say nothing of it.
+      const shorter = entry.text.trim();
+      const cuts = shorter === '' ? null : lost(unit, entry);
+      if (!cuts && shorter !== '') {
         rejected += 1;
-        continue;
+        if (!alike(unit, shorter)) continue;
       }
-      done.add(entry.n);
-      if (aligned.runs.length) items.push({ n: entry.n, ...aligned });
+      done.add(unit.s);
+      items.push({ s: unit.s, n: unit.n, start: unit.start, end: unit.end, need: needOf(entry.need), ...(cuts ?? { runs: [], caseFixes: [] }) });
     }
-    return { items, rejected };
+    items.sort((a, b) => a.s - b.s);
+    return { items, rejected, sentences: units.size };
   }
 
   const typos = kind === 'typos';

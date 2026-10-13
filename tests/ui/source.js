@@ -1,6 +1,7 @@
-// The source view (design spec 6.11): Ctrl+U shows the file as it would be saved.
+// The source view (design spec 6.11): Ctrl+U shows the piece as Markdown, and the file as it
+// would be saved.
 const { editor, ui, commands } = window.writeOn;
-const { serialize, readable } = await import('./src/doc/format.js');
+const { serialize, readable, plainText } = await import('./src/doc/format.js');
 ui.set({ read: false });
 await document.fonts.ready;
 
@@ -37,6 +38,10 @@ editor.focus();
 editor.select({ block: 3, offset: 2 });
 await t.settle();
 const saved = serialize(editor.getState());
+// The piece as it reads: what a writer takes away to publish.
+const piece = () => plainText(editor.getState(), { withoutGhost: true });
+const tab = (name) => tabs().find((made) => made.textContent === name);
+const sizeOf = (text) => `${new TextEncoder().encode(text).length.toLocaleString('en-US')} bytes`;
 const ground = (await t.pixels(40, 300, 200, 200)).ground;
 
 // --- opening ------------------------------------------------------------------------------------
@@ -59,10 +64,28 @@ await t.until(open, 1000, 'the source view to show');
   t.assert(!editor.root.contains(document.activeElement), 'the page no longer has the keyboard');
 }
 
+// --- the piece as Markdown ------------------------------------------------------------------------
+
+// The clip's card has two tabs, As saved and Readable. Markdown is this replica's own, put
+// first because it is what a writer mostly opens the card for: the words, to take elsewhere.
+t.equal(tabs().map((made) => made.textContent), ['Markdown', 'As saved', 'Readable'], 'three tabs');
+t.equal(active(), 'Markdown', 'the first is showing');
+t.same(shown(), piece(), 'it shows the piece as it reads now');
+{
+  t.equal(lines()[0].textContent, '# A file to look inside', 'from its heading: the blank line the page begins with is not the piece’s');
+  t.equal(lines()[2].textContent, 'It has a word with alternatives, an arrow --> in its text, and.', 'with nothing that is ghosted');
+  t.equal(lines()[lines().length - 1].textContent, PARAGRAPHS[13], 'and it ends with its last paragraph');
+  t.assert(!/<!--|data-vid|Kept for later|café/.test(shown()), 'so nothing from Overflow, and nothing of what the file keeps for Write_On');
+  t.equal(dims().length, 0, 'none of it is dimmed');
+  t.equal(card.querySelector('.bytes').textContent, sizeOf(piece()), 'the size is that of what is showing');
+  t.equal(body.scrollTop, 0, 'the view starts at the top');
+  await t.snap('markdown');
+}
+
 // --- as saved -------------------------------------------------------------------------------------
 
-t.equal(tabs().map((tab) => tab.textContent), ['As saved', 'Readable'], 'two tabs');
-t.equal(active(), 'As saved', 'the first is showing');
+await t.click(...t.center(tab('As saved')));
+t.equal([active(), body.scrollTop], ['As saved', 0], 'a click on As saved shows the file, from the top');
 t.same(shown(), saved.replace(/\n$/, ''), 'it shows exactly what Save would write');
 {
   const bytes = new TextEncoder().encode(saved).length;
@@ -88,6 +111,10 @@ t.same(shown(), saved.replace(/\n$/, ''), 'it shows exactly what Save would writ
   t.equal([box.top, box.bottom], [123, innerHeight - 87], 'the text scrolls between a 52px header and 16px of card below it');
   t.near(tabs()[0].getBoundingClientRect().left, 347, 0.01, 'the tabs start 22px inside the edge');
   t.near(parseFloat(getComputedStyle(tabs()[0]).fontSize), 20.2, 0.01, 'in the hand');
+  const gaps = tabs().slice(1).map((made, i) => made.getBoundingClientRect().left - tabs()[i].getBoundingClientRect().right);
+  t.assert(gaps.every((gap) => Math.abs(gap - 16.5) < 0.01), `each 16.5px after the one before, as the clip’s two are: ${gaps}`);
+  const colour = (name) => getComputedStyle(tab(name)).color;
+  t.equal([colour('Markdown'), colour('As saved'), colour('Readable')], ['rgb(133, 123, 130)', 'rgb(129, 124, 212)', 'rgb(133, 123, 130)'], 'the one showing in the accent, the others dim');
   const size = card.querySelector('.bytes');
   t.equal([getComputedStyle(size).fontSize, getComputedStyle(size).color], ['13px', 'rgb(133, 123, 130)'], 'the size is small and dim');
   t.near(card.querySelector('.copy').getBoundingClientRect().right, box.right - 22, 0.6, 'Copy ends 22px inside the other edge');
@@ -106,7 +133,7 @@ t.same(shown(), saved.replace(/\n$/, ''), 'it shows exactly what Save would writ
 
 // --- readable ---------------------------------------------------------------------------------------
 
-await t.click(...t.center(tabs()[1]));
+await t.click(...t.center(tab('Readable')));
 t.equal(active(), 'Readable', 'a click on Readable shows it');
 t.same(shown(), readable(editor.getState()).replace(/\n$/, ''), 'the same file with the metadata laid out for reading');
 {
@@ -127,7 +154,7 @@ t.same(shown(), readable(editor.getState()).replace(/\n$/, ''), 'the same file w
   t.equal(card.querySelector('.bytes').textContent, `${new TextEncoder().encode(saved).length.toLocaleString('en-US')} bytes`, 'the size is still the saved file’s');
   await t.snap('readable');
 }
-await t.click(...t.center(tabs()[0]));
+await t.click(...t.center(tab('As saved')));
 t.equal([active(), body.scrollTop], ['As saved', 0], 'As saved again, from the top');
 
 // --- copy -------------------------------------------------------------------------------------------
@@ -135,9 +162,12 @@ t.equal([active(), body.scrollTop], ['As saved', 0], 'As saved again, from the t
 await t.click(...t.center(card.querySelector('.copy')));
 t.same((await t.call('test.clipboard')).text, saved, 'Copy copies the file as saved');
 t.equal(card.querySelector('.copy').textContent, 'Copied', 'and says so');
-await t.click(...t.center(tabs()[1]));
+await t.click(...t.center(tab('Readable')));
 await t.click(...t.center(card.querySelector('.copy')));
 t.same((await t.call('test.clipboard')).text, readable(editor.getState()), 'with Readable showing, it copies that');
+await t.click(...t.center(tab('Markdown')));
+await t.click(...t.center(card.querySelector('.copy')));
+t.same((await t.call('test.clipboard')).text, piece(), 'and with Markdown showing, the piece and nothing else: no record, no Overflow, no line added at the end');
 await t.until(() => card.querySelector('.copy').textContent === 'Copy', 3000, 'the button to read Copy again');
 
 // --- closing ----------------------------------------------------------------------------------------
@@ -150,7 +180,8 @@ t.equal(editor.selection()?.start.block, 3, 'with its caret where it was');
 // It comes back as it was left: the same tab, at the same place. (In the clip it is put away
 // on Readable, part of the way down, and is there again when it is brought back.)
 await t.key('u', { ctrl: true });
-await t.click(...t.center(tabs()[1]));
+t.equal(active(), 'Markdown', 'it comes back on the tab it was left on');
+await t.click(...t.center(tab('Readable')));
 body.scrollTop += 150;
 await t.settle();
 const left = body.scrollTop;
@@ -185,7 +216,7 @@ t.assert(!ui.get('source'), 'a click outside the card closes it');
 t.equal([document.activeElement, editor.selection()?.collapsed], [editor.root, true], 'and the caret is in the text, on the line it was level with');
 // Back on As saved, for what follows.
 await t.key('u', { ctrl: true });
-await t.click(...t.center(tabs()[0]));
+await t.click(...t.center(tab('As saved')));
 await t.key('Escape');
 await t.key('u', { ctrl: true });
 await t.key('u', { ctrl: true });
@@ -209,6 +240,21 @@ t.same(shown(), serialize(editor.getState()).replace(/\n$/, ''), 'which is the d
   t.equal(card.querySelector('[contenteditable]'), null, 'and it has nothing to type in');
   t.equal(getComputedStyle(body).webkitUserSelect, 'text', 'though its text can be selected');
 }
+// And so is the Markdown: the words as they stand, with the version of each that is showing.
+await t.click(...t.center(tab('Markdown')));
+t.equal(lines()[2].textContent, 'Now It has a word with alternatives, an arrow --> in its text, and.', 'what was just typed is in the Markdown too');
+await t.key('Escape');
+{
+  const word = editor.elementFor('w0rd001').getClientRects()[0];
+  await t.hover(word.left + word.width / 2, word.top + word.height / 2);
+  await t.key('ArrowRight');
+  t.equal(editor.groups.w0rd001.active, 1, 'another version of the word is showing');
+  await t.key('u', { ctrl: true });
+  t.equal(active(), 'Markdown', 'the card is back on Markdown');
+  t.equal(lines()[2].textContent, 'Now It has a term with alternatives, an arrow --> in its text, and.', 'and it has the version that is showing, and none of the others');
+  t.same(shown(), piece(), 'the piece as it reads now');
+  t.equal(card.querySelector('.bytes').textContent, sizeOf(piece()), 'at its size now');
+}
 await t.key('Escape');
 
 // --- a file with nothing to record ---------------------------------------------------------------------
@@ -216,9 +262,22 @@ await t.key('Escape');
 editor.setState({ html: '<p># Plain</p><p><br></p><p>Just text.</p>', groups: {}, overflow: '' });
 await t.settle();
 await t.key('u', { ctrl: true });
-t.equal(shown(), '# Plain\n\nJust text.', 'a plain document is shown as the plain Markdown it is saved as');
+t.equal([active(), shown()], ['Markdown', '# Plain\n\nJust text.'], 'another document is looked at from the start: its Markdown');
+t.equal(card.querySelector('.bytes').textContent, '19 bytes', 'a small number has no separator');
+await t.click(...t.center(tab('As saved')));
+t.equal(shown(), '# Plain\n\nJust text.', 'a plain document is saved as the plain Markdown it is');
 t.equal(dims().length, 0, 'with nothing dimmed');
-t.equal(card.querySelector('.bytes').textContent, '20 bytes', 'a small number has no separator');
-await t.click(...t.center(tabs()[1]));
+t.equal(card.querySelector('.bytes').textContent, '20 bytes', 'and one byte more, for the line break a file ends with');
+await t.click(...t.center(tab('Readable')));
 t.equal([shown(), body.scrollTop], ['# Plain\n\nJust text.', 0], 'and Readable has nothing to add');
+await t.key('Escape');
+
+// --- a page with nothing to take away ------------------------------------------------------------------
+
+editor.setState({ html: '<p><br></p><p><span data-ghost>All of it set aside.</span></p>', groups: {}, overflow: 'Spare.' });
+await t.settle();
+await t.key('u', { ctrl: true });
+t.equal([active(), shown(), card.querySelector('.bytes').textContent], ['Markdown', '', '0 bytes'], 'a page that is all ghost has no Markdown to show');
+await t.click(...t.center(tab('As saved')));
+t.assert(shown().includes('All of it set aside.') && shown().includes('<!-- write_on '), 'though its file has it all');
 await t.key('Escape');

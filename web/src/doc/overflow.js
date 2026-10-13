@@ -12,7 +12,7 @@ const tidy = (text) => text.replace(/\n{3,}/g, '\n\n').trim();
  * otherwise meet or one would be left at an end of the page, so the paragraphs around the
  * gap stay one blank line apart.
  */
-function closeGap(blocks, index) {
+export function closeGap(blocks, index) {
   if (blocks.length === 1) return { blocks: [{ kind: 'blank', runs: [] }], caret: { block: 0, offset: 0 } };
   const left = [...blocks.slice(0, index), ...blocks.slice(index + 1)];
   const spare = (i) => i >= 0 && i < left.length && left.length > 1 && isBlank(left[i]);

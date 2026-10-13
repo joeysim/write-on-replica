@@ -517,17 +517,18 @@ pointed at):
    undo step. "Done" dismisses the proposal and the text returns to normal.
 5. Choosing another level replaces the pending proposal. "Original" is highlighted when
    nothing is pending.
-6. **The cuts arrive with the answer.** The answer is every paragraph over again and takes
-   a while to come. The cuts in the paragraphs that have arrived whole are faded while the
+6. **The cuts arrive with the answer.** The answer is every sentence over again and takes
+   a while to come. What the sentences that have arrived could lose is faded while the
    card still reads "Reading…", and "Walk through" joins the other buttons with the first
-   of them, as in the clip. Nothing can be cut or walked until the whole answer is in.
-7. **Levels are kept.** In the clip "Tighten more", chosen twenty seconds after "Slight
-   trim" was read, is there at once: no reading, no line through the text. So what the
-   model says about a level is kept until the piece changes, and when the level asked for
-   has been read the others are read quietly, one at a time, the deeper ones first. Each
-   is a request to the AI service. The reading lasts as long as a trim is on the page:
-   Done, Original or another pass calls off a request still on its way and leaves the
-   levels not yet read alone, and it goes on from there when a trim is out again.
+   of them, as in the clip. Nothing can be cut or walked until the whole answer is in:
+   only then can the amount be counted (below), and what is faded becomes what the level
+   comes to.
+7. **One answer, every level.** In the clip "Tighten more", chosen twenty seconds after
+   "Slight trim" was read, is there at once: no reading, no line through the text. The
+   model is asked once, whichever level is chosen first, and all four are counted out
+   from what it says; the answer is kept until the piece changes. Done, Original or
+   another pass calls off an answer still on its way, and nothing is kept of one that
+   never came.
 
 A proposal is temporary. It is not saved to the file and is not ghost text: it is drawn
 at twice ghost's strength and lives beside the document, not in it. Text the user has
@@ -539,7 +540,61 @@ removes all of it removes the group. Any change to the document while a pass is 
 
 After "Make the cuts" the app does only mechanical tidying: collapse doubled spaces,
 remove a space left before punctuation, and capitalise a sentence whose first words were
-cut. It changes no other words.
+cut. A paragraph left with nothing goes, and a blank line with it, so that the paragraphs
+around it stay one blank line apart. The tidying is done in the paragraph as it stands
+on the page, ghosted words and all: they are left a space from what remains either side
+of them, and no space is left at the end of the paragraph. It changes no other words,
+and that does not rest on the answer being well formed: nothing outside a faded passage
+is ever removed but a space beside one, and of a word that now starts a sentence only
+the capital of its first letter is taken from the AI, never its spelling or its
+apostrophe.
+
+**How much a trim takes** is counted by the app, not the model. The model says of every
+sentence what words it could lose and, from 1 to 5, how much the piece needs it (the
+contract is below). A level then takes its tenth, fifth, 30% or half of the words the
+card counts, by stages:
+
+1. what sentences could lose, and any sentence the piece is "better without" (1);
+2. then whole sentences of which "little would be lost" (2);
+3. then those that "add something, but the piece stands without" (3);
+4. then those the piece "would be poorer without" (4).
+
+Each stage is taken whole while the amount allows. Of the stage it runs out in, as much
+is taken as comes nearest, evenly from first sentence to last, so the cuts are spread
+through the piece and the count lands within about half a sentence of what was asked;
+and nothing is taken of the stages after it, so no sentence goes while one the piece
+needs less still stands. Where that would leave a level with nothing, because the least
+there is to take is more than it asked for, it takes that: a level is empty only when
+the answer gives it nothing to cut. If everything up to the fourth stage is still short,
+the card says what it came to. A paragraph may go whole; the piece may not, and a
+sentence that may not go for that reason can still lose its padding.
+
+A sentence the piece "does not work without" (5) goes only in "Cut in half": to halve a
+piece, something it needs may have to go. There it goes last, to make up what the four
+stages could not, and only where the whole of it is still wanted, so the count is never
+carried past what was asked for its sake. The lighter levels never take one. (The model
+is asked to say this of one sentence in three at most. Of the welcome piece's fifteen
+it once said it of eight, and "Cut in half" came to 29%, which is why the rule is not
+"never".)
+
+Each level holds everything the lighter ones take: "Tighten more" is "Slight trim" and
+more. It is reached by going through the lighter amounts first, each adding to the last.
+
+While the answer is still arriving nothing can be counted, so what fades meanwhile is
+judged a sentence at a time, to a depth of one stage for "Slight trim", two for "Tighten
+more" and three for the others: a passage once faded is not unfaded by what arrives
+after it, only by the count at the end.
+
+This is the second way trims were asked for, and the reason is measured. At first each
+level was a request of its own: cut the piece from so many words to so many, and send
+the paragraphs back. `glm-5.3-flash` reasoned its way to the number, counting words one
+at a time. On the 170-word welcome piece that took 24 to 131 seconds a level; on a
+498-word draft "Slight trim" took 39 s and came to 7%, "Tighten more" 142 s, "Even
+sharper" had not answered after five minutes, and "Cut in half" took 208 s and came to
+8%, the model's own answer being 13% short of half and three of its eight paragraphs
+refused for a changed word. Asked the present way the same model answers the same draft
+in 8 to 25 seconds, mostly without thinking at all, and the four levels come to 10, 20,
+30 and 50% (§7.1).
 
 **Mark passes and the typo pass** are named in the video but not run, so their results
 are inferred (§9 items 4 and 5): the same card and scan line, with marked passages
@@ -551,10 +606,20 @@ the document.
 **AI contract.** Each pass sends the document as numbered paragraphs and gets back a
 fixed JSON shape. What the app accepts is narrow by construction:
 
-- **Trims:** the AI returns each paragraph with words removed. The app compares it with
-  the original and accepts a paragraph only if the result can be reached by deletion
-  alone (a change of capital at a new sentence start is allowed). The deleted words
-  become the proposal. A paragraph that was reworded is ignored.
+- **Trims:** the piece is offered a sentence at a time, numbered through, with a blank
+  line between paragraphs. For every sentence the AI returns the sentence with what it
+  could lose removed, and how much the piece needs it at all, from 1 to 5. The app
+  compares each with the original and accepts what the sentence could lose only if the
+  result can be reached by deletion alone (a change of capital at a new sentence start
+  is allowed). A sentence that was reworded loses nothing, though it may still go
+  whole. What is proposed is chosen from this by the app (above). The AI is not told
+  how much to cut. A long list of numbers is easily miscounted, so the numbers are
+  checked against the words: where fewer than half of what comes back are their own
+  sentences with words deleted, and reading every number as so many too high or too low
+  (up to six) explains at least two of them and more than twice as many, they are read
+  that way. One sentence that could pass for its neighbour moves nothing. An answer
+  that speaks of fewer than half the sentences is asked for once more; a second such is
+  used as it is.
 - **Marks:** the AI returns verbatim passages with a short reason. Any passage that does
   not occur in its paragraph is discarded.
 - **Typos:** as marks, plus a replacement for each passage. A replacement is applied
@@ -639,8 +704,10 @@ clear of the top and bottom of the window. The page behind is not dimmed: in the
 ground and the icons measure the same with the card up as without it. The card has a
 hairline edge, 7 px corners and a soft shadow that falls mostly below it.
 
-- A 52 px header: tabs "As saved" and "Readable" in the hand, accent for the one showing;
-  on the right the byte count ("9,344 bytes", 13 px, dim) and "Copy".
+- A 52 px header: tabs in the hand, accent for the one showing; on the right the byte
+  count ("9,344 bytes", 13 px, dim) and "Copy". The clip's tabs are "As saved" and
+  "Readable", 16.5 px apart. The replica puts a third ahead of them, "Markdown", the same
+  distance from the next (see below).
 - Under it the file scrolls: 13 px type, 22 px in from either side, nothing above its
   first line, and 16 px of card below the scrolling area.
 - The clip's lines are 20.8 px apart (13 px at 1.6), each rounded to a device pixel.
@@ -652,6 +719,15 @@ hairline edge, 7 px corners and a soft shadow that falls mostly below it.
   with the HTML unescaped one block per line, four spaces in and keeping that indent
   where it wraps, and jumps to it: the comment's first line lands just under 8 px below
   the top of the scrolling area.
+- **"Markdown" is the replica's own** (§9 item 53): the piece as it reads now, for taking
+  elsewhere. It is the document's lines with the version of each group that is showing,
+  heading marks kept, and without what is not the piece: ghosted text (the gap it leaves
+  closed up to one space, and a line with nothing else in it left out), Overflow, the
+  `write_on` comment, and the blank lines at either end. No line has space at its ends
+  and there is never more than one blank line together. It is the text Post to X sends, with the
+  heading marks. Nothing in it is dimmed. With this tab showing the byte count is the
+  size of what it shows, and "Copy" copies exactly that, with no line break added at the
+  end. It is the tab the card opens on.
 - Comment and metadata lines are dimmed; text, the overflow included, is full strength.
   Read-only. Esc closes.
 - It comes back as it was left: on the same tab, at the same place in the file (the clip
@@ -814,24 +890,40 @@ live gateway on 2026-10-11:
   without the schema the model's JSON took other shapes and could not be read. The
   trim contract in §6.10 checks the result rather than trusting it.
 - What the model thinks before it answers is counted against `max_tokens` along with
-  the answer, and for a Lab pass it thinks a good deal even at `low`. Measured live: to
-  cut 570 words by a tenth it thought for 1,300 to 3,300 tokens, by 30% for 6,300; a
-  marking pass over 164 words for up to 400; alternatives for 1. Given only room for
-  the answer, a trim came back empty every time. So a Lab pass asks for its answer and
-  room to think besides (a trim 2,000 tokens and 15 a word; the other passes 1,000 and
-  4 a word), up to 32,000 in all.
-- Lab passes stay at `low`. Live, a slight trim cut 8–11% of the 164-word welcome piece
-  in 9–17 s, and 8–10% of a 570-word piece in 16–50 s, every cut a clean deletion. (A day later
-  the welcome piece, by then 170 words, took 22 s for the same trim and lost 9%; and on
-  the day after that between 9 and 67 s in seven askings, losing 9 to 11%, with the next
-  level read in 36 to 101 s, and once not read at all. The time is the model's
-  thinking, and it varies that much, by the hour as much as by the asking.) That
-  is slow beside the original, and it is the thinking: asked by proportion instead of
-  by word count the model answered in 5 s and cut 2–4%, and with thinking switched off
-  it cut nothing. Accuracy was chosen over speed. While it thinks the stream keeps
-  coming (the longest silence measured was 1.4 s), so the limit is on silence, not on
-  the answer. The limit was 20 s until 13 October, when at a busy hour the same stream
-  fell silent for 9 s, and for 18.5 s asked Anthropic's way (below). It is now 60 s.
+  the answer, and it may think a good deal even at `low`: a marking pass over 164 words
+  for up to 400 tokens; alternatives for 1. So a Lab pass asks for its answer and room
+  to think besides (a trim 2,000 tokens and 6 a word; the other passes 1,000 and 4 a
+  word), up to 32,000 in all.
+- Lab passes stay at `low`. **A trim is asked so that the model has nothing to count**
+  (§6.10). The first way of asking gave it a number of words to cut to, a request for
+  each level, and it reasoned its way there: to cut 570 words by a tenth it thought for
+  1,300 to 3,300 tokens, by 30% for 6,300, at fifty tokens a second, and given only room
+  for the answer it came back empty every time. A slight trim of the welcome piece then
+  took 9 to 67 s, by the hour and the asking, and landed within a point or two of a
+  tenth; the deeper levels and a longer draft did far worse (the figures are in §6.10),
+  which is what was found when the app was first used on real writing, on 13 October.
+  Asked by proportion it answered in 5 s and cut 2–4%; with thinking switched off it
+  cut nothing. Other shapes of answer were tried that day against the service: passages
+  quoted with a level each, or tagged in the text (fast, but about one deletion in six
+  left a sentence broken, "The format was."); the paragraph cut up into parts (the
+  full stops went with the cuts); one request for each paragraph (no faster in all,
+  and the service refuses many at once). What held up was the model writing each
+  sentence as it would read, so that it sees its own result, and the app doing the
+  arithmetic. Live that way, through the app, on 13 October: the welcome piece read in
+  4 to 26 s, mostly under 11, and the levels came to 9–11%, 18–22%, 28–33% and 48–52%;
+  a 498-word draft
+  read in 8 to 25 s, once in 58 s when the model thought first, and came to 10–11%,
+  19–21%, 27–31% and 47–52%; and 1,575 words of the README's own prose, 85 sentences,
+  read in 38 and 49 s and came to 10, 20, 30–31 and 50%. The first cuts fade about two
+  seconds in, where a sentence has something to lose. Two things went wrong in some
+  twenty askings, and each is now allowed for: one answer spoke of a single sentence
+  and stopped, which is why a thin answer is asked for again; and one came back with
+  each of 81 sentences under the number of the sentence four on, which is why a
+  sentence is known by its words.
+- While it thinks the stream keeps coming (the longest silence measured was 1.4 s), so
+  the limit is on silence, not on the answer. The limit was 20 s until 13 October,
+  when at a busy hour the same stream fell silent for 9 s, and for 18.5 s asked
+  Anthropic's way (below). It is now 60 s.
 
 **Key lookup**, in order: a key saved in the Keychain from Settings; the app's own
 environment; the user's login shell, read once (apps launched from Finder do not inherit
@@ -882,16 +974,15 @@ answer already allowed for a code fence or a stray sentence round it. (OpenAI's 
 prompts are as they were, since there the schema is held to.)
 
 LunaRoute's endpoint for this way also took no notice of `output_config.effort`: a
-slight trim of the welcome piece then thought for a minute and ran out of room. It
-does take the effort under OpenAI's name, `reasoning_effort`, which Anthropic's own
-service would refuse as a field it has not heard of. So to LunaRoute, and only to
-LunaRoute (its own domain, or the address `LUNAROUTE_BASE_URL` gives), the effort is
-given under both names. Live that way on 13 October, in six runs: five words in 1.5
-to 3.6 s, three versions of a sentence in 1.4 to 2.0 s, a slight trim in 20 to 49 s
-(7% to 12% cut), the next level in 36 s to two minutes (once it ran out of room, before
-the app asked again with more), four hedges marked in 14 to 24 s, two planted slips
-found in 4 to 9 s. Over a trim the model thinks about twice as long as when asked OpenAI's way, where
-the schema is held to.
+slight trim of the welcome piece, as trims were then asked, thought for a minute and
+ran out of room. It does take the effort under OpenAI's name, `reasoning_effort`, which
+Anthropic's own service would refuse as a field it has not heard of. So to LunaRoute,
+and only to LunaRoute (its own domain, or the address `LUNAROUTE_BASE_URL` gives), the
+effort is given under both names. Live that way on 13 October: five words in 1.5 to
+3.6 s, three versions of a sentence in 1.2 to 2.0 s, hedges marked in 4 to 24 s, two
+planted slips found in 2 to 9 s; and, once trims were asked a sentence at a time, the
+welcome piece read in 4 to 10 s and a 498-word draft in 8 to 25 s, the levels coming to
+within the same few points of 10, 20, 30 and 50% as they do asked OpenAI's way.
 
 Anthropic's own service has not been asked. What is said of it here is from its
 documentation, and the stand-in the tests use refuses what that documentation says it
@@ -932,8 +1023,8 @@ other than the usual one work in practice.
   takes nothing it does not know. A refusal is taken to be of a part only if it names
   the part as a word of its own: "best-effort" and "information" name nothing.
 - *Room.* What a model thinks is counted against the room it is given, and a model may
-  think more than the page allowed for: asked Anthropic's way through LunaRoute, the
-  second trim level ran out. An answer cut off before a word of it has come is asked
+  think more than the page allowed for: asked Anthropic's way through LunaRoute, a trim
+  to a fifth, as trims were then asked, ran out. An answer cut off before a word of it has come is asked
   for again with twice the room, twice at most and never more than 32,000. If the
   service refuses the wider room, the line is the one for running out of room, since
   that is what happened. Nothing of this is kept for the next request: what one request
@@ -1014,7 +1105,7 @@ go another way.
 | 24 | Arrow keys while hovering | → and ↓ go forward, ← and ↑ go back. The clips show both directions and wrap-around, not which key is which. |
 | 25 | Panel details | Clicking a tab retargets at that scope; ↑ / ↓ do not wrap; a group cannot be deleted down to nothing. |
 | 26 | Lab popover while a proposal is pending | The pending level is highlighted; choosing "Original" dismisses it, like "Done". |
-| 27 | Source view details | "As saved" reflects the document as it would be saved now, and is what shows the first time the view opens on a document. "Copy" copies the tab that is showing and reads "Copied" for a second and a half. Esc, Ctrl+U again, the M↓ icon or a click off the card closes it, and so does going into Read mode. While it is open the keys scroll it and none reach the page; afterwards the caret is where it was. |
+| 27 | Source view details | "As saved" reflects the document as it would be saved now. "Copy" copies the tab that is showing and reads "Copied" for a second and a half. Esc, Ctrl+U again, the M↓ icon or a click off the card closes it, and so does going into Read mode. While it is open the keys scroll it and none reach the page; afterwards the caret is where it was. What shows the first time the view opens on a document is item 53's. |
 | 28 | Read mode details | Feature shortcuts leave Read mode; the mode is remembered between launches. |
 | 29 | Ghost with no selection | Applies to the word at the caret, like the alternatives commands. |
 | 30 | Mac shell additions | Blended title bar, menu bar with ⌘ equivalents, Save As, Open Recent, unsaved-changes prompt, crash snapshots, file name suggested from the first heading, a sound toggle. None of these are in the clips. |
@@ -1033,13 +1124,15 @@ go another way.
 | 44 | While the AI is asked | The row of `??` cannot be typed in while it dances. Closing the panel or moving it to another target calls the request off, and nothing arrives. Suggestions show as they come but become variants together, when the answer is complete; a request that fails part-way leaves none of them. After a failure the row keeps its `??`, still, with the caret in it: deleting a mark and typing it again asks again. The reason replaces the footer hint for four seconds. |
 | 45 | Ghost at the edges | A run of ghosted text is what runs on unbroken within one paragraph; where the edge of a group splits it, it is still one. A caret on a ghosted word revives even at the very edge of the run, and a caret inside ghosted spaces or punctuation revives too. A selection with no words in it, a blank line and a caret among plain spaces give the command nothing to do, and the menu item is dimmed. A word beside ghosted text is ghosted in its own right. |
 | 46 | Stash and use, in detail | Stashed text is trimmed, and marks do not travel: a group or ghosted words go as the words that were showing. Where a stash empties a paragraph, the paragraph goes and a blank line with it, so the page stays one blank line between paragraphs. Taking whole lines out of Overflow closes it up the same way. Used text goes in as a paste would, the caret goes to the page and stands after it, and the page scrolls to show it; where the page has had no caret yet it is added at the end as a paragraph of its own. A blank line, or a selection with no words, gives either command nothing to do. |
-| 47 | Trims, in detail | A click on a faded passage keeps it and a second click lets it go again. Choosing another level, or "Original", puts a pending proposal away first. If the request fails the card keeps the trim's name, gives the reason in one line and offers only "Done"; the same if the answer holds nothing that is the text with words deleted ("The AI found nothing it could cut without rewording."), or nothing at all ("The AI found nothing to cut."). A paragraph that came back reworded is left alone while the others are proposed. Going into Read mode puts the popover and any pass away. Arrow keys are not needed in the popover; Esc and a click elsewhere close it. |
+| 47 | Trims, in detail | A click on a faded passage keeps it and a second click lets it go again. Choosing another level, or "Original", puts a pending proposal away first. If the request fails the card keeps the trim's name, gives the reason in one line and offers only "Done"; the same if the answer holds nothing that is the text with words deleted ("The AI found nothing it could cut without rewording."), or nothing at all ("The AI found nothing to cut."). A sentence that came back reworded is left as it is while the others are proposed. An answer that could not be read is not kept: the next trim asks again. Going into Read mode puts the popover and any pass away. Arrow keys are not needed in the popover; Esc and a click elsewhere close it. |
 | 48 | Post to X, in detail | The clip only hovers the X icon, so everything past "opens X's compose window" is a choice: the address (`x.com/intent/post`), the text sent (the page as it reads: no heading mark, nothing ghosted, nothing from Overflow, nothing of the other versions), the two limits and the clipboard fallback, the wording and behaviour of the note, and doing nothing for an empty page. |
 | 49 | Documents and windows | Where a file opens (the window that has it, else one nobody has written in, else its own); a new window being blank and the welcome piece shown once; unsaved work coming back after a crash as an unsaved document rather than being offered in a dialog; one question at a time; Undo and Redo in the menu being the document's; which commands the menus hold and what they are called. |
 | 50 | A shortcut with the caret on no word | With the caret on no word, or no caret in the text, Alternatives and AI alternatives act on what the pointer is resting on: the group, or the word. The clip only shows the case with the caret in a word, which wins over the pointer. |
 | 51 | Where the caret is | A window opens with the caret at the start of the piece; a press on the bare page beside or below the text lands in the text; and the page never scrolls the caret into its faded edges (§4.3, §5.2). None of it is shown in the clips. |
 | 52 | Dots on a 1x display | The clips are of a 2x display. On a display with one pixel to the px the dots are seated on whole pixels and a ring's line is one pixel (§6.2). |
 | 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
+| 54 | How a trim is asked for, and how much it takes | Everything under "How much a trim takes" in §6.10: that the model is asked once about every sentence and not once a level for an amount; the scale of 1 to 5 and the four stages; that a level's share is reckoned on the words the card counts, headings included; that a stage is taken part-way evenly through the piece; that a level can fall short and says so; that no sentence goes while one needed less stands, and that a level is never empty where something could go; that a sentence the piece "does not work without" goes only in "Cut in half", last, and never past the amount; that each level holds what the lighter ones take; that a paragraph may go whole, with a blank line; what fades while the answer is arriving; that a thin answer is asked for once more; and that the numbers are checked against the words. The clip shows only that a trim fades words and whole sentences, that the card counts them, and that a second level is there at once. |
+| 53 | A Markdown tab in the source view | Not in the clip, and not inferred from it: asked for by the replica's owner, who opened the card to copy the piece and found the file's record in the way. The source view has a third tab, "Markdown", ahead of the clip's two and the one it opens on, showing the piece as it reads now (§6.11). The clip's card opens on "As saved". |
 
 ## 10. Verification
 
@@ -1069,8 +1162,10 @@ go another way.
    of the repository.
 3. **Sound.** Each sound is rendered offline to a WAV and put through the same analysis
    used on the clips. Pass: tick frequencies within 5 Hz, envelope times within 20%.
-4. **Live AI smoke test** against LunaRoute for alternatives at each scope and for one
-   trim, plus the same flows against a canned provider so tests run without a network.
+4. **Live AI smoke test** against LunaRoute for alternatives at each scope, a marking
+   pass, the typo pass, and a trim at every level of the welcome piece and of a
+   500-word draft, plus the same flows against a canned provider so tests run without
+   a network.
    The client itself is tested over HTTP against a stand-in gateway on the same Mac,
    which speaks both ways and also plays another service: one at a second address, one
    that wants no key, one that refuses parts of a request as OpenAI's does or as
