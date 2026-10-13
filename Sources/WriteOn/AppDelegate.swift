@@ -65,14 +65,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
             asking = answers
             UserDefaults.standard.setVolatileDomain(Self.typingDefaults, forName: UserDefaults.argumentDomain)
             // The keychain is the person's: a scripted run keeps a saved key in memory. It
-            // uses the key in its environment only where it was sent: against the real
-            // service when it says it is a live run (`--ai live`), otherwise only against
-            // a service on this Mac. It asks the login shell for a key only when live.
+            // uses the key and the address in its environment only where they were meant:
+            // against the real service when it says it is a live run (`--ai live`),
+            // otherwise only if the address is on this Mac. It asks the login shell for a
+            // key only when live. And unless it is live, its client asks nothing that is
+            // not on this Mac, whatever address and key a scenario gives it.
             var environment = ProcessInfo.processInfo.environment
-            let local = environment[Credentials.addressName].flatMap { URL(string: $0)?.host }.map { ["127.0.0.1", "localhost", "::1"].contains($0) } ?? false
-            if !test.aiLive, !local { environment[Credentials.keyName] = nil }
+            let named = Credentials(saved: MemorySecret(), environment: environment, readShell: nil).address()
+            let local = named.flatMap(AIClient.endpoint).map(AIClient.isOnThisMac) ?? false
+            if !test.aiLive, !local { (Credentials.keyNames + Credentials.addressNames).forEach { environment[$0] = nil } }
             credentials = Credentials(saved: MemorySecret(), environment: environment, readShell: test.aiLive ? LoginShell.read : nil)
-            client = AIClient(credentials: credentials, settings: settings, idle: test.aiIdle ?? 20)
+            client = AIClient(credentials: credentials, settings: settings, idle: test.aiIdle ?? 20, localOnly: !test.aiLive)
 
             let start = store.drafts().first.map { DocumentStart.recovered($0) } ?? untitledStart()
             guard let controller = openWindow(start, pageSize: test.pageSize) else { exit(70) }

@@ -20,10 +20,20 @@ mkdir -p "$OUT"
 status=0
 read -r -a OWN <<<"$(sed -n '1s|^// launch: ||p' "$SCENARIO")"
 
+# Unless the run is a live one (--ai live), the app is given nothing of what this shell says
+# about the AI service: not its key, not its address, not its model. A scenario then starts
+# the same for everyone, and a key of yours is sent nowhere by a test.
+AI=""
+for option in ${OWN[@]+"${OWN[@]}"} "$@"; do
+  if [ "$AI" = "--ai" ]; then AI="$option"; break; fi
+  [ "$option" = "--ai" ] && AI="--ai"
+done
+[ "$AI" = "live" ] || unset WRITEON_API_KEY WRITEON_BASE_URL WRITEON_MODEL LUNAROUTE_API_KEY LUNAROUTE_BASE_URL
+
 # A scenario can also ask for a stand-in for the AI gateway, on its second line:
 #   // gateway: tests/ui/support/fake-gateway.mjs
 # It is started here and stopped afterwards, and the app is given its address and a key it
-# knows, in place of whatever this shell has. Nothing of the run then leaves this Mac.
+# knows. Nothing of the run then leaves this Mac.
 GATEWAY="$(sed -n '2s|^// gateway: ||p' "$SCENARIO")"
 if [ -n "$GATEWAY" ]; then
   node "$ROOT/$GATEWAY" >"$OUT/gateway.log" 2>&1 &
@@ -35,8 +45,8 @@ if [ -n "$GATEWAY" ]; then
     sleep 0.1
   done
   [ -n "${PORT:-}" ] || { echo "ui-test: the stand-in gateway did not start (see $OUT/gateway.log)" >&2; exit 2; }
-  export LUNAROUTE_BASE_URL="http://127.0.0.1:$PORT/v1"
-  export LUNAROUTE_API_KEY="fake-key-from-the-environment"
+  export WRITEON_BASE_URL="http://127.0.0.1:$PORT/v1"
+  export WRITEON_API_KEY="fake-key-from-the-environment"
 fi
 
 # The page is read from the working copy, so page-only changes need no rebuild.

@@ -103,42 +103,88 @@ and comes back as an unsaved document if the app is ever killed.
 AI alternatives and the Lab ask a language model. Everything else works without one.
 
 The app speaks OpenAI-style chat completions (`POST <address>/chat/completions`, with the
-answer streamed). Out of the box it asks LunaRoute (`https://gw.lunaroute.com/v1`) for
-`glm-5.3-flash`, and that is the only service and the only model it has been tried with.
-Settings (⌘,) takes another address, which may be a model served on this Mac, and
-another model, and has a Test connection button that says which key it used.
-`LUNAROUTE_BASE_URL` in the environment sets the address too. Another service has to
-take what every request carries: `max_tokens`, `reasoning_effort` and, from the Lab, an
-answer held to a JSON schema (`response_format`).
+answer streamed), so it can ask any service, or any server on your own Mac, that speaks
+them too. Out of the box it asks LunaRoute (`https://gw.lunaroute.com/v1`) for
+`glm-5.3-flash`. **Settings (⌘,) is where you point it somewhere else:**
 
-A key is always sent, so a server that wants none still needs something typed in the
-field. The app looks for the key in this order:
+- **API key.** Paste it and it is saved in your keychain, and nowhere else.
+- **Address.** The service's base address: `https://api.openai.com/v1`, say, or
+  `https://openrouter.ai/api/v1`, or `http://localhost:11434/v1` for a model served on
+  this Mac. The whole address of its chat-completions endpoint will do as well.
+- **Model.** The name the service knows the model by.
+- **Test connection** tries the three together and says how it went: that the model
+  answered, how long it took, and which key went with the question.
 
-1. a key saved in Settings, which goes in your keychain;
-2. `LUNAROUTE_API_KEY` in the app's own environment;
-3. `LUNAROUTE_API_KEY` as your login shell sets it (so a key in `~/.zshrc` is found when the
-   app is opened from Finder). For this the app runs your login shell once, as a terminal
-   would start it, the first time it has to look further than Settings and its own
-   environment, and reads `LUNAROUTE_API_KEY` and `LUNAROUTE_BASE_URL` from it.
+Left empty, Address and Model show what is in force.
+
+The three can come from the environment as well: `WRITEON_API_KEY`, `WRITEON_BASE_URL`
+and `WRITEON_MODEL`. (`LUNAROUTE_API_KEY` and `LUNAROUTE_BASE_URL`, the names the first
+two had to begin with, are still read.) The app looks for each of the three in this
+order:
+
+1. Settings: the key saved in your keychain, and the Address and Model fields;
+2. the app's own environment;
+3. your login shell, so that what `~/.zshrc` sets is found when the app is opened from
+   Finder. For this the app runs your login shell once, as a terminal would start it, the
+   first time it has to look further than Settings and its own environment, and reads
+   those five variables from it.
+
+**Which key goes where.** The key the app finds is sent to the address in force, with one
+exception: a key under LunaRoute's name (`LUNAROUTE_API_KEY`) is LunaRoute's, and no other
+service is sent it. So a service you name needs a key of its own, pasted in Settings or
+set as `WRITEON_API_KEY`. A key saved in Settings goes with whatever address is there, so
+change the two together. A server that wants no key, as a model on your own Mac usually
+does not, is asked without one. Only LunaRoute's own address is never asked without a key.
+
+Plain `http` is for this Mac and its own network (a name ending `.local` or with no dot in
+it, a private address). For anywhere else the app refuses it, as macOS does, so a key does
+not cross the internet in the clear. And a request goes where you said and no further: if
+a service answers that it has moved, the app does not follow.
 
 The key never reaches the editor's page: the native side of the app makes the request and
 hands back text.
+
+**What another service has to take.**
+
+- The key as a bearer token (`Authorization: Bearer …`). There is no other way of
+  sending it.
+- `max_tokens` and `reasoning_effort` on every request. A service that refuses one of them
+  is asked again in its own way: with `max_completion_tokens`, which OpenAI's models that
+  reason want, or without `reasoning_effort`, which models that do not reason refuse. The
+  app then asks that way first, for that address and model, until it is quit or that way
+  stops working.
+- From the Lab, a JSON schema that the answer has to fit (`response_format`). There is no
+  way round this one: the Lab needs a model that can keep to a schema. AI alternatives
+  need only text.
+- Room. A trim asks for a great deal of it, because a model that reasons spends most of
+  it thinking: 2,000 tokens and 15 for every word of the piece, up to 32,000. That is more
+  than 8,192 from about 340 words and more than 16,384 from about 830, and a model that
+  may not write so much will refuse a longer piece.
+- An answer that begins within 20 seconds and never falls silent for longer. The app gives
+  up on one that does, the wait for its first piece included. LunaRoute's model streams
+  while it thinks; a model that thinks in silence, or a server still loading its model,
+  may be given up on.
+
+**How far this has been tried.** For real, with LunaRoute and `glm-5.3-flash` only.
+Everything about other services is tested against a stand-in on this Mac that answers and
+refuses as they are documented to (`tests/ui/ai-gateway.js`), and not yet against the
+services themselves. [The live scenario](#ui-scenarios) will try one of yours.
 
 **What leaves your Mac.** Nothing, until you ask the AI for something. A request for
 alternatives carries the paragraph the word is in and the versions you already have. The
 Lab sends the page's paragraphs, without the headings and without what is ghosted. A trim
 sends them once for the level you chose and then, for as long as it is on the page, once
 for each of the other three, so that they are there when you go to them; Done stops
-that. All of it goes to the address above and nowhere else, and Overflow is never sent.
-There is no telemetry and nothing checks for updates. The only other thing that goes
-anywhere is Post to X, which opens X's compose page in your browser with the piece in the
-link.
+that. All of it goes to the address in force, with the key in force, and nowhere else,
+and Overflow is never sent. There is no telemetry and nothing checks for updates. The
+only other thing that goes anywhere is Post to X, which opens X's compose page in your
+browser with the piece in the link.
 
-Alternatives come back in a second or two. **A trim is slow with this model:** 9 to 22
-seconds for the 170-word welcome piece and 16 to 50 seconds for a 570-word one, where the
-original takes a second or two. The model reasons its way to the word count; a quicker way
-of asking took 5 seconds and cut a third of what was asked for, so accuracy was kept. The
-measurements are in the spec, §7.1.
+Alternatives come back in a second or two. **A trim is slow with `glm-5.3-flash`:** 9 to 38
+seconds for the 170-word welcome piece, differing that much from one asking to the next,
+and 16 to 50 seconds for a 570-word one, where the original takes a second or two. The
+model reasons its way to the word count; a quicker way of asking took 5 seconds and cut a
+third of what was asked for, so accuracy was kept. The measurements are in the spec, §7.1.
 
 ## What a person has to check
 
@@ -221,7 +267,7 @@ autocorrection and smart punctuation are off by default.
 - Lines are 36 px apart, not 36.4, and Overflow's 22, not 22.5: WebKit sets lines of text a
   whole number of pixels apart, and the original runs in a browser that does not.
 - A selection that runs past the end of a line is drawn a little differently by WebKit.
-- The Lab's trims take much longer (see [The AI](#the-ai)): about twenty seconds for a
+- The Lab's trims take much longer (see [The AI](#the-ai)): ten to forty seconds for a
   short piece against two in the clip. Nearly all of that is the model thinking before it
   answers, so the cuts, which are faded as they arrive, come in the last second of it.
   Once a level has been read the others are read quietly, one at a time, for as long as
@@ -283,9 +329,10 @@ takes nothing from you. It also leaves the rest of the Mac as it found it:
   alone (a run has its own of each, in memory);
 - the browser is never opened: the run notes what it was asked to open;
 - nothing is written to the app's saved settings, and a run that changes them fails;
-- it cannot reach the real AI service. Most scenarios get a scripted provider; the client
-  itself is tested over HTTP against a stand-in gateway on this Mac
-  (`tests/ui/support/fake-gateway.mjs`), with a key the stand-in knows.
+- it cannot reach the real AI service, or any other. Most scenarios get a scripted
+  provider; the client itself is tested over HTTP against a stand-in gateway on this Mac
+  (`tests/ui/support/fake-gateway.mjs`), with a key the stand-in knows; and the client
+  of a run that is not a live one refuses every address that is not on this Mac.
 
 `tests/ui/smoke.js` checks the first part on every run, and the harness fails any run that
 came to the front, took the keyboard or changed the saved settings. Inside, the harness
@@ -308,14 +355,16 @@ Outside scripted runs the app uses one unpublished setting of the web view,
 `ui-test.sh` or `bench.sh` builds and tests a second copy, so the one in `build/` can stay
 open while you work.
 
-One scenario does ask the real service, and steps aside unless told to run:
+One scenario does ask a real service, and steps aside unless told to run:
 
 ```sh
 scripts/ui-test.sh ai-live --ai live   # five words, three sentences and a trim, with your key
 ```
 
-It asks LunaRoute for `glm-5.3-flash`, and expects your login shell to set
-`LUNAROUTE_API_KEY` (a scripted run does not read the keychain). Without both it fails.
+It asks what your shell names: LunaRoute and `glm-5.3-flash`, or the service and model in
+`WRITEON_BASE_URL` and `WRITEON_MODEL`. The key has to come from your login shell too
+(`WRITEON_API_KEY` or `LUNAROUTE_API_KEY`), since a scripted run does not read the
+keychain; without one it fails. The times it allows are the ones `glm-5.3-flash` needs.
 
 Two things in the app are there for working on it and are on in every copy. Safari's Web
 Inspector can attach to the page (Develop menu), and `WRITEON_WEB_ROOT` in the app's

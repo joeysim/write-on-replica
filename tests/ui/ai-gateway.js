@@ -3,7 +3,7 @@
 // The shell's AI client and its settings (design spec 7, 7.1 and 8; plan: Review Focus 5),
 // against a stand-in for the gateway that answers as each request asks: well, badly, slowly
 // or not at all. No request leaves this Mac, and no real key is used: the run is given the
-// stand-in's address and a key the stand-in knows.
+// stand-in's address and a key the stand-in knows, and the client refuses any other address.
 const { ai, ui } = window.writeOn;
 await document.fonts.ready;
 
@@ -27,6 +27,7 @@ const seen = async (extra) => {
   return how === 'done' ? JSON.parse(pieces.join('')) : { failed: how };
 };
 const settings = (change = {}) => t.call('test.settings', change);
+const OFF_LIMITS = 'A scripted run asks only a service on this Mac.';
 const sorted = (value) =>
   JSON.stringify(value, (_, v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1))) : v));
 
@@ -112,7 +113,18 @@ for (const [name, message] of [
 
 // --- which key, which model, which address --------------------------------------------------------
 
-t.equal((await settings()).keyNote, 'Using the key from the app’s environment.', 'Settings says where the key comes from');
+// The stand-in listens at a second address, and answers under any path that ends as a chat
+// completion does. To the app that is another service, with an address, a key and a model of
+// its own.
+const { host, second } = await seen();
+const home = `http://${host}`; // the stand-in, as the app reaches it
+const elsewhere = `http://127.0.0.1:${second}`;
+const usual = { WRITEON_BASE_URL: `${home}/v1`, WRITEON_API_KEY: 'fake-key-from-the-environment' }; // what this run was started with
+{
+  const s = await settings();
+  t.equal(s.keyNote, 'Using the key from the app’s environment.', 'Settings says where the key comes from');
+  t.equal([s.addressHint, s.modelHint], [`${home}/v1`, 'glm-5.3-flash'], 'and, in its empty fields, which address and model are in force');
+}
 {
   const s = await settings({ key: 'fake-key-saved-in-settings' });
   t.equal([s.keyNote, s.keyField], ['Using the key saved here.', ''], 'a key typed into Settings is saved, and not left showing');
@@ -146,13 +158,189 @@ t.equal((await settings()).keyNote, 'Using the key from the app’s environment.
   await settings({ address: '' });
 }
 
+// --- another service ------------------------------------------------------------------------------
+
+{
+  await settings({ address: `${elsewhere}/openai/v1/`, model: 'their-model', key: 'fake-key-saved-in-settings' });
+  const sent = await seen();
+  t.equal(
+    [sent.port, sent.path, sent.model, sent.key],
+    [second, '/openai/v1/chat/completions', 'their-model', 'saved'],
+    'Settings sends requests to another service: its address, its model, and the key saved for it',
+  );
+  const s = await settings({ test: true });
+  t.assert(/^Connected: their-model answered in \d+(\.\d)? s, with the key saved here\.$/.test(s.testNote), `and Test connection tries the three together: ${s.testNote}`);
+  await settings({ address: `${elsewhere}/openai/v1/chat/completions` });
+  t.equal((await seen()).path, '/openai/v1/chat/completions', 'an address that is the whole of it already is used as it stands');
+  await settings({ address: `${elsewhere}/openai/v1/chat/completions/` });
+  t.equal((await seen()).path, '/openai/v1/chat/completions', 'with or without a slash after it');
+  await settings({ address: '', model: '', forget: true });
+}
+// The environment can name all three. The app's own names come first; LunaRoute's, which are
+// older, are still read.
+{
+  const named = await settings({ environment: { ...usual, WRITEON_MODEL: 'model-from-the-environment' } });
+  t.equal((await seen()).model, 'model-from-the-environment', 'the environment can name the model');
+  t.equal(named.modelHint, 'model-from-the-environment', 'and Settings shows it where its own field is empty');
+  await settings({ model: 'another-model' });
+  t.equal((await seen()).model, 'another-model', 'and Settings comes before it');
+  await settings({ model: '' });
+  const older = { LUNAROUTE_BASE_URL: `${elsewhere}/v1`, LUNAROUTE_API_KEY: 'fake-key-under-the-older-name' };
+  await settings({ environment: older });
+  let sent = await seen();
+  t.equal([sent.port, sent.key, sent.model], [second, 'older', 'glm-5.3-flash'], 'the older names for the address and the key are still read');
+  await settings({ environment: { ...older, ...usual } });
+  sent = await seen();
+  t.equal([sent.host, sent.key], [host, 'environment'], 'and the app’s own names come before them');
+
+  // A key under LunaRoute's name is LunaRoute's. Where LunaRoute is said to be, it comes before
+  // the app's own; and no other service is sent it.
+  await settings({ environment: { ...older, WRITEON_API_KEY: 'fake-key-from-the-environment' } });
+  t.equal((await seen()).key, 'older', 'where LunaRoute is said to be, its own key comes first');
+  const kept = await settings({ environment: { LUNAROUTE_API_KEY: 'fake-key-under-the-older-name' }, address: `${elsewhere}/v1`, picture: 'kept' });
+  t.equal((await seen()).key, 'none', 'a key under LunaRoute’s name is not sent to another service');
+  t.equal(kept.keyNote, 'The key in LUNAROUTE_API_KEY is LunaRoute’s, and is not sent to this address. Paste one here, or set WRITEON_API_KEY.', 'and Settings says so');
+  await settings({ address: '', environment: usual });
+}
+// The login shell is asked for the same names. A profile that makes an unset variable an error
+// (nounset) must not cost the person the ones that are set. Here the shell reads no profile and
+// is given a made-up environment, so nothing of the person's is in it.
+for (const [shell, started] of [['/bin/zsh', ['-f', '-o', 'nounset']], ['/bin/bash', ['--noprofile', '--norc', '-u']]]) {
+  const { has } = await t.call('test.askShell', { shell, started, environment: { LUNAROUTE_API_KEY: 'a-made-up-key', WRITEON_MODEL: 'a-made-up-model' } });
+  t.equal(has, ['LUNAROUTE_API_KEY', 'WRITEON_MODEL'], `${shell} with nounset on still gives up what is set`);
+}
+
+// --- a service that wants no key --------------------------------------------------------------------
+
+{
+  const s = await settings({ environment: { WRITEON_BASE_URL: `${home}/v1` } }); // an address, and no key anywhere
+  t.equal(s.keyNote, 'No key yet. Paste one here, or set WRITEON_API_KEY.', 'with an address and no key, Settings says there is none');
+  t.equal((await seen()).key, 'none', 'and a service named in place of the usual one is asked without one');
+  const note = (await settings({ test: true })).testNote;
+  t.assert(/^Connected: glm-5\.3-flash answered in \d+(\.\d)? s, with no key\.$/.test(note), `which the test says: ${note}`);
+  const { outcome } = ask('401');
+  t.equal(await outcome, 'This service wants a key (401). Add one in Settings (⌘,).', 'if it wants one after all, the line says so');
+  await settings({ environment: usual });
+}
+
+// --- a service that is particular -------------------------------------------------------------------
+
+// OpenAI's own service refuses parts of a request that others take: a model that reasons wants
+// the room for its answer under a newer name, and one that does not will not be told how hard
+// to think. The stand-in does the same under /strict. The app asks again in the service's way,
+// and from then on asks that way first.
+{
+  await settings({ address: `${home}/strict/v1`, model: 'easy-1' });
+  let count = (await seen()).asked;
+  // What the stand-in saw in the end, and how many times it was asked on the way there.
+  const again = async (extra) => {
+    const sent = await seen(extra);
+    const took = sent.asked - count;
+    count = sent.asked;
+    return { took, ...sent };
+  };
+  let sent = await again();
+  t.equal([sent.took, sent.max_tokens, sent.max_completion_tokens, sent.reasoning_effort], [1, 64, null, 'low'], 'a model that takes the request as it is gets it as it is');
+
+  await settings({ model: 'reasoner-1' });
+  sent = await again();
+  t.equal([sent.took, sent.max_tokens, sent.max_completion_tokens, sent.reasoning_effort], [2, null, 64, 'low'], 'a model that wants the room under the newer name is asked again with it');
+  sent = await again();
+  t.equal([sent.took, sent.max_completion_tokens], [1, 64], 'and is asked that way first from then on');
+
+  await settings({ model: 'plain-1' });
+  sent = await again();
+  t.equal([sent.took, sent.max_tokens, sent.max_completion_tokens, sent.reasoning_effort], [2, 64, null, null], 'a model that does not reason is asked again without being told how hard to');
+  sent = await again();
+  t.equal([sent.took, sent.reasoning_effort], [1, null], 'and that is remembered too');
+  await settings({ model: 'reasoner-1' });
+  sent = await again();
+  t.equal([sent.took, sent.max_completion_tokens, sent.reasoning_effort], [1, 64, 'low'], 'each model’s ways being its own');
+
+  await settings({ model: 'fussy-1' });
+  sent = await again();
+  t.equal([sent.took, sent.max_tokens, sent.max_completion_tokens, sent.reasoning_effort], [3, null, 64, null], 'one that takes neither, and says so in another shape, is given neither');
+
+  // A refusal that names the room for some other reason is passed on as it came. Nothing is
+  // asked twice and nothing is learnt from it.
+  await settings({ model: 'small-1' });
+  count = (await seen({ maxTokens: 8 })).asked;
+  const { outcome } = ask('echo');
+  t.equal(await outcome, 'The request was refused (400): max_tokens is too large: 64. This model supports at most 16 completion tokens.', 'a refusal for some other reason is passed on as it came');
+  sent = await again({ maxTokens: 8 });
+  t.equal([sent.took, sent.max_tokens, sent.max_completion_tokens], [2, 8, null], 'having been asked once, and the room is asked for as before');
+
+  // What was learnt can stop being true: the same name may come to mean another model.
+  await settings({ model: 'turn-1' });
+  sent = await again();
+  t.equal([sent.took, sent.max_completion_tokens], [2, 64], 'a model’s way is learnt');
+  sent = await again();
+  t.equal([sent.took, sent.max_tokens, sent.max_completion_tokens], [2, 64, null], 'and forgotten when it stops working: the request is asked again as the app words it');
+  sent = await again();
+  t.equal([sent.took, sent.max_tokens], [1, 64], 'and that way first from then on');
+
+  await settings({ model: 'reasoner-1' });
+  const note = (await settings({ test: true })).testNote;
+  t.assert(/^Connected: reasoner-1 answered in \d+(\.\d)? s, with the key from the app’s environment\.$/.test(note), `Test connection asks in the same way: ${note}`);
+  await settings({ model: 'mute-1' });
+  t.equal((await settings({ test: true })).testNote, 'The service answered, but said nothing. Check the model in Settings (⌘,).', 'a test that is answered with nothing has not connected');
+  await settings({ address: '', model: '' });
+}
+
+// --- where the words go ------------------------------------------------------------------------------
+
+// A request goes to the address the person named. It is not sent on to wherever an answer points.
+{
+  const before = await seen();
+  const { outcome } = ask('moved');
+  t.equal(await outcome, 'The address in Settings (⌘,) sends requests on elsewhere (307), and they are not followed.', 'a request is not sent on to where an answer points');
+  const after = await seen();
+  t.equal([after.asked - before.asked, after.followed], [2, 0], 'so it arrived once, where it was sent, and nowhere else');
+}
+// Plain http goes no further than this Mac and its own network: beyond that a key would cross
+// in the clear. (The addresses here are reserved ones that nobody answers at. The ones that are
+// near at hand get as far as this run's own rule, which lets nothing leave this Mac.)
+{
+  const IN_THE_CLEAR = 'Only an address on this Mac or its own network may be plain http. Use https.';
+  for (const address of ['http://writeon.invalid/v1', 'http://192.0.2.1/v1', 'http://172.32.0.1/v1', 'http://[2001:db8::1]/v1', 'http://[::ffff:192.0.2.1]/v1']) {
+    await settings({ address });
+    t.equal((await seen()).failed, IN_THE_CLEAR, `plain http is refused for ${address}`);
+  }
+  // A number written some other way than the usual four parts may not be the address it looks like.
+  for (const address of ['http://010.1.1.1/v1', 'http://3221225985/v1', 'http://0xc0000201/v1', 'http://10.1/v1']) {
+    await settings({ address });
+    t.equal((await seen()).failed, IN_THE_CLEAR, `and for ${address}, whatever it may stand for`);
+  }
+  for (const address of ['http://nowhere.local/v1', 'http://nowhere/v1', 'http://10.255.255.1/v1', 'http://172.31.255.254/v1', 'http://192.168.255.254/v1', 'http://169.254.255.254/v1', 'http://[fd00::1]/v1', 'http://[fe80::1]/v1']) {
+    await settings({ address });
+    t.equal((await seen()).failed, OFF_LIMITS, `and allowed for ${address}`);
+  }
+  await settings({ address: '' });
+}
+
+// --- nothing beyond this Mac ------------------------------------------------------------------------
+
+// This run has the real client, and the real client asks whatever address it is given. So a
+// run that is not a live one is refused every address that is not on this Mac. (Found before
+// the repository was published: the Test connection that ends this scenario had lost the
+// stand-in's address by then, and went to the usual service's real one with a made-up key.)
+{
+  await settings({ address: 'https://writeon.invalid/v1', key: 'fake-key-saved-in-settings' });
+  t.equal((await seen()).failed, OFF_LIMITS, 'a scripted run is not let out to an address elsewhere');
+  await settings({ address: '', environment: { WRITEON_API_KEY: 'fake-key-from-the-environment' } }); // no address: the usual service, and two keys to send it
+  t.equal((await seen()).failed, OFF_LIMITS, 'nor to the usual service');
+  t.equal((await settings({ test: true })).testNote, OFF_LIMITS, 'by a request or by the test');
+  await settings({ forget: true, environment: usual });
+}
+
 // With no key anywhere, the one line says where to put one.
 {
   const s = await settings({ environment: {} });
-  t.equal(s.keyNote, 'No key yet. Paste one here, or set LUNAROUTE_API_KEY.', 'Settings says there is no key');
+  t.equal(s.keyNote, 'No key yet. Paste one here, or set WRITEON_API_KEY.', 'Settings says there is no key');
+  t.equal([s.addressHint, s.modelHint], ['https://gw.lunaroute.com/v1', 'glm-5.3-flash'], 'and shows the usual service and model');
   const { outcome } = ask('stream');
-  t.equal(await outcome, 'No LunaRoute key — add one in Settings (⌘,)', 'and so does the request');
-  t.equal((await settings({ test: true })).testNote, 'No LunaRoute key — add one in Settings (⌘,)', 'and the test');
+  t.equal(await outcome, 'No API key — add one in Settings (⌘,)', 'and so does the request');
+  t.equal((await settings({ test: true })).testNote, 'No API key — add one in Settings (⌘,)', 'and the test');
 }
 
 // --- sound ----------------------------------------------------------------------------------------
@@ -163,6 +351,6 @@ await t.until(() => ui.get('sound') === true, 1500, 'turns the sound on in an op
 await settings({ sound: false });
 await t.until(() => ui.get('sound') === false, 1500, 'and off again');
 // A picture of the window, as it stands with a key saved and a test just made.
-await settings({ environment: { LUNAROUTE_API_KEY: 'fake-key-from-the-environment' }, key: 'fake-key-saved-in-settings', model: 'another-model' });
+await settings({ environment: usual, key: 'fake-key-saved-in-settings', model: 'another-model' });
 await settings({ model: '', test: true, picture: 'settings' });
 t.equal((await settings()).shown, false, 'and all of it without a window on the screen');

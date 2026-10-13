@@ -219,6 +219,7 @@ final class UITestHarness {
         registerFiles()
         registerMenus()
         registerSettings()
+        registerAskShell()
         if options.aiLive { registerLoginShell() }
         // What the run looks like from outside, for the scenario that checks it stays out
         // of the way. These are the real states, not the ones simulated for the page.
@@ -295,7 +296,9 @@ final class UITestHarness {
                     "keyField": panel.keyField.stringValue,
                     "forgettable": !panel.forgetButton.isHidden,
                     "address": panel.addressField.stringValue,
+                    "addressHint": panel.addressField.placeholderString ?? "",
                     "model": panel.modelField.stringValue,
+                    "modelHint": panel.modelField.placeholderString ?? "",
                     "sound": panel.soundBox.state == .on,
                     "testNote": panel.testNote.stringValue,
                     "shown": panel.isShown,
@@ -317,10 +320,30 @@ final class UITestHarness {
                 let took = Int(Date().timeIntervalSince(began) * 1000)
                 DispatchQueue.main.async {
                     reply(.success([
-                        "hasKey": !(found[Credentials.keyName] ?? "").isEmpty,
-                        "hasAddress": !(found[Credentials.addressName] ?? "").isEmpty,
+                        "hasKey": Credentials.keyNames.contains { !(found[$0] ?? "").isEmpty },
+                        "hasAddress": Credentials.addressNames.contains { !(found[$0] ?? "").isEmpty },
                         "ms": took,
                     ] as [String: Any]))
+                }
+            }
+        }
+    }
+
+    /// test.askShell { shell, started, environment } -> { has }: which of the variables the
+    /// app looks for a command shell says are set, asked the way the login shell is asked.
+    /// The scenario gives that shell its whole environment and starts it without a profile,
+    /// so nothing of the person's is in it; and only the names come back, as from
+    /// test.loginShell. (Not test.shell, which is what this app's own shell knows.)
+    private func registerAskShell() {
+        controller.bridge.on("test.askShell") { params, reply in
+            guard let shell = params["shell"] as? String, let started = params["started"] as? [String] else {
+                return reply(.failure(Bridge.Failure("test.askShell needs a shell and what to start it with")))
+            }
+            let environment = params["environment"] as? [String: String] ?? [:]
+            DispatchQueue.global(qos: .userInitiated).async {
+                let found = LoginShell.read(from: shell, started: started, environment: environment)
+                DispatchQueue.main.async {
+                    reply(.success(["has": found.filter { !$0.value.isEmpty }.keys.sorted()] as [String: Any]))
                 }
             }
         }

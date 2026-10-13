@@ -1,9 +1,11 @@
-// The real AI service (design spec 7.1; plan: Task 22). This asks LunaRoute for real, with the
-// real key, so under scripts/check.sh, where every scenario is given the scripted provider,
-// it steps aside. To run it:
+// The real AI service (design spec 7.1; plan: Task 22). This asks for real, with the real key,
+// so under scripts/check.sh, where every scenario is given the scripted provider, it steps
+// aside. To run it:
 //
 //   scripts/ui-test.sh ai-live --ai live
 //
+// The service is the one your login shell names (WRITEON_BASE_URL, WRITEON_MODEL), or
+// LunaRoute and glm-5.3-flash if it names none; the times it allows are that model's.
 // It never sees the key: the shell holds it and says only where it came from.
 const { editor, ui, commands, lab } = window.writeOn;
 if (!(await t.call('test.options')).aiLive) {
@@ -13,6 +15,21 @@ if (!(await t.call('test.options')).aiLive) {
 ui.set({ read: false });
 await document.fonts.ready;
 await t.settle();
+
+// How each request this scenario makes of the service ends. The Lab reads the other trim
+// levels quietly and says nothing when one of them fails, so it is noted here.
+const failures = [];
+{
+  const client = window.writeOn.ai;
+  const start = client.start;
+  client.start = (request, onText) => {
+    const made = start.call(client, request, onText);
+    made.done.catch((error) => {
+      if (!error.cancelled) failures.push(error.message);
+    });
+    return made;
+  };
+}
 
 const $ = (s) => document.querySelector(s);
 const panelEl = $('#panel');
@@ -33,7 +50,7 @@ const groupAt = (block, offset) => {
 
 {
   const s = await t.call('test.settings', { test: true });
-  t.assert(/^Connected: glm-5\.3-flash answered in [\d.]+ s, with the key from /.test(s.testNote), `Test connection: ${s.testNote}`);
+  t.assert(/^Connected: \S+ answered in [\d.]+ s, with the key from /.test(s.testNote), `Test connection: ${s.testNote}`);
   t.log(`Test connection: ${s.testNote}`);
   // Started from Finder the app has no environment to speak of, and asks the login shell.
   const shell = await t.call('test.loginShell');
@@ -132,8 +149,10 @@ const PARA = 5; // "Click the word count in the top-left corner to turn the tool
 
   // The next level is read quietly meanwhile, and is there at once when it is chosen.
   const quiet = performance.now();
-  const ready = await t.until(() => lab.kept().includes('tighten'), 120000, 'the next level to be read quietly');
-  if (ready) {
+  const ready = await t.until(() => lab.kept().includes('tighten') || failures.length > 0, 120000, 'the next level to be read quietly');
+  if (failures.length > 0) {
+    t.assert(false, `the next level could not be read quietly: ${failures[0]}`);
+  } else if (ready) {
     t.log(`    "Tighten more" was read quietly in another ${seconds(performance.now() - quiet)}`);
     await t.click(...t.center('#lab'));
     await t.until(() => ui.get('lab') && menu.getAnimations({ subtree: false }).length === 0, 2000, 'the Lab to open again');

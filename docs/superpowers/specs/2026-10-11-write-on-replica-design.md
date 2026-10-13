@@ -760,8 +760,8 @@ Write_On.app
 │   ├── DocumentWindow one per document: window, web view, file URL, dirty flag
 │   ├── Bridge         typed request/reply and events between page and shell
 │   ├── Files          open/save panels, reading and writing, recents, crash snapshots
-│   ├── AIClient       LunaRoute chat completions, streaming, cancellation
-│   ├── Credentials    API key lookup
+│   ├── AIClient       chat completions (LunaRoute, or the service named), streaming, cancellation
+│   ├── Credentials    the key, the address and the model: where each is found
 │   ├── Assets         serves the bundled page on a private URL scheme
 │   └── UITestHarness  runs a scripted scenario and writes snapshots (only when launched with --ui-test)
 └── Page (plain ES modules, no build step, no dependencies)
@@ -798,9 +798,10 @@ off.
 package built with `swift build`, and a script assembles and ad-hoc signs
 `Write_On.app` (Info.plist, resources, fonts, icon). Minimum macOS 13.
 
-### 7.1 LunaRoute
+### 7.1 The AI service
 
-Verified against the live gateway on 2026-10-11:
+The service is LunaRoute unless the person names another (below). Verified against the
+live gateway on 2026-10-11:
 
 - Base URL `https://gw.lunaroute.com/v1`, OpenAI-compatible. `glm-5.3-flash` is listed,
   with chat completions, streaming and JSON-schema output.
@@ -820,35 +821,92 @@ Verified against the live gateway on 2026-10-11:
   4 a word), up to 32,000 in all.
 - Lab passes stay at `low`. Live, a slight trim cut 8–11% of the 164-word welcome piece
   in 9–17 s, and 8–10% of a 570-word piece in 16–50 s, every cut a clean deletion. (A day later
-  the welcome piece, by then 170 words, took 22 s for the same trim and lost 9%.) That
+  the welcome piece, by then 170 words, took 22 s for the same trim and lost 9%; and on
+  the day after that between 9 and 38 s in four askings, losing 9 to 11%, with the next
+  level read in 36 to 43 s, and once not read at all. The time is the model's thinking,
+  and it varies that much.) That
   is slow beside the original, and it is the thinking: asked by proportion instead of
   by word count the model answered in 5 s and cut 2–4%, and with thinking switched off
   it cut nothing. Accuracy was chosen over speed. While it thinks the stream keeps
   coming (the longest silence measured was 1.4 s), so the 20 s limit is on silence, not
   on the answer.
 
-**Key lookup**, in order: a key saved in the Keychain from Settings; `LUNAROUTE_API_KEY`
-in the app's own environment; `LUNAROUTE_API_KEY` read once from the user's login shell
-(apps launched from Finder do not inherit shell variables, so a key set in `~/.zshrc`
-would otherwise go unfound). A key found in the environment is held in memory only and never written
-anywhere. The address follows the same pattern (Settings, then `LUNAROUTE_BASE_URL`,
-then the default), and the model is `glm-5.3-flash` unless Settings names another. An
-address on this Mac may be plain `http`, for a model served locally.
+**Key lookup**, in order: a key saved in the Keychain from Settings; the app's own
+environment; the user's login shell, read once (apps launched from Finder do not inherit
+shell variables, so a key set in `~/.zshrc` would otherwise go unfound). In the
+environment and the shell the key is `WRITEON_API_KEY` or `LUNAROUTE_API_KEY`, the name
+it had first. A key found there is held in memory only and never written anywhere. The
+address follows the same pattern (Settings, then `WRITEON_BASE_URL` or
+`LUNAROUTE_BASE_URL`, then the default), and so does the model (Settings, then
+`WRITEON_MODEL`, then `glm-5.3-flash`). The shell is asked for each name in a way that
+survives a profile which makes an unset variable an error (`nounset`).
+
+**Plain `http`** is for this Mac and its own network (a `.local` name, a name with no
+dot in it, a private address written the usual way, as four numbers), where a model
+may be served. For anywhere else the app
+refuses it before anything is sent: "Only an address on this Mac or its own network
+may be plain http. Use https." macOS refuses the same (tried on macOS 26 with addresses
+nobody answers at: a public name and a public address were refused, the local kinds
+were tried), but the rule is the app's own, so it does not depend on the version of
+macOS.
+
+**Another service.** The app asks whatever address it is given, for whatever model, with
+whatever key it finds. None of what follows is in the clips; it is what makes a service
+other than the usual one work in practice.
+
+- *The address* is a base address, and `chat/completions` is added to it. One that ends
+  that way already is used as it stands.
+- *No key.* A service named in place of the usual one is asked without a key when none
+  is found, since a model served on the same Mac wants none. If it answers 401 or 403
+  the line says that the service wants a key. Only the usual service is never asked
+  without one: there the line is the one in §8 and nothing is sent.
+- *Parts of a request a service refuses.* Every request carries `max_tokens` and
+  `reasoning_effort`. OpenAI's own service refuses the first from its models that
+  reason, which want `max_completion_tokens`, and the second from its models that do
+  not. When a refusal (400 or 422) names the effort, the app asks again without it.
+  When one names `max_tokens` and says it does not know or take it, or gives the other
+  name, the app asks again under the other name. (A refusal that names it for another
+  reason, more room being asked for than the model can give, is passed on as it came:
+  another name would not cure it.) Once asking in a service's way has worked, the app
+  asks that way first, for that address and model, until it is quit. If that way is
+  then refused, what was learnt is forgotten and the request is asked once more as the
+  app words it: the same name may have come to mean another model. The last refusal is
+  the one shown. The JSON schema a Lab pass carries has no such fallback, because
+  without it the answers could not be read (above).
+- *Which key goes where.* The key that is found goes to the address in force, with one
+  exception. A key under LunaRoute's name is LunaRoute's: it is sent to LunaRoute's own
+  domain, or to the address `LUNAROUTE_BASE_URL` gives, where it comes before the app's
+  own, and to no other service. Otherwise someone with that key in their shell would
+  send it to the first other address they typed. Settings says when a key is being
+  kept back. A key saved in Settings is not tied to an address: it goes with whatever
+  address is there.
+- *Nowhere else.* A request is not sent on to wherever an answer says the service has
+  moved (a 307, say): the person's words go to the address they named. The line says so.
+- *What a service still has to do.* Take the key as a bearer token; begin its answer
+  within the 20 s the app allows a silence, and not fall silent for longer; give a trim
+  the room it asks for (up to 32,000 tokens); and, for the Lab, hold an answer to a
+  schema.
+
+Only LunaRoute and `glm-5.3-flash` have been asked for real. The rest is tested against
+a stand-in that answers and refuses as those services are documented to (§10).
 
 **Settings window** (⌘,): API key, address, model, a "Test connection" button, and the
 sound toggle. Nothing else. A key typed in is saved to the Keychain and the field
 emptied; a line under it says where the key in use comes from ("saved here", "from the
-app's environment", "from your login shell") and offers to remove a saved one. Test
-connection asks a one-word question and answers in a line: "Connected: glm-5.3-flash
-answered in 0.6 s, with the key from your login shell." or the reason it failed. The
+app's environment", "from your login shell") and offers to remove a saved one. While
+they are empty the address and model fields show the ones in force: the environment's,
+or the usual ones. Test connection asks a one-word question and answers in a line:
+"Connected: glm-5.3-flash answered in 0.6 s, with the key from your login shell." (or
+"with no key"), or the reason it failed; an answer with nothing in it is a failure
+("The service answered, but said nothing. Check the model in Settings (⌘,)."). The
 sound toggle reaches every open window at once.
 
 ## 8. Errors
 
 | Situation | Behaviour |
 | --- | --- |
-| No API key | AI commands show one line in place: "No LunaRoute key — add one in Settings (⌘,)". Nothing else is blocked. |
-| Network or gateway error, timeout (20 s of silence) | The pending animation stops, a one-line reason shows for a few seconds, the document is untouched. The lines: "The key was not accepted (401). Check it in Settings (⌘,)."; "Too many requests, or out of quota (429). Try again in a moment."; "The AI service had a problem (503). Try again in a moment."; "The request was refused (400): …" with the service's own first line; "Could not reach the AI service. Check the network, and the address in Settings (⌘,)."; "The connection was lost before the answer was complete."; "The AI took too long to answer."; "The AI ran out of room before it finished its answer. Try again." A key the service quotes back is taken out before the line is shown. |
+| No API key, and the service is the usual one | AI commands show one line in place: "No API key — add one in Settings (⌘,)". Nothing is sent and nothing else is blocked. (Another service is asked without a key, §7.1.) |
+| Network or gateway error, timeout (20 s of silence) | The pending animation stops, a one-line reason shows for a few seconds, the document is untouched. The lines: "The key was not accepted (401). Check it in Settings (⌘,)."; "This service wants a key (401). Add one in Settings (⌘,)." when none was sent; "Only an address on this Mac or its own network may be plain http. Use https."; "The address in Settings (⌘,) sends requests on elsewhere (307), and they are not followed."; "Too many requests, or out of quota (429). Try again in a moment."; "The AI service had a problem (503). Try again in a moment."; "The request was refused (400): …" with the service's own first line; "Could not reach the AI service. Check the network, and the address in Settings (⌘,)."; "The connection was lost before the answer was complete."; "The AI took too long to answer."; "The AI ran out of room before it finished its answer. Try again." A key the service quotes back is taken out before the line is shown. |
 | AI returns text it was not asked for | Lines that are empty, duplicate an existing variant, or (for Lab) do not occur verbatim in the document are discarded. If nothing usable remains it is treated as an error. |
 | File cannot be read or written | A standard alert with the system's reason. The document stays open and unsaved. |
 | File has a damaged metadata comment | Opens as plain Markdown; a one-line note says the alternatives could not be read. The file is not modified until the user saves. |
@@ -878,7 +936,7 @@ go another way.
 | 15 | Heading entry | Typing `# ` converts the line; the marker is hidden. Only the hidden marker is observed. |
 | 16 | Spelling, autocorrect, smart quotes | Off by default. |
 | 17 | Several windows | ⌘N opens another window; each window is one document. The original shows one. |
-| 18 | Settings window | Exists only for the LunaRoute key, URL, model and sound. |
+| 18 | Settings window | Exists only for the AI service's key, address and model, and for sound. |
 | 19 | Sample document | An original short piece that carries one group of each scope, a ghost run and some overflow, and tells the reader to click the word count. |
 | 20 | App identity | Display name "Write_On"; bundle id `com.thesimhons.writeon`. |
 | 21 | Ghost text in the saved Markdown | Written as ordinary text; the ghost marking lives only in the metadata. |
@@ -944,6 +1002,12 @@ go another way.
    used on the clips. Pass: tick frequencies within 5 Hz, envelope times within 20%.
 4. **Live AI smoke test** against LunaRoute for alternatives at each scope and for one
    trim, plus the same flows against a canned provider so tests run without a network.
+   The client itself is tested over HTTP against a stand-in gateway on the same Mac,
+   which also plays another service: one at a second address, one that wants no key,
+   one that refuses parts of a request as OpenAI's does, one that changes its ways, and
+   one that says it has moved. A scripted run that is not the live one cannot ask
+   anything else: it is given nothing of what the tester's shell says about the AI
+   service, and its client refuses every address that is not on this Mac.
 5. **Measurements.** `scripts/bench.sh` runs the scenarios in `tests/perf` the same way,
    out of sight: how long a keystroke takes to reach the frame that shows it in pieces of
    up to 50,000 words, how long the app's gestures take, what the app costs standing
@@ -964,6 +1028,7 @@ go another way.
 | WebKit maps some Control keys to Emacs-style editing (Ctrl+O inserts a line) | The page handles its shortcuts on key-down and cancels the default; covered by a scripted run. |
 | The display it was built on is 1× while the clips are 2× | Geometry is compared in CSS px; glyphs look lighter at 1×. For a pixel-level comparison the page is snapshotted at 2× zoom. |
 | `glm-5.3-flash` at low reasoning may choose poor cuts or miss the target length | Raise reasoning for Lab passes only; the card always reports the real numbers. |
+| A service other than LunaRoute may not take the requests as they are worded, or may not hold an answer to a schema | The two parts known to be refused are asked for again in the service's way (§7.1); the rest is on the hands-on checklist until someone has tried a second service for real. |
 | The handwriting face may not be Caveat | Compare glyphs early; substitute and record. |
 | The original may differ wherever §9 guesses | All guesses are in one table and cheap to change. |
 | A script cannot move the real pointer on a Mac that is in use, or locked | Scenarios send native pointer moves straight to the web view (§8), so WebKit itself finds what is under them; the pointer in a person's hand is on the hands-on checklist. |

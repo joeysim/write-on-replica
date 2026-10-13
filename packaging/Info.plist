@@ -50,6 +50,8 @@
     <true/>
     <key>NSHumanReadableCopyright</key>
     <string>An unofficial replica of Jason Fried’s Write_On, not connected with him. © 2026 Joey Simhon. MIT licence.</string>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Write_On reaches your local network only to ask an AI model served there, and only if the address in its Settings names one.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>NSSupportsAutomaticGraphicsSwitching</key>

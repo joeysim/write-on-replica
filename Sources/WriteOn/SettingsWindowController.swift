@@ -24,6 +24,8 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
     var isShown: Bool { window?.isVisible ?? false }
     /// Lookups and tests still on their way. (A scripted run waits for none before it reads the notes.)
     private(set) var pending = 0
+    /// How many lookups have been started: only the last one's answer is shown.
+    private var lookups = 0
 
     init(settings: AppSettings, credentials: Credentials, client: AIClient, onSound: @escaping (Bool) -> Void) {
         self.settings = settings
@@ -86,18 +88,36 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
         showKey()
     }
 
-    /// Where the key comes from. Looked up off the main thread: the first time, that can
-    /// mean asking the login shell.
+    /// Where the key comes from, and in the two fields below it, while they are empty, the
+    /// address and the model in force: the environment's if it names any, else the usual
+    /// ones. Looked up off the main thread: the first time, that can mean asking the login
+    /// shell.
     private func showKey() {
         let credentials = credentials
+        let chosen = settings.aiAddress
         pending += 1
+        lookups += 1
+        let mine = lookups
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let source = credentials.key()?.source
+            let address = credentials.address() ?? AIClient.defaultAddress
+            let model = credentials.model() ?? AIClient.defaultModel
+            // Which key goes depends on where: one under LunaRoute's name is LunaRoute's.
+            let found = AIClient.endpoint(chosen ?? address).map { AIClient.key(for: $0, from: credentials) }
+            let source = found?.key?.source
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.pending -= 1
-                self.keyNote.stringValue = source.map { "Using the key \(AIClient.describe($0))." } ?? "No key yet. Paste one here, or set \(Credentials.keyName)."
+                guard mine == self.lookups else { return }
+                if let source {
+                    self.keyNote.stringValue = "Using the key \(AIClient.describe(source))."
+                } else if found?.kept == true {
+                    self.keyNote.stringValue = "The key in \(Credentials.keyNames[1]) is LunaRoute’s, and is not sent to this address. Paste one here, or set \(Credentials.keyNames[0])."
+                } else {
+                    self.keyNote.stringValue = "No key yet. Paste one here, or set \(Credentials.keyNames[0])."
+                }
                 self.forgetButton.isHidden = source != .settings
+                self.addressField.placeholderString = address
+                self.modelField.placeholderString = model
             }
         }
     }
@@ -121,6 +141,8 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
     @objc func saveAddress(_ sender: Any?) {
         settings.aiAddress = addressField.stringValue
         addressField.stringValue = settings.aiAddress ?? ""
+        // Which key goes with it may have changed.
+        showKey()
     }
 
     @objc func saveModel(_ sender: Any?) {
