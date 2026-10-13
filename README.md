@@ -292,13 +292,14 @@ autocorrection and smart punctuation are off by default.
 ```sh
 npm test                     # unit tests for the document logic (Node's own runner, no packages)
 scripts/build-app.sh         # build build/Write_On.app with SwiftPM
-scripts/check.sh             # everything: unit tests, a build, every UI scenario
+scripts/check.sh             # everything: unit tests, a look for keys, a build, every UI scenario
 scripts/ui-test.sh files     # one scenario from tests/ui, in the app's own web view
 scripts/ui-test.sh smoke --zoom 2
 scripts/launch-check.sh      # start the real app once, hidden, and see that it comes up
 scripts/bench.sh typing      # one measurement from tests/perf, out of sight (see Speed)
 scripts/dev-server.sh        # serve the page at http://127.0.0.1:4173 for work in a browser
 scripts/screenshots.sh       # take the pictures in docs/images again, out of sight
+scripts/check-secrets.sh     # look for keys in the repository and its history
 swift scripts/make-icon.swift  # draw packaging/AppIcon.icns again
 ```
 
@@ -408,6 +409,13 @@ The document's own work is a few hundredths of a millisecond a keystroke, which 
 WebAssembly has nothing to offer here: in the trial a WebAssembly loop is no faster than
 the same loop in JavaScript, and three times slower once the text has been handed to it.
 
+## Contributing
+
+[CONTRIBUTING.md](CONTRIBUTING.md) says how to build, test and send a change, and what
+does not belong here. [SECURITY.md](SECURITY.md) says how to report a problem that
+should not be reported in public. Everyone taking part is asked to keep to the
+[code of conduct](CODE_OF_CONDUCT.md).
+
 ## Credits and what is whose
 
 - **Write_On is Jason Fried's**: the idea, the design, the name and the wording of the
@@ -433,5 +441,6 @@ the same loop in JavaScript, and three times slower once the text has been hande
 ## Licence
 
 The code and documents here are under the [MIT licence](LICENSE), © 2026 Joey Simhon.
-The fonts keep their own. The licence covers what was made for this project: Write_On's
+The fonts keep their own, and so does the code of conduct, which is the Contributor
+Covenant's (CC BY 4.0). The licence covers what was made for this project: Write_On's
 name and design are not this project's to give.

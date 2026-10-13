@@ -10,5 +10,9 @@ xcuserdata/
 *.xcodeproj
 .superpowers/
 
+# keys belong in the keychain or in the shell, never in a file here
+.env
+.env.*
+
 # source clips and measurements; the videos are the author's and stay local
 reference/
