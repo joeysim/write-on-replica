@@ -27,7 +27,8 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 test('preparing starts the sound once, before anything has to play', () => {
   const { asked, make } = fakeContext();
-  const sound = createSound({ context: make });
+  // (Put to rest soon after: left at its usual half minute, the timer would keep the test run waiting that long.)
+  const sound = createSound({ context: make, restAfterMs: 20 });
   assert.equal(asked.made, 0, 'nothing is started until it is likely to be wanted');
   sound.prepare();
   sound.prepare();
