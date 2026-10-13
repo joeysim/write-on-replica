@@ -375,6 +375,42 @@ t.equal([faded().length, shown(card), ui.get('lab')], [0, false, false], 'Origin
   await load();
 }
 
+// --- putting a trim away stops the reading ---------------------------------------------------------
+// The other levels are read for as long as a trim is on the page. Done is the end of it: a
+// request still on its way is called off and the levels not yet read are left alone. What
+// has been read already is kept, and the reading goes on from there when a trim is out again.
+{
+  await answer(SLIGHT, { firstMs: 400 });
+  const before = (await asked()).length;
+  await choose('Slight trim');
+  await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
+  await t.until(async () => (await asked()).length === before + 2, 2000, 'the next level to be asked for, quietly');
+  await act('Done');
+  const { requests, cancelled } = await t.call('test.ai');
+  t.assert(cancelled.includes(requests.at(-1).id), 'Done calls off the level that was being read quietly');
+  await t.wait(1500); // long enough for the other levels to have been read, were they still asked for
+  t.equal(await askedAbout(before), [10, 20], 'and the model is asked nothing more');
+  t.equal(lab.kept(), ['slight'], 'what was read before Done is kept; what was on its way is not');
+
+  await choose('Slight trim');
+  t.equal([title(), shown(scan)], [summary('Slight trim', 14), false], 'the level that was read is there at once');
+  await t.until(async () => (await asked()).length === before + 5, 4000, 'the three levels not yet read to be read, now that a trim is out again');
+  t.equal((await askedAbout(before)).slice(2), [20, 30, 50], 'starting with the one that was called off');
+  await act('Done');
+
+  // The same while the level asked for is itself still being read.
+  await answer(SLIGHT, { firstMs: 600 });
+  const asks = (await asked()).length;
+  await choose('Slight trim');
+  t.equal(title(), 'Slight trim Reading…', 'a level is being read');
+  await act('Done');
+  await t.wait(1700);
+  const after = await t.call('test.ai');
+  t.equal(after.requests.length, asks + 1, 'Done while it reads: the model is asked nothing more');
+  t.assert(after.cancelled.includes(after.requests.at(-1).id), 'and the request is called off');
+  t.equal(lab.kept(), [], 'with nothing kept of an answer that never came');
+}
+
 // An edit, an undo or a redo makes a proposal stale, so it goes.
 for (const [what, change] of [
   ['typing', () => t.type('x')],

@@ -367,7 +367,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
   // --- the passes -----------------------------------------------------------------------------
 
   /** Puts away whatever the Lab has out: the card, the line, a request, what is in the text. */
-  function dismiss() {
+  function putAway() {
     if (!pass) return;
     pass.request?.cancel();
     pass = null;
@@ -375,6 +375,12 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     hideTip();
     unwrap();
     report();
+  }
+
+  /** The same, and the Lab stops asking: nothing more is read of the trims either. */
+  function dismiss() {
+    putAway();
+    stopReading();
   }
 
   function fail(reason) {
@@ -434,7 +440,8 @@ export function createLab({ editor, ui, ai, commands, cards }) {
   // What the model has said about each level of trim for the piece as it stands. In the clip
   // "Tighten more", chosen some seconds after "Slight trim" was read, is there at once: so the
   // level asked for is read first, the others after it, quietly and one at a time, and each
-  // answer is kept until the piece changes. (Each is a request to the AI service.)
+  // answer is kept until the piece changes. (Each is a request to the AI service.) The
+  // reading lasts as long as a trim is on the page: put away, the Lab asks nothing more.
   const trims = { text: null, levels: new Map() }; // level id -> { request, settled, outcome }
   const textOf = (paragraphs) => paragraphs.map(({ n, text }) => `${n}\u0000${text}`).join('\u0001');
 
@@ -443,6 +450,13 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     for (const { request } of trims.levels.values()) request.cancel();
     trims.levels.clear();
     trims.text = null;
+  }
+
+  /** Calls off what is still being read of the trims. What has been read already is kept. */
+  function stopReading() {
+    for (const entry of trims.levels.values()) {
+      if (entry.outcome === undefined) entry.request.cancel();
+    }
   }
 
   /**
@@ -494,8 +508,11 @@ export function createLab({ editor, ui, ai, commands, cards }) {
 
   /** A trim: what the model would cut is faded where it stands. */
   function trim(level) {
-    dismiss();
-    if (!level) return; // Original: nothing proposed
+    if (!level) {
+      dismiss(); // Original: nothing proposed
+      return;
+    }
+    putAway(); // one level gives way to another, and what is being read of the rest goes on
     const paragraphs = offered(editor.blocks);
     pass = { kind: 'trim', name: level.label, mode: 'reading', level };
     if (paragraphs.length === 0) {
@@ -546,6 +563,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     const known = trims.levels.get(level.id);
     if (known && known.outcome !== undefined) {
       settle(known.outcome); // read already: it is there at once
+      readAhead(level, paragraphs, text); // and the reading goes on from where it was left
       return;
     }
     report();
