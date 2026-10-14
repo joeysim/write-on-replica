@@ -31,7 +31,8 @@ against LunaRoute with `glm-5.3-flash`.
 - Rich Markdown rendering. Only headings are styled; everything else is literal text.
 - Really posting to LinkedIn. The button exists to be impossible to click.
 - Posting to X through the X API. The app opens X's compose window instead (§6.11).
-- Notarisation or distribution. The app is built and ad-hoc signed on the Mac that runs it.
+- Notarisation. The app is ad-hoc signed by the Mac that builds it. A built copy is
+  attached to each release, and macOS has to be told to open it.
 
 ## 2. Evidence and how far "exact" can go
 
@@ -879,7 +880,12 @@ builds it twice, for Apple silicon and for Intel, and joins the two executables 
 has a build folder of its own (`.build/universal/arm64` and `x86_64`), because SwiftPM
 keeps one plan to a folder: in a folder first built the plain way, a build for one half
 that follows a build for the other is handed the other's plan and fails. Minimum macOS
-13, for both halves. The app's version
+13, for both halves. A release build has its debugging entries taken out (`strip -S`):
+they name every source file by its full path on the Mac that built it, home folder and
+all, and the app may go to other people's Macs. `scripts/package.sh` makes the copy a
+release carries, a zip of the app built afresh, and opens the zip again to see that the
+signature holds, that both halves are there and that nothing of the Mac that built it is
+in it. The app's version
 is `CFBundleShortVersionString` in that Info.plist and nowhere else: three numbers, read
 as Semantic Versioning reads them. The README's "Versions" says what each promises.
 
@@ -1206,6 +1212,7 @@ go another way.
 | The display it was built on is 1× while the clips are 2× | Geometry is compared in CSS px; glyphs look lighter at 1×. For a pixel-level comparison the page is snapshotted at 2× zoom. |
 | `glm-5.3-flash` at low reasoning may choose poor cuts or miss the target length | Raise reasoning for Lab passes only; the card always reports the real numbers. |
 | A service other than LunaRoute may not take the requests as they are worded, or may not hold an answer to a schema | The two parts known to be refused are asked for again in the service's way (§7.1); the rest is on the hands-on checklist until someone has tried a second service for real. |
+| macOS refuses a copy downloaded from a release, because it is signed ad hoc and not notarised | The README and each release's notes say how to open it. Only a Developer ID certificate and notarisation would take the refusal away. Nobody has yet opened a downloaded copy on another Mac: it is on the hands-on checklist. |
 | The Intel half has never run on an Intel Mac | Every scenario is run on it under Rosetta, which is not the same thing; an Intel Mac is on the hands-on checklist. |
 | The handwriting face may not be Caveat | Compare glyphs early; substitute and record. |
 | The original may differ wherever §9 guesses | All guesses are in one table and cheap to change. |

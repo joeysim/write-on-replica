@@ -23,6 +23,10 @@ done
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 lipo -create -output "$APP/Contents/MacOS/WriteOn" "${HALVES[@]}"
+# A release build may go to someone else's Mac. What a debugger would use to find the source
+# names every file by its full path on the Mac that built it, home folder and all, so it is
+# taken out. (The signature this breaks is made again below.)
+[ "$CONFIG" != release ] || strip -S -no_code_signature_warning "$APP/Contents/MacOS/WriteOn"
 cp "$ROOT/packaging/Info.plist" "$APP/Contents/Info.plist"
 cp -R "$ROOT/web" "$APP/Contents/Resources/web"
 # The icon is drawn by a script and kept in the repository; it is drawn again only if missing.

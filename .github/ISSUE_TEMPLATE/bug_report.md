@@ -22,7 +22,7 @@ assignees: ''
 - macOS version:
 - Apple silicon or Intel:
 - The app's version (Write_On ▸ About Write_On):
-- The commit you built (`git rev-parse --short HEAD`):
+- The commit you built (`git rev-parse --short HEAD`), or the release you downloaded:
 - AI service and model, if the AI is involved:
 
 **If it is a difference from the original:** which clip, and how far into it.

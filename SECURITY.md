@@ -9,16 +9,17 @@ Mac at risk. Report it privately, one of two ways:
   is there;
 - or write to [address removed].
 
-Say what you found, how to make it happen, and which commit you built. A small file or a
-few steps that show it are worth more than a long description.
+Say what you found, how to make it happen, and which commit you built or which release
+you downloaded. A small file or a few steps that show it are worth more than a long
+description.
 
 This is one person's project. Reports are read and answered as time allows, and there is
 no bounty.
 
 ## What is supported
 
-The latest commit on `main`. There are no releases: you build the app yourself, and a fix
-arrives as a commit.
+The latest release, and the latest commit on `main`. A fix arrives as a commit, and is in
+the release after it.
 
 ## How the app is meant to behave
 
@@ -57,7 +58,8 @@ though an argument that one of them is dangerous is welcome:
 - `WRITEON_WEB_ROOT` in the app's environment makes it read the page from another folder.
 - Started with `--ui-test`, the app runs a test script in its page. The test harness uses
   methods of `WKWebView` that Apple does not publish.
-- The app is signed ad hoc on the Mac that builds it. It is not notarised.
+- The app is signed ad hoc on the Mac that builds it. It is not notarised. That goes for
+  the copy attached to a release too, which macOS will not open until it is told to.
 
 Each needs someone who can already run programs as you, or change how the app is started.
 

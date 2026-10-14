@@ -820,12 +820,14 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <li><strong>No Xcode project.</strong> <code>Package.swift</code> declares one executable target for macOS 13 and later, with no dependencies. The Command Line Tools are enough to build it.</li>
           <li><strong><code>scripts/build-app.sh</code></strong> runs <code>swift build</code> twice, then assembles <code>build/Write_On.app</code> by hand: the binary, <code>Info.plist</code>, a copy of <code>web/</code> in Resources, and the icon. It signs the bundle ad hoc.</li>
           <li><strong>The app is universal.</strong> It is built once for Apple silicon and once for Intel, and <code>lipo</code> joins the two executables into one; SwiftPM builds for both at once only with Xcode. Each half has a build folder of its own under <code>.build/universal</code>, because SwiftPM keeps one plan to a folder, and in a shared one a build can be handed the plan made for the other half. The scenarios run on whichever half suits the Mac, or on the one <code>WRITEON_ARCH</code> names. The Intel half has run only under Rosetta: no Intel Mac has run it.</li>
+          <li><strong>Nothing of the Mac that built it goes with it.</strong> What a debugger would use to find the source names every file by its full path, home folder and all. A release build has those entries taken out with <code>strip -S</code>.</li>
+          <li><strong><code>scripts/package.sh</code></strong> makes the copy a release carries: the app built afresh and zipped. It opens the zip again to see that the signature holds, that both halves are there and that neither this Mac's name nor a home folder's path is in it, and it will not package a working copy with changes that are not committed.</li>
           <li><strong>The version is kept in one place.</strong> <code>CFBundleShortVersionString</code> in <code>packaging/Info.plist</code>: three numbers, read as Semantic Versioning reads them. The README says what each promises, and the first scenario checks that the built app reports it in that form. <code>CFBundleVersion</code> beside it is the build, a whole number that goes up with each release.</li>
           <li><strong>The page ships as source.</strong> The files in the bundle are the files in <code>web/</code>, unprocessed.</li>
           <li><strong>The icon is drawn by code.</strong> <code>scripts/make-icon.swift</code> draws the app's own mark, a W with the pen stroke and three dots, at every size macOS asks for.</li>
           <li><strong>Fonts are bundled:</strong> IBM Plex Mono and Caveat, both under the SIL Open Font License. <code>scripts/fetch-fonts.sh</code> records where they came from and checks them by hash.</li>
           <li><strong>It registers as an editor for Markdown</strong> at the rank Alternate, so it appears under Open With without taking over your <code>.md</code> files.</li>
-          <li><strong>It is not notarised.</strong> It is signed ad hoc, by the Mac that builds it. Because each build is signed anew, macOS may ask once after a rebuild for permission to read the saved key.</li>
+          <li><strong>It is not notarised.</strong> It is signed ad hoc, by the Mac that builds it, so macOS refuses a copy downloaded from a release until it is told to open it. Because each build is signed anew, macOS may ask once after a rebuild for permission to read the saved key.</li>
         </ul>
       </section>
 
@@ -1002,10 +1004,10 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>styles/*.css</code></td><td class="num">1,205</td><td>Six stylesheets. <code>base.css</code> holds the fonts and every value measured from the clips as CSS variables.</td></tr>
 
               <tr class="group"><td colspan="3">Scripts, tests and documents</td></tr>
-              <tr><td class="name"><code>scripts/</code></td><td class="num">597</td><td>Ten things to run: build the app, run everything, look for keys, run one scenario, run a measurement, check a real launch, serve the page to a browser, take the README's pictures, draw the icon, fetch the fonts.</td></tr>
+              <tr><td class="name"><code>scripts/</code></td><td class="num">646</td><td>Eleven things to run: build the app, make the copy a release carries, run everything, look for keys, run one scenario, run a measurement, check a real launch, serve the page to a browser, take the README's pictures, draw the icon, fetch the fonts.</td></tr>
               <tr><td class="name"><code>tests/unit/</code></td><td class="num">3,334</td><td>16 test files for the pure modules.</td></tr>
               <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,524</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
-              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,212</td><td>The design spec: measurements, behaviour, and the 54 decisions the clips did not settle.</td></tr>
+              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,219</td><td>The design spec: measurements, behaviour, and the 54 decisions the clips did not settle.</td></tr>
               <tr><td class="name"><code>docs/superpowers/plans/</code></td><td class="num">443</td><td>The 23-task plan the app was built from.</td></tr>
             </tbody>
           </table>

@@ -33,15 +33,15 @@ The app was written by Claude, in Claude Code, working from that design and that
 
 ## Build and run
 
-There is nothing to download: you build it.
+Build it yourself, which is the surer way, or download a built copy (below).
 
 - macOS 13 or later is what the app is built for. It has been built and run on macOS 26
   only.
 - Either kind of Mac. The app is universal: one executable with a half for Apple silicon
   and a half for Intel. It has been built and run on Apple silicon only. Every UI scenario
   passes on the Intel half too, but under Rosetta: no Intel Mac has run it.
-- The Xcode Command Line Tools (`xcode-select --install`), with Swift 5.9 or later (it
-  has been built with 6.3 only). Xcode itself is not needed.
+- To build it: the Xcode Command Line Tools (`xcode-select --install`), with Swift 5.9 or
+  later (it has been built with 6.3 only). Xcode itself is not needed.
 - For the tests only: Node. They have been run with Node 26; 22 or later should do, since
   the test command leaves its `*.test.js` pattern to Node. Nothing is installed from npm.
 
@@ -52,6 +52,21 @@ open build/Write_On.app     # or double-click it in Finder; drag it to Applicati
 
 The first build takes about a minute, since the app is built twice, once for each kind of
 Mac; after that only what changed is built again.
+
+**A built copy** is attached to each
+[release](https://github.com/joeysim/write-on-replica/releases) as
+`Write_On-<version>.zip`: unzip it and drag Write_On to Applications. macOS will refuse to
+open it the first time, and may call it damaged. It is not: it is signed ad hoc, by the
+Mac that built it, and not notarised, as Apple asks of anything passed from one Mac to
+another. Take off the mark the download put on it, and it opens:
+
+```sh
+xattr -dr com.apple.quarantine /Applications/Write_On.app
+```
+
+System Settings ▸ Privacy & Security may offer to open it anyway as well. Nobody has yet
+opened a downloaded copy on another Mac (see
+[What a person has to check](#what-a-person-has-to-check)).
 
 The first window shows a short welcome piece. The app opens as a bare editor, text and a
 word count: **click the word count** (top left) to turn the tools on, and again to turn them
@@ -290,6 +305,9 @@ These need someone at the Mac:
 17. **An Intel Mac.** Build the app on one, or take a copy to one, and go through this
     list. Nobody has yet: the Intel half has run only under Rosetta (see
     [Build and run](#build-and-run)).
+18. **A downloaded copy.** Download the zip from a release, unzip it and open the app.
+    macOS should refuse it once, and open it after the command in
+    [Build and run](#build-and-run). Nobody has yet.
 
 ## Decisions the clips do not settle
 
@@ -358,6 +376,7 @@ autocorrection and smart punctuation are off by default.
 ```sh
 npm test                     # unit tests for the document logic (Node's own runner, no packages)
 scripts/build-app.sh         # build build/Write_On.app with SwiftPM
+scripts/package.sh           # make the copy a release carries: build/release/Write_On-<version>.zip
 scripts/check.sh             # everything: unit tests, a look for keys, a build, every UI scenario
 scripts/ui-test.sh files     # one scenario from tests/ui, in the app's own web view
 scripts/ui-test.sh smoke --zoom 2
@@ -503,7 +522,14 @@ The number is kept in one place, `CFBundleShortVersionString` in `packaging/Info
 and `tests/ui/smoke.js` checks on every run that the built app reports three plain
 numbers. `CFBundleVersion` beside it is the build: a whole number, one more with each
 release. The version changes when a release is made, not with each commit, and a release
-is the commit tagged with it, as `v1.0.0`. There are none yet.
+is the commit tagged with it, as `v1.0.0`, with a built copy of the app attached to it on
+GitHub.
+
+`scripts/package.sh` makes that copy. It builds the app afresh, zips it, and opens the zip
+again to see that the signature holds, that both halves are there, and that nothing of the
+Mac that built it is in it: a release build has the entries a debugger would use taken
+out, because they name every source file by its full path, home folder and all. It will
+not package a working copy with changes that are not committed.
 
 ## Contributing
 

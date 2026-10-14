@@ -25,7 +25,7 @@ ideas about the tool itself.
 Open an issue, and say:
 
 - the version of macOS, whether the Mac is Apple silicon or Intel, the app's version
-  (Write_On ▸ About Write_On) and the commit you built;
+  (Write_On ▸ About Write_On), and the commit you built or that you downloaded a release;
 - what you did, step by step, and what happened in place of what you expected;
 - for anything to do with a file, a small `.md` file that shows it;
 - for a difference from the original, which clip and how far into it.
