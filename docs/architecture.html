@@ -273,7 +273,7 @@ img { max-width: 100%; }
     <h1>How Write_On is <span class="alt">built<svg viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true"><path d="M0 3.2 C 16 1.4, 34 4.6, 52 3 S 84 1.8, 100 3.4" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg><span class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></span></span></h1>
     <p class="lede">This is an unofficial replica of Write_On, the writing tool Jason Fried shows in <a href="https://x.com/jasonfried/status/2105403067793584590">his post on X</a>, and not his own. The app is a small native Mac program wrapped around a web page. The Swift part owns the windows, the files, the key and the network. The page is the editor. This report walks through both, how they talk, where each behaviour lives, and how the whole thing is tested.</p>
     <dl class="facts">
-      <div><dt>The shell</dt><dd>3,817 lines of Swift in 13 files</dd></div>
+      <div><dt>The shell</dt><dd>3,838 lines of Swift in 13 files</dd></div>
       <div><dt>The page</dt><dd>7,519 lines of JavaScript in 43 modules, 1,205 of CSS</dd></div>
       <div><dt>Tests</dt><dd>355 unit tests, 34 scripted scenarios, 5 measurements</dd></div>
       <div><dt>Third-party code</dt><dd>None</dd></div>
@@ -818,13 +818,14 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
         <h2>Build and packaging</h2>
         <ul>
           <li><strong>No Xcode project.</strong> <code>Package.swift</code> declares one executable target for macOS 13 and later, with no dependencies. The Command Line Tools are enough to build it.</li>
-          <li><strong><code>scripts/build-app.sh</code></strong> runs <code>swift build</code>, then assembles <code>build/Write_On.app</code> by hand: the binary, <code>Info.plist</code>, a copy of <code>web/</code> in Resources, and the icon. It signs the bundle ad hoc.</li>
+          <li><strong><code>scripts/build-app.sh</code></strong> runs <code>swift build</code> twice, then assembles <code>build/Write_On.app</code> by hand: the binary, <code>Info.plist</code>, a copy of <code>web/</code> in Resources, and the icon. It signs the bundle ad hoc.</li>
+          <li><strong>The app is universal.</strong> It is built once for Apple silicon and once for Intel, and <code>lipo</code> joins the two executables into one; SwiftPM builds for both at once only with Xcode. Each half has a build folder of its own under <code>.build/universal</code>, because SwiftPM keeps one plan to a folder, and in a shared one a build can be handed the plan made for the other half. The scenarios run on whichever half suits the Mac, or on the one <code>WRITEON_ARCH</code> names. The Intel half has run only under Rosetta: no Intel Mac has run it.</li>
           <li><strong>The version is kept in one place.</strong> <code>CFBundleShortVersionString</code> in <code>packaging/Info.plist</code>: three numbers, read as Semantic Versioning reads them. The README says what each promises, and the first scenario checks that the built app reports it in that form. <code>CFBundleVersion</code> beside it is the build, a whole number that goes up with each release.</li>
           <li><strong>The page ships as source.</strong> The files in the bundle are the files in <code>web/</code>, unprocessed.</li>
           <li><strong>The icon is drawn by code.</strong> <code>scripts/make-icon.swift</code> draws the app's own mark, a W with the pen stroke and three dots, at every size macOS asks for.</li>
           <li><strong>Fonts are bundled:</strong> IBM Plex Mono and Caveat, both under the SIL Open Font License. <code>scripts/fetch-fonts.sh</code> records where they came from and checks them by hash.</li>
           <li><strong>It registers as an editor for Markdown</strong> at the rank Alternate, so it appears under Open With without taking over your <code>.md</code> files.</li>
-          <li><strong>It is not notarised.</strong> The build is for this Mac. Because each build is signed anew, macOS may ask once after a rebuild for permission to read the saved key.</li>
+          <li><strong>It is not notarised.</strong> It is signed ad hoc, by the Mac that builds it. Because each build is signed anew, macOS may ask once after a rebuild for permission to read the saved key.</li>
         </ul>
       </section>
 
@@ -841,7 +842,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
         <p>The two harness commits in mid-afternoon are there because the first scripted runs took the keyboard and the pointer from the person at the Mac. They moved the runs into the background and then made them fully headless, and the harness has failed any run that comes to the front ever since.</p>
         <p>A second pass followed on 12 October, after the app had been used for real, and is not on the chart. It changed who the arrow keys belong to (a click on an underlined word no longer takes them away), seated the dots on the display's own pixels so that they can be seen on a 1x display, put the caret in the text from the moment a window opens and kept it out of the page's faded edges, and made a keystroke in a long piece cost about a third of what it did. An independent pass through the clips then found a dozen behaviours that differed from the original: undo around alternatives, where the caret goes when a word is flipped, trim levels that are there at once, and several smaller ones. The measurements behind the speed work are in <code>tests/perf</code> and the README's section on speed.</p>
         <p>Readying the repository to be published, on 12 and 13 October, is not on the chart either. Besides the licence and the documents a stranger needs, it let the AI client ask services other than LunaRoute properly: names of the app's own for the key, the address and the model in the environment, a service asked without a key, and the two parts of a request that OpenAI's service refuses asked for again in its way. It taught it Anthropic's way of speaking beside OpenAI's, and to ask again with more room when a model's thinking uses its room up. It made three rules about where a key may go: one under LunaRoute's name goes to LunaRoute only, plain http goes no further than the Mac's own network, and a request is never sent on to where an answer points. And it shut scripted runs in. One scenario had been putting its last question, with a made-up key, to LunaRoute's real address; a scripted run is now given nothing of the tester's own settings, and its client asks nothing that is not on this Mac.</p>
-        <p>The first use of that build, on 13 October, changed two more things. Trims had been asked for a level at a time, the model told how many words to reach, and on a real draft that took minutes and missed by a wide margin; they are now asked for once, a sentence at a time, and counted by the app (<a href="#ai">The Lab asks differently</a>, above). And the card behind the M↓ icon gained a tab ahead of the original's two: the piece as Markdown, to copy, without the record the file keeps for the app.</p>
+        <p>The first use of that build, on 13 October, changed two more things. Trims had been asked for a level at a time, the model told how many words to reach, and on a real draft that took minutes and missed by a wide margin; they are now asked for once, a sentence at a time, and counted by the app (<a href="#ai">The Lab asks differently</a>, above). And the card behind the M↓ icon gained a tab ahead of the original's two: the piece as Markdown, to copy, without the record the file keeps for the app. The same day the version became three numbers, and the build became universal (<a href="#build">Build and packaging</a>, above).</p>
         <details>
           <summary>All 32 commits</summary>
           <div class="scroll">
@@ -889,7 +890,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <div>
             <dt>Tests run inside the real app</dt>
             <dd><b>Buys</b>Scenarios exercise the same WebKit, the same bridge and the same shell code you run.</dd>
-            <dd><b>Costs</b>The harness is 1,006 of the shell's 3,817 lines and is compiled into the app. It does nothing unless the app is started with <code>--ui-test</code>.</dd>
+            <dd><b>Costs</b>The harness is 1,027 of the shell's 3,838 lines and is compiled into the app. It does nothing unless the app is started with <code>--ui-test</code>.</dd>
           </div>
           <div>
             <dt>The app counts a trim, not the model</dt>
@@ -902,7 +903,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
       <section id="gaps">
         <h2>Known gaps</h2>
         <h3>Where it had to guess</h3>
-        <p>The original is not released, so the clips and the author's replies are the whole specification. Section 9 of the spec lists 52 decisions the clips do not settle, each in one row so it can be challenged. The README summarises them.</p>
+        <p>The original is not released, so the clips and the author's replies are the whole specification. Section 9 of the spec lists 54 decisions the clips do not settle, each in one row so it can be challenged. The README summarises them.</p>
         <h3>Differences from the original</h3>
         <ul>
           <li>Lines are 36 px apart, not 36.4, and Overflow's are 22, not 22.5.</li>
@@ -941,7 +942,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>AppSettings.swift</code></td><td class="num">92</td><td>What the app remembers, in UserDefaults or, for a scripted run, in memory.</td></tr>
               <tr><td class="name"><code>SettingsWindowController.swift</code></td><td class="num">250</td><td>The Settings window: key, address, format, model, Test connection, sound.</td></tr>
               <tr><td class="name"><code>MainMenu.swift</code></td><td class="num">177</td><td>The menu bar.</td></tr>
-              <tr><td class="name"><code>UITestHarness.swift</code></td><td class="num">1,006</td><td>Scripted runs: options, native input, snapshots, the guards, scripted answers.</td></tr>
+              <tr><td class="name"><code>UITestHarness.swift</code></td><td class="num">1,027</td><td>Scripted runs: options, native input, snapshots, the guards, scripted answers.</td></tr>
 
               <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/ and web/src</td></tr>
               <tr><td class="name"><code>index.html</code></td><td class="num">144</td><td>The page's fixed elements: the editor, the panels, the icons, the canvas.</td></tr>
@@ -1001,10 +1002,10 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>styles/*.css</code></td><td class="num">1,205</td><td>Six stylesheets. <code>base.css</code> holds the fonts and every value measured from the clips as CSS variables.</td></tr>
 
               <tr class="group"><td colspan="3">Scripts, tests and documents</td></tr>
-              <tr><td class="name"><code>scripts/</code></td><td class="num">582</td><td>Ten things to run: build the app, run everything, look for keys, run one scenario, run a measurement, check a real launch, serve the page to a browser, take the README's pictures, draw the icon, fetch the fonts.</td></tr>
+              <tr><td class="name"><code>scripts/</code></td><td class="num">597</td><td>Ten things to run: build the app, run everything, look for keys, run one scenario, run a measurement, check a real launch, serve the page to a browser, take the README's pictures, draw the icon, fetch the fonts.</td></tr>
               <tr><td class="name"><code>tests/unit/</code></td><td class="num">3,334</td><td>16 test files for the pure modules.</td></tr>
-              <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,518</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
-              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,202</td><td>The design spec: measurements, behaviour, and the 54 decisions the clips did not settle.</td></tr>
+              <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,524</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
+              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,212</td><td>The design spec: measurements, behaviour, and the 54 decisions the clips did not settle.</td></tr>
               <tr><td class="name"><code>docs/superpowers/plans/</code></td><td class="num">443</td><td>The 23-task plan the app was built from.</td></tr>
             </tbody>
           </table>

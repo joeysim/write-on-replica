@@ -873,7 +873,13 @@ off.
 
 **Build.** The Command Line Tools are enough, without Xcode: the app is a Swift
 package built with `swift build`, and a script assembles and ad-hoc signs
-`Write_On.app` (Info.plist, resources, fonts, icon). Minimum macOS 13. The app's version
+`Write_On.app` (Info.plist, resources, fonts, icon). The app is universal. The script
+builds it twice, for Apple silicon and for Intel, and joins the two executables with
+`lipo`; building for both at once is something SwiftPM does only with Xcode. Each half
+has a build folder of its own (`.build/universal/arm64` and `x86_64`), because SwiftPM
+keeps one plan to a folder: in a folder first built the plain way, a build for one half
+that follows a build for the other is handed the other's plan and fails. Minimum macOS
+13, for both halves. The app's version
 is `CFBundleShortVersionString` in that Info.plist and nowhere else: three numbers, read
 as Semantic Versioning reads them. The README's "Versions" says what each promises.
 
@@ -1161,7 +1167,10 @@ go another way.
    read mode, each scope's marks, hover-cycling, the panel, `??`, ghost, overflow, the
    context menu, the Lab popover, a trim, the source view. Snapshots are compared with
    the corresponding frames for position, size and colour. The reference frames stay out
-   of the repository.
+   of the repository. A run uses the half of the app that suits the Mac; with
+   `WRITEON_ARCH=x86_64` it uses the Intel half, which on an Apple silicon Mac runs
+   under Rosetta. The first scenario checks that the app has both halves and that a
+   half asked for is the one running.
 3. **Sound.** Each sound is rendered offline to a WAV and put through the same analysis
    used on the clips. Pass: tick frequencies within 5 Hz, envelope times within 20%.
 4. **Live AI smoke test** against LunaRoute for alternatives at each scope, a marking
@@ -1197,6 +1206,7 @@ go another way.
 | The display it was built on is 1× while the clips are 2× | Geometry is compared in CSS px; glyphs look lighter at 1×. For a pixel-level comparison the page is snapshotted at 2× zoom. |
 | `glm-5.3-flash` at low reasoning may choose poor cuts or miss the target length | Raise reasoning for Lab passes only; the card always reports the real numbers. |
 | A service other than LunaRoute may not take the requests as they are worded, or may not hold an answer to a schema | The two parts known to be refused are asked for again in the service's way (§7.1); the rest is on the hands-on checklist until someone has tried a second service for real. |
+| The Intel half has never run on an Intel Mac | Every scenario is run on it under Rosetta, which is not the same thing; an Intel Mac is on the hands-on checklist. |
 | The handwriting face may not be Caveat | Compare glyphs early; substitute and record. |
 | The original may differ wherever §9 guesses | All guesses are in one table and cheap to change. |
 | A script cannot move the real pointer on a Mac that is in use, or locked | Scenarios send native pointer moves straight to the web view (§8), so WebKit itself finds what is under them; the pointer in a person's hand is on the hands-on checklist. |

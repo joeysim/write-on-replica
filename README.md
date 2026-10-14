@@ -37,6 +37,9 @@ There is nothing to download: you build it.
 
 - macOS 13 or later is what the app is built for. It has been built and run on macOS 26
   only.
+- Either kind of Mac. The app is universal: one executable with a half for Apple silicon
+  and a half for Intel. It has been built and run on Apple silicon only. Every UI scenario
+  passes on the Intel half too, but under Rosetta: no Intel Mac has run it.
 - The Xcode Command Line Tools (`xcode-select --install`), with Swift 5.9 or later (it
   has been built with 6.3 only). Xcode itself is not needed.
 - For the tests only: Node. They have been run with Node 26; 22 or later should do, since
@@ -46,6 +49,9 @@ There is nothing to download: you build it.
 scripts/build-app.sh        # builds build/Write_On.app
 open build/Write_On.app     # or double-click it in Finder; drag it to Applications to keep it
 ```
+
+The first build takes about a minute, since the app is built twice, once for each kind of
+Mac; after that only what changed is built again.
 
 The first window shows a short welcome piece. The app opens as a bare editor, text and a
 word count: **click the word count** (top left) to turn the tools on, and again to turn them
@@ -281,6 +287,9 @@ These need someone at the Mac:
     service other than LunaRoute, and press Test connection. Then ask for alternatives
     (Ctrl+Shift+G) and run a pass from the Lab. Nobody has yet, OpenAI's way or
     Anthropic's (see [The AI](#the-ai)).
+17. **An Intel Mac.** Build the app on one, or take a copy to one, and go through this
+    list. Nobody has yet: the Intel half has run only under Rosetta (see
+    [Build and run](#build-and-run)).
 
 ## Decisions the clips do not settle
 
@@ -421,6 +430,11 @@ Outside scripted runs the app uses one unpublished setting of the web view,
 `WRITEON_APP=build/dev/Write_On.app` in front of `scripts/build-app.sh`, `check.sh`,
 `ui-test.sh` or `bench.sh` builds and tests a second copy, so the one in `build/` can stay
 open while you work.
+
+`WRITEON_ARCH=x86_64` in front of `scripts/check.sh` or `ui-test.sh` runs the scenarios on
+the app's Intel half. On an Apple silicon Mac that is under Rosetta, which has to be
+installed. `tests/ui/smoke.js` checks on every run that the app has both halves, and that
+a half that was asked for is the one running.
 
 One scenario does ask a real service, and steps aside unless told to run:
 

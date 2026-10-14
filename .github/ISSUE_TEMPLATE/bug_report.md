@@ -20,6 +20,8 @@ assignees: ''
 **Your Mac**
 
 - macOS version:
+- Apple silicon or Intel:
+- The app's version (Write_On ▸ About Write_On):
 - The commit you built (`git rev-parse --short HEAD`):
 - AI service and model, if the AI is involved:
 

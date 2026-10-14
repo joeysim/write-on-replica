@@ -77,6 +77,22 @@ final class UITestHarness {
     private static func savedSettingsNow() -> NSDictionary {
         (Bundle.main.bundleIdentifier.flatMap { UserDefaults.standard.persistentDomain(forName: $0) } ?? [:]) as NSDictionary
     }
+
+    /// The kinds of Mac the app's executable has a half for, by the names `lipo` and `arch`
+    /// give them.
+    private static var builtFor: [String] {
+        let names = [NSBundleExecutableArchitectureARM64: "arm64", NSBundleExecutableArchitectureX86_64: "x86_64"]
+        return (Bundle.main.executableArchitectures ?? []).compactMap { names[$0.intValue] }.sorted()
+    }
+
+    /// The half this run is: on an Apple silicon Mac the Intel one runs under Rosetta.
+    #if arch(arm64)
+    private static let runningAs = "arm64"
+    #elseif arch(x86_64)
+    private static let runningAs = "x86_64"
+    #else
+    private static let runningAs = "another"
+    #endif
     private var nativeMenus = 0
     // The scripted AI provider (`--ai mock`): what to answer next, and what was asked.
     private var aiScript: [String: Any] = [:]
@@ -237,6 +253,11 @@ final class UITestHarness {
                 "alpha": Double(window.alphaValue),
                 "ignoresMouse": window.ignoresMouseEvents,
                 "ownPasteboard": self.controller.pasteboard.name != NSPasteboard.general.name,
+                // The kinds of Mac the app is built for, the half this run is, and the half
+                // it was asked to be (WRITEON_ARCH, which scripts/ui-test.sh acts on), if any.
+                "architectures": Self.builtFor,
+                "runningAs": Self.runningAs,
+                "askedFor": ProcessInfo.processInfo.environment["WRITEON_ARCH"].map { $0 as Any } ?? NSNull(),
             ] as [String: Any]
         })
         bridge.on("test.done", sync: { [weak self] params in

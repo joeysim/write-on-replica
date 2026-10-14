@@ -3,6 +3,8 @@
 #   scripts/ui-test.sh <scenario> [--zoom 2] [--size 1548x976] [--ai mock] [--timeout 60]
 # Snapshots and result.json land in build/ui/<scenario>/. Exit status is the scenario's.
 # WRITEON_APP names the bundle to run, if not build/Write_On.app.
+# WRITEON_ARCH names the half of the universal app to run, if not the Mac's own: x86_64 runs
+# the Intel half on an Apple silicon Mac, under Rosetta.
 # A scenario can ask for launch options of its own on its first line:
 #   // launch: --setting read=false
 set -euo pipefail
@@ -49,8 +51,12 @@ if [ -n "$GATEWAY" ]; then
   export WRITEON_API_KEY="fake-key-from-the-environment"
 fi
 
+# Which half of the app runs is the Mac's choice, unless one is named.
+HALF=()
+[ -z "${WRITEON_ARCH:-}" ] || HALF=(arch "-$WRITEON_ARCH")
+
 # The page is read from the working copy, so page-only changes need no rebuild.
-WRITEON_WEB_ROOT="${WRITEON_WEB_ROOT:-$ROOT/web}" "$BIN" --ui-test "$SCENARIO" --out "$OUT" ${OWN[@]+"${OWN[@]}"} "$@" || status=$?
+WRITEON_WEB_ROOT="${WRITEON_WEB_ROOT:-$ROOT/web}" ${HALF[@]+"${HALF[@]}"} "$BIN" --ui-test "$SCENARIO" --out "$OUT" ${OWN[@]+"${OWN[@]}"} "$@" || status=$?
 if [ -f "$OUT/result.json" ]; then
   python3 -I -c '
 import json, sys

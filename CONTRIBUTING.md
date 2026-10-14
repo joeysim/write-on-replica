@@ -24,8 +24,8 @@ ideas about the tool itself.
 
 Open an issue, and say:
 
-- the version of macOS, the app's version (Write_On ▸ About Write_On) and the commit you
-  built;
+- the version of macOS, whether the Mac is Apple silicon or Intel, the app's version
+  (Write_On ▸ About Write_On) and the commit you built;
 - what you did, step by step, and what happened in place of what you expected;
 - for anything to do with a file, a small `.md` file that shows it;
 - for a difference from the original, which clip and how far into it.
@@ -58,6 +58,14 @@ If the app is open while you work, build and test a second copy and leave that o
 
 ```sh
 WRITEON_APP=build/dev/Write_On.app scripts/check.sh
+```
+
+The app is built for Apple silicon and for Intel, as one universal app, and a run uses
+the half that suits the Mac it is on. If you change `Sources/WriteOn`, it is worth running
+the scenarios on the other half as well. On an Apple silicon Mac with Rosetta installed:
+
+```sh
+WRITEON_ARCH=x86_64 scripts/check.sh
 ```
 
 ## Making a change

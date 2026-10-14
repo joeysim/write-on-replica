@@ -25,6 +25,12 @@ t.equal(window.writeOn.ui.get('sound'), false, 'sound effects are off unless a s
 t.equal(document.visibilityState, 'visible', 'the page still counts as visible');
 t.assert(document.hasFocus(), 'and as focused');
 
+// The app is universal: one executable with a half for each kind of Mac. Which half runs is
+// the Mac's choice, unless WRITEON_ARCH names one (scripts/ui-test.sh), as it does to try
+// the Intel half on an Apple silicon Mac.
+t.equal(outside.architectures, ['arm64', 'x86_64'], 'the app is built for Apple silicon and for Intel');
+if (outside.askedFor) t.equal(outside.runningAs, outside.askedFor, 'and the half that was asked for is the one running');
+
 const editor = document.getElementById('editor');
 t.assert(!!editor, 'the editor element exists');
 await document.fonts.ready;
