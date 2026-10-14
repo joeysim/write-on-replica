@@ -600,7 +600,7 @@ in 8 to 25 seconds, mostly without thinking at all, and the four levels come to 
 **Mark passes and the typo pass** are named in the video but not run, so their results
 are inferred (§9 items 4 and 5): the same card and scan line, with marked passages
 underlined in `lab` at full strength, and a small label by the passage under the pointer
-giving the reason, or for a typo the fix ("Teh → The · Misspelt."). They are passes like a
+giving the reason, or for a typo the fix ("Teh → The · Misspelled."). They are passes like a
 trim: only one is out at a time, a new one puts the last away, and so does any change to
 the document.
 

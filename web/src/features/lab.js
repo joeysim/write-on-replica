@@ -176,7 +176,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
   const hint = card.querySelector('.hint');
   const actions = card.querySelector('.actions');
 
-  /** What the typo pass would do with a mark, as a line: Teh → The · Misspelt. */
+  /** What the typo pass would do with a mark, as a line: Teh → The · Misspelled. */
   const fixLine = (found) => `${textUnder(found.id)} → ${found.replace}${found.reason ? ` · ${found.reason}` : ''}`;
 
   /** Shows the card for the pass as it stands, or puts it away. */

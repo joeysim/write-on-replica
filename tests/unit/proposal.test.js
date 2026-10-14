@@ -329,16 +329,16 @@ const marksFor = (blocks, list) => {
 test('a mark knows the stretch of its block it points at, and marks come in the order of the document', () => {
   const blocks = B(TYPOS);
   const marks = marksFor(blocks, [
-    [2, 'realy', 'misspelt'],
+    [2, 'realy', 'misspelled'],
     [1, 'has has', 'said twice'],
-    [1, 'Teh', 'misspelt'],
+    [1, 'Teh', 'misspelled'],
   ]);
   assert.deepEqual(
     marks.map((mark) => [mark.id, mark.block, cutText(blocks, mark).join('|'), mark.reason]),
     [
-      ['m1', 2, 'Teh', 'misspelt'],
+      ['m1', 2, 'Teh', 'misspelled'],
       ['m2', 2, 'has has', 'said twice'],
-      ['m3', 4, 'realy', 'misspelt'],
+      ['m3', 4, 'realy', 'misspelled'],
     ],
   );
 });
@@ -352,7 +352,7 @@ test('a mark that runs across ghosted text points at what is either side of it',
 test('fixes replace what they point at, several to a paragraph, and nothing else', () => {
   const blocks = B(TYPOS);
   const fixes = marksFor(blocks, [
-    [1, 'Teh', 'misspelt', 'The'],
+    [1, 'Teh', 'misspelled', 'The'],
     [1, 'has has', 'said twice', 'has'],
     [2, ' ,and', 'space before the comma', ', and'],
   ]);
@@ -364,7 +364,7 @@ test('fixes replace what they point at, several to a paragraph, and nothing else
 
 test('a fix inside a group changes what the group is showing and leaves it a group', () => {
   const blocks = B(TYPOS);
-  const made = normalizeBlocks(applyFixes(blocks, marksFor(blocks, [[2, 'realy', 'misspelt', 'really']])), {
+  const made = normalizeBlocks(applyFixes(blocks, marksFor(blocks, [[2, 'realy', 'misspelled', 'really']])), {
     aaaaaaa: { scope: 'word', variants: ['realy plain', 'simple'], active: 0 },
   });
   assert.ok(H(made.blocks).endsWith('it <span data-vid="aaaaaaa">really plain</span> ,and stop.</p>'), H(made.blocks).slice(-90));
@@ -379,5 +379,5 @@ test('a fix across ghosted text leaves the ghosted text where it is', () => {
 
 test('marks without a replacement are not fixes and change nothing', () => {
   const blocks = B(TYPOS);
-  assert.equal(applyFixes(blocks, marksFor(blocks, [[1, 'Teh', 'misspelt']])), blocks);
+  assert.equal(applyFixes(blocks, marksFor(blocks, [[1, 'Teh', 'misspelled']])), blocks);
 });

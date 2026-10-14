@@ -194,9 +194,9 @@ await act('Done');
 
 const FIXES = {
   fixes: [
-    { n: 1, find: 'Teh', replace: 'The', reason: 'Misspelt.' },
+    { n: 1, find: 'Teh', replace: 'The', reason: 'Misspelled.' },
     { n: 1, find: 'has has', replace: 'has', reason: 'Said twice.' },
-    { n: 2, find: 'realy', replace: 'really', reason: 'Misspelt.' },
+    { n: 2, find: 'realy', replace: 'really', reason: 'Misspelled.' },
     { n: 2, find: ' ,and', replace: ', and', reason: 'Space before the comma.' },
     { n: 3, find: 'fine', replace: 'fine', reason: 'Nothing to change.' },
   ],
@@ -213,7 +213,7 @@ t.same(html(), before, 'nothing is changed yet');
 {
   const mark = markOf('Teh').getBoundingClientRect();
   await t.hover(mark.left + mark.width / 2, mark.top + mark.height / 2);
-  t.equal(tip.textContent, 'Teh → The · Misspelt.', 'the label shows the fix and why');
+  t.equal(tip.textContent, 'Teh → The · Misspelled.', 'the label shows the fix and why');
   await t.hover(300, 300);
 }
 await t.click(...t.center(markOf('has has')));
@@ -234,7 +234,7 @@ await answer(FIXES);
 await pick('Fix punctuation and typos');
 await t.until(() => marked().length === 4, 4000, 'the fixes');
 await act('Walk through');
-t.equal([title(), hint(), actions().join(' | ')], ['Fix punctuation and typos 1 of 4', 'Teh → The · Misspelt.', 'Fix | Keep | Stop'], 'the walk asks about each fix in turn, showing it');
+t.equal([title(), hint(), actions().join(' | ')], ['Fix punctuation and typos 1 of 4', 'Teh → The · Misspelled.', 'Fix | Keep | Stop'], 'the walk asks about each fix in turn, showing it');
 t.equal(editor.root.querySelector('[data-mark].is-current')?.textContent, 'Teh', 'and points it out');
 await act('Fix');
 t.equal([title(), hint()], ['Fix punctuation and typos 2 of 4', 'has has → has · Said twice.'], 'Fix moves on');

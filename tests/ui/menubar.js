@@ -223,6 +223,6 @@ await t.wait(900); // a checker would have marked the line by now
 {
   const line = editor.blockElement(1).getBoundingClientRect();
   const marks = await t.pixels(line.left, line.top, line.width, line.height + 4, { near: [255, 59, 48], within: 110 });
-  t.equal(marks.matching, 0, 'and nothing is marked as misspelt');
+  t.equal(marks.matching, 0, 'and nothing is marked as misspelled');
   await t.snap('as-typed');
 }

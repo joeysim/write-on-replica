@@ -291,7 +291,7 @@ These need someone at the Mac:
     Test connection answers in about a second. (After rebuilding the app, macOS may ask
     once for permission to read the saved key, because a locally built app is signed anew
     each time.)
-12. **Edit menu.** Check Spelling While Typing puts the red marks under a misspelt word, and
+12. **Edit menu.** Check Spelling While Typing puts the red marks under a misspelled word, and
     Smart Quotes curls the quotes; both are off to begin with.
 13. **Full screen** (the green button, or fn F): the layout then matches the clips exactly,
     with no title bar above the page.
