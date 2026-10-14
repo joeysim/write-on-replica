@@ -48,7 +48,7 @@ function recase(word, answer) {
  *   (a capital changed on the first word after a cut is allowed), otherwise
  *   `{ runs, caseFixes }`:
  *   - runs: [{ index, start, end }], the deleted stretches as offsets into `original`
- *   - caseFixes: [{ start, end, text, run }], words to re-capitalise if run `run` is cut;
+ *   - caseFixes: [{ start, end, text, run }], words to re-capitalize if run `run` is cut;
  *     `text` is the writer's own word with the answer's first letter
  */
 export function alignDeletion(original, trimmed) {

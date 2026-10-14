@@ -66,7 +66,7 @@ const replaceBlocks = (blocks, from, count, ...items) => [...blocks.slice(0, fro
 
 /**
  * The marks newly typed text takes at `offset`: those of the run it falls strictly inside,
- * or, on a boundary, only what both neighbours share. So typing at the edge of a group or
+ * or, on a boundary, only what both neighbors share. So typing at the edge of a group or
  * a ghost run lands outside it.
  */
 export function marksAt(block, offset) {
@@ -372,7 +372,7 @@ export function carryCaret(position, was, end, grew) {
   return position;
 }
 
-// --- normalising ------------------------------------------------------------------------------
+// --- normalizing ------------------------------------------------------------------------------
 
 function promoteHeading(block) {
   if (block.kind !== 'p') return block;
@@ -384,7 +384,7 @@ function promoteHeading(block) {
   return heading;
 }
 
-// Blocks that have been through normaliseBlocks and carry no group: in order already, and
+// Blocks that have been through normalizeBlocks and carry no group: in order already, and
 // nothing elsewhere in the document can put them out of it.
 const settled = new WeakSet();
 
@@ -412,7 +412,7 @@ function sameBlock(a, b) {
  * the edit, and an edit to one paragraph of a long piece costs little more than that
  * paragraph.
  */
-export function normaliseBlocks(blocks, groups) {
+export function normalizeBlocks(blocks, groups) {
   const seen = new Map(); // vid -> its text
   const out = [];
 

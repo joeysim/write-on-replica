@@ -57,8 +57,8 @@ const count = $('#wordcount').textContent;
 const para = editor.blockElement(A).getBoundingClientRect();
 const LINE = [para.left, para.top + 36, para.width, 36];
 const plain = await t.pixels(...LINE);
-t.equal(plain.ground, [5, 10, 28], 'the measured ground is the page colour');
-t.assert(plain.ink[0] > 225 && plain.ink[1] > 190 && plain.ink[2] > 170, `and the ink the text colour: ${plain.ink.map(Math.round)}`);
+t.equal(plain.ground, [5, 10, 28], 'the measured ground is the page color');
+t.assert(plain.ink[0] > 225 && plain.ink[1] > 190 && plain.ink[2] > 170, `and the ink the text color: ${plain.ink.map(Math.round)}`);
 
 // --- a selection, from the menu -------------------------------------------------------------------
 
@@ -98,7 +98,7 @@ await t.snap('ghosted-selected');
   t.equal(ghosted.ground, plain.ground, 'nothing is left behind the ghosted words');
   for (const [c, name] of ['red', 'green', 'blue'].entries()) {
     const strength = (ghosted.ink[c] - ghosted.ground[c]) / (plain.ink[c] - plain.ground[c]);
-    t.near(strength, 0.11, 0.012, `ghosted text is 11% of the text colour over the page (${name})`);
+    t.near(strength, 0.11, 0.012, `ghosted text is 11% of the text color over the page (${name})`);
   }
   t.equal($('#wordcount').textContent, count, 'ghosted words are still counted');
   await t.snap('ghosted');

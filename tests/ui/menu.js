@@ -288,7 +288,7 @@ editor.focus();
   t.assert(rows.every(([, label]) => label.length > 3), 'each with what it does');
   t.assert(/arrow/i.test(card.textContent) && /delete/i.test(card.textContent), 'and the keys that work under the pointer');
   const box = card.getBoundingClientRect();
-  t.near(box.left + box.width / 2, innerWidth / 2, 1, 'the card is centred');
+  t.near(box.left + box.width / 2, innerWidth / 2, 1, 'the card is centered');
   t.assert(box.top > 40 && box.bottom < innerHeight - 40, 'and fits the window');
   const inner = box.right - parseFloat(getComputedStyle(card).paddingRight);
   t.assert([...card.querySelectorAll('.shortcut .keys')].every((k) => k.getBoundingClientRect().right <= inner + 0.5), 'every row fits inside it');

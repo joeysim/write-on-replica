@@ -38,7 +38,7 @@ test('with the pointer dead on it, it still goes somewhere a full jump away', ()
   assert.ok(far(at, to) >= 90 && far(at, to) <= 120);
 });
 
-test('pushed towards an edge it turns aside rather than leave the window, and still makes a full jump', () => {
+test('pushed toward an edge it turns aside rather than leave the window, and still makes a full jump', () => {
   // The button at rest is near the bottom-left corner. A pointer coming from the right
   // would push it out through the left edge; from above, out through the bottom.
   const rest = { x: 136, y: 944 };

@@ -286,7 +286,7 @@ final class AIClient {
     /// - A service that refuses a part of the request as the app words it is asked again
     ///   without it, or with it under another name, and is asked that way first from then
     ///   on, once that way has been seen to work.
-    /// - What was learnt can stop being true (the same name may come to mean another
+    /// - What was learned can stop being true (the same name may come to mean another
     ///   model), so a request refused in a service's known way is asked once more as the
     ///   app words it, and what was known is forgotten.
     /// - A model whose thinking used up its room, so that it was cut off before it had

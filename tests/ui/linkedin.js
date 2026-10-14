@@ -91,7 +91,7 @@ t.equal((await opened()).length, 2, 'and has opened none of them');
   t.same(await copied(), piece, 'and the piece is on the clipboard');
   await t.until(noteShows, 1500, 'a note to say so');
   t.equal(tip.textContent, 'Too long to fill in: it is on the clipboard, ready to paste.', 'the note');
-  t.equal(getComputedStyle(tip).color, 'rgba(245, 209, 192, 0.56)', 'in the colour of a lit control, to be noticed where a label is not');
+  t.equal(getComputedStyle(tip).color, 'rgba(245, 209, 192, 0.56)', 'in the color of a lit control, to be noticed where a label is not');
   ui.set({ read: false });
   await t.settle();
   const note = tip.getBoundingClientRect();
@@ -166,7 +166,7 @@ const middle = () => {
   return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
 };
 const landed = () => t.until(() => button.getAnimations().length === 0, 1500, 'the button to land');
-// The hop it is making. Its colour fading as the pointer leaves it is an animation too, and not this one.
+// The hop it is making. Its color fading as the pointer leaves it is an animation too, and not this one.
 const hopping = () => button.getAnimations().find((animation) => !(animation instanceof CSSTransition));
 const inWindow = (p) => p.x >= 18 && p.x <= innerWidth - 18 && p.y >= 18 && p.y <= innerHeight - 18;
 const degrees = (from, to) => (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
@@ -204,7 +204,7 @@ const approach = async (dx, dy) => {
 }
 // Chased into the corner it turns aside; it never leaves the window or stops short.
 for (let escape = 2; escape <= 4; escape++) {
-  const { from } = await approach(14, -14); // from above and to the right: towards the bottom-left corner
+  const { from } = await approach(14, -14); // from above and to the right: toward the bottom-left corner
   await landed();
   const to = middle();
   const length = Math.hypot(to.x - from.x, to.y - from.y);

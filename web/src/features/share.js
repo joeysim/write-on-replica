@@ -6,7 +6,7 @@ import { isNear, fleeTo } from '../fx/flee.js';
 
 const COMPOSE = 'https://x.com/intent/post';
 // What a link to the compose window is trusted with. X's servers refuse a request much past
-// 14,000 bytes, and the browser's own headers and cookies count towards that.
+// 14,000 bytes, and the browser's own headers and cookies count toward that.
 const MOST = { characters: 4000, link: 8000 };
 const TOO_LONG = 'Too long to fill in: it is on the clipboard, ready to paste.';
 

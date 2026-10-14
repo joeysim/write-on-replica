@@ -75,7 +75,7 @@ WRITEON_ARCH=x86_64 scripts/check.sh
    page or the Mac is tested by a scenario in `tests/ui`.
 2. **Make it pass** with the smallest change that does.
 3. **Keep the documents in step.** The spec describes the app as it is. A change in
-   behaviour changes the spec; a decision the clips do not settle goes in its §9; what a
+   behavior changes the spec; a decision the clips do not settle goes in its §9; what a
    person using the app would notice goes in the README.
 4. **Run `scripts/check.sh`.**
 

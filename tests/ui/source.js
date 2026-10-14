@@ -55,7 +55,7 @@ await t.until(open, 1000, 'the source view to show');
   const box = card.getBoundingClientRect();
   t.equal([box.left, box.top, box.width, box.height], [(innerWidth - 900) / 2, 70, 900, innerHeight - 140], 'a 900px card in the middle of the window, 70px clear of its top and bottom');
   const style = getComputedStyle(card);
-  t.equal([style.backgroundColor, style.borderTopWidth, style.borderTopColor, style.borderTopLeftRadius], ['rgb(18, 21, 34)', '1px', 'rgb(35, 39, 53)', '7px'], 'in the popover colour, with a hairline edge and rounded corners');
+  t.equal([style.backgroundColor, style.borderTopWidth, style.borderTopColor, style.borderTopLeftRadius], ['rgb(18, 21, 34)', '1px', 'rgb(35, 39, 53)', '7px'], 'in the popover color, with a hairline edge and rounded corners');
   t.equal(style.boxShadow, 'rgba(0, 0, 0, 0.4) 0px 10px 20px 0px', 'and a soft shadow under it');
   t.equal((await t.pixels(40, 300, 200, 200)).ground, ground, 'the page around it is not dimmed');
   for (const id of ['wordcount', 'toggle-alternates', 'open-source', 'save', 'lab', 'toggle-overflow']) {
@@ -113,8 +113,8 @@ t.same(shown(), saved.replace(/\n$/, ''), 'it shows exactly what Save would writ
   t.near(parseFloat(getComputedStyle(tabs()[0]).fontSize), 20.2, 0.01, 'in the hand');
   const gaps = tabs().slice(1).map((made, i) => made.getBoundingClientRect().left - tabs()[i].getBoundingClientRect().right);
   t.assert(gaps.every((gap) => Math.abs(gap - 16.5) < 0.01), `each 16.5px after the one before, as the clip’s two are: ${gaps}`);
-  const colour = (name) => getComputedStyle(tab(name)).color;
-  t.equal([colour('Markdown'), colour('As saved'), colour('Readable')], ['rgb(133, 123, 130)', 'rgb(129, 124, 212)', 'rgb(133, 123, 130)'], 'the one showing in the accent, the others dim');
+  const color = (name) => getComputedStyle(tab(name)).color;
+  t.equal([color('Markdown'), color('As saved'), color('Readable')], ['rgb(133, 123, 130)', 'rgb(129, 124, 212)', 'rgb(133, 123, 130)'], 'the one showing in the accent, the others dim');
   const size = card.querySelector('.bytes');
   t.equal([getComputedStyle(size).fontSize, getComputedStyle(size).color], ['13px', 'rgb(133, 123, 130)'], 'the size is small and dim');
   t.near(card.querySelector('.copy').getBoundingClientRect().right, box.right - 22, 0.6, 'Copy ends 22px inside the other edge');

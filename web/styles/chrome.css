@@ -1,6 +1,6 @@
 /* The chrome: the word count and the controls around the text. Each control is placed
    from the nearest edge of the window, at the offsets measured in the clips (design
-   spec, section 4.3). The top row is centred 32px from the top, the bottom row 32px
+   spec, section 4.3). The top row is centered 32px from the top, the bottom row 32px
    from the bottom. */
 
 .control {

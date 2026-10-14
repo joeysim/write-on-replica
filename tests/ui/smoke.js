@@ -61,7 +61,7 @@ for (let i = 1; i < tops.length; i++) t.near(tops[i] - tops[i - 1], 36, 0.01, `l
 const blank = paragraphs.find((p) => p.textContent === '');
 t.near(blank.getBoundingClientRect().height, 36, 0.01, 'a blank line is one line tall');
 
-// Column: 780px wide, centred, so its left edge is at 384.
+// Column: 780px wide, centered, so its left edge is at 384.
 const page = document.getElementById('page').getBoundingClientRect();
 t.near(page.width, 780, 0.01, 'column width');
 t.near(page.left, 384, 0.5, 'column left edge');
@@ -74,7 +74,7 @@ const baseline = probe.getBoundingClientRect().top;
 probe.remove();
 t.near(baseline, 237.55, 0.3, 'first text baseline');
 
-t.equal(getComputedStyle(document.body).backgroundColor, 'rgb(5, 10, 28)', 'page colour');
-t.equal(getComputedStyle(editor).color, 'rgb(245, 209, 192)', 'text colour');
+t.equal(getComputedStyle(document.body).backgroundColor, 'rgb(5, 10, 28)', 'page color');
+t.equal(getComputedStyle(editor).color, 'rgb(245, 209, 192)', 'text color');
 
 await t.snap('smoke');

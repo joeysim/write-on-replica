@@ -29,7 +29,8 @@ not show had to be decided; those decisions are listed
 - Plan it was built from: `docs/superpowers/plans/2026-10-11-write-on-replica.md`
 - How it is built, with diagrams: `docs/architecture.html` (open it in a browser)
 
-The app was written by Claude, in Claude Code, working from that design and that plan.
+The app was written by Claude, in Claude Code, working from that design and that plan
+([what that cost](#what-it-cost-to-build)).
 
 ## Build and run
 
@@ -57,7 +58,7 @@ Mac; after that only what changed is built again.
 [release](https://github.com/joeysim/write-on-replica/releases) as
 `Write_On-<version>.zip`: unzip it and drag Write_On to Applications. macOS will refuse to
 open it the first time, and may call it damaged. It is not: it is signed ad hoc, by the
-Mac that built it, and not notarised, as Apple asks of anything passed from one Mac to
+Mac that built it, and not notarized, as Apple asks of anything passed from one Mac to
 another. Take off the mark the download put on it, and it opens:
 
 ```sh
@@ -98,7 +99,7 @@ and Stash.
 - **The panel.** Alternatives opens a panel on the left with a row for each version. Type a
   new one in the empty row; type `??` there to have the AI suggest some. A robot marks the
   ones it wrote. ([Picture](docs/images/panel.png).)
-- **The Lab** (bottom centre) reads the page and marks what it finds: weak or long
+- **The Lab** (bottom center) reads the page and marks what it finds: weak or long
   sentences, filler, typos, or what could go to make the piece 10, 20, 30 or 50 percent
   shorter. It fades and underlines; it never rewrites. Nothing is cut until you say so.
   A trim is read once, and all four levels are then there at once: the AI says what each
@@ -538,6 +539,29 @@ does not belong here. [SECURITY.md](SECURITY.md) says how to report a problem th
 should not be reported in public. Everyone taking part is asked to keep to the
 [code of conduct](CODE_OF_CONDUCT.md).
 
+## What it cost to build
+
+The app, its tests and these documents were made in one Claude Code session, October 11
+to 14, 2026, with Claude Opus 5.5 (and Claude Fable 5.1 for one of the reviews). At
+Anthropic's [API list prices](https://platform.claude.com/docs/en/about-claude/pricing)
+that came to about **$470**: Claude Code's own count (`/cost`) was $468.88 near the end. On
+a Claude subscription the same work is not billed by the token, so read this as what it
+would cost on the API.
+
+The 2,600 requests recorded in the session's transcript account for $414 of that:
+
+| | Tokens | Cost |
+| --- | --- | --- |
+| Reading the conversation back from the prompt cache | 1.14 billion | $228 |
+| Writing, thinking included | 4.6 million | $94 |
+| Adding new context to the cache | 12.7 million | $92 |
+
+By day, that was $126, $156, $112 and $20. Seven subagents (five reviews, an audit of the
+app against the clips, and a second reading of the thread) came to $62 of it. Without
+prompt caching the same requests would have cost about $4,700: most of a request's price
+is the conversation it carries, and the cache sells it back at a twentieth of the input
+price.
+
 ## Credits and what is whose
 
 - **Write_On is Jason Fried's**: the idea, the design, the name and the wording of the
@@ -555,7 +579,7 @@ should not be reported in public. Everyone taking part is asked to keep to the
   sounds are made in code, the icon is drawn by `scripts/make-icon.swift`, and the welcome
   piece was written for it.
 - **The clips are not here**, nor frames from them, nor the essay he writes in them. The
-  tests do use words the clips show, since they check the same behaviour: the versions
+  tests do use words the clips show, since they check the same behavior: the versions
   he tries for one word, and the paperclip that becomes an eraser. Some of their
   sentences are also built the way his opening one is. `reference/`, which git ignores,
   is where the measurements were made.

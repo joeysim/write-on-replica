@@ -47,7 +47,7 @@ export function wordAt(text, offset) {
 // is whitespace and then something that can open a sentence.
 const TERMINATOR = /[.!?…]+["'”’)\]]*/gu;
 const OPENER = /^["'“‘(\[]*[\p{Lu}\p{N}]/u;
-// Words whose full stop is not the end of a sentence even before a capital.
+// Words whose period is not the end of a sentence even before a capital.
 const ABBREVIATIONS = new Set([
   'mr', 'mrs', 'ms', 'dr', 'prof', 'sr', 'jr', 'st', 'vs', 'no', 'inc', 'ltd', 'co', 'fig', 'gen', 'gov', 'sen', 'rep', 'mt',
 ]);

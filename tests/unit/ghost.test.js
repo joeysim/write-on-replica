@@ -91,7 +91,7 @@ test('a caret on a ghosted word at the very edge of its stretch still revives', 
   const revived = '<p>Always. It all depends. This is hard.</p>';
   assert.equal(ghostPlan(blocks, caret(0, 8)).revive, true);
   assert.equal(done(blocks, caret(0, 8)), revived, 'before its first letter');
-  assert.equal(done(blocks, caret(0, 23)), revived, 'after its full stop');
+  assert.equal(done(blocks, caret(0, 23)), revived, 'after its period');
 });
 
 test('a caret in ghosted text that is no word still revives', () => {

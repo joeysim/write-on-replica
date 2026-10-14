@@ -126,7 +126,7 @@ await t.until(marksShow, 1000, 'the marks to show again');
 const saved = await t.call('settings.get', {});
 t.equal([saved.read, saved.alternates], [false, true], 'mode and toggle are stored through the shell');
 
-// Tooltips: a plain shortcut label centred over the icon.
+// Tooltips: a plain shortcut label centered over the icon.
 const tip = $('#tooltip');
 for (const [id, label] of [['#save', 'Ctrl+S'], ['#open', 'Ctrl+O'], ['#post-x', 'Ctrl+Shift+P'], ['#toggle-overflow', 'Ctrl+Shift+D']]) {
   const [x, y] = center($(id));
@@ -136,7 +136,7 @@ for (const [id, label] of [['#save', 'Ctrl+S'], ['#open', 'Ctrl+O'], ['#post-x',
   const r = tip.getBoundingClientRect();
   t.near(r.top + r.height / 2, y - 25.5, 0.3, `${id} tooltip sits 25px above the icon`);
   if (id === '#toggle-overflow') t.near(r.right, innerWidth - 21.8, 0.3, 'a tooltip near the edge lines up with the icon instead of leaving the page');
-  else t.near(r.left + r.width / 2, x, 0.6, `${id} tooltip is centred on it`);
+  else t.near(r.left + r.width / 2, x, 0.6, `${id} tooltip is centered on it`);
   t.equal(getComputedStyle(tip).fontSize, '9.92px', 'tooltip size');
   t.assert($(id).classList.contains('is-hovered'), `${id} lights up under the pointer`);
 }

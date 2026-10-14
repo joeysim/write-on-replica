@@ -101,7 +101,7 @@ t.equal(editor.canUndo, false, 'flipping through the versions leaves nothing to 
 await t.key('z', { meta: true });
 t.assert(textOf(PARA).includes('as a sketchpad for'), 'and undo leaves the version that is showing');
 
-// Where the caret is afterwards. In the group, it goes to the end of the new text; anywhere
+// Where the caret is afterward. In the group, it goes to the end of the new text; anywhere
 // else it stays among the words it was in (in the clip, eight flips of one word leave the
 // caret resting in another word of the same paragraph).
 {
@@ -308,7 +308,7 @@ await away();
 
 // --- modes --------------------------------------------------------------------------------------
 
-// With the marks hidden, behaviour is unchanged.
+// With the marks hidden, behavior is unchanged.
 ui.set({ alternates: false });
 await hoverGroup('k33ps01');
 await t.key('ArrowRight');

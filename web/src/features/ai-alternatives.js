@@ -74,7 +74,7 @@ export function initAIAlternatives({ editor, panel, alternatives, ai, commands }
         wake();
       },
       (error) => {
-        if (error.cancelled) return;
+        if (error.canceled) return;
         ended = { error: error.message };
         wake();
       },

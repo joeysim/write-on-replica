@@ -44,7 +44,7 @@ t.equal(heard(), 'high low', 'what shows went to "?" and back');
   t.assert(row !== null, 'the row is asking');
   const marks = [...row.querySelectorAll('.q')];
   t.equal(marks.map((q) => q.textContent), ['?', '?'], 'it holds the two question marks');
-  t.equal(getComputedStyle(marks[0]).color, 'rgb(129, 124, 212)', 'in the accent colour');
+  t.equal(getComputedStyle(marks[0]).color, 'rgb(129, 124, 212)', 'in the accent color');
   t.equal(getComputedStyle(marks[0]).fontWeight, '700', 'bold');
   t.assert(marks.every((q) => q.getAnimations().length === 1), 'each dancing');
   t.assert(marks[0].getAnimations()[0].effect.getComputedTiming().duration !== marks[1].getAnimations()[0].effect.getComputedTiming().duration, 'to its own beat');
@@ -206,7 +206,7 @@ await until(async () => (await provider()).requests.length >= 6, 'the slow reque
 const slow = (await provider()).requests.at(-1).id;
 await t.key('Escape');
 t.assert(!ui.get('panel'), 'Esc closes the panel while it is asking');
-await until(async () => (await provider()).cancelled.includes(slow), 'the request to be called off');
+await until(async () => (await provider()).canceled.includes(slow), 'the request to be called off');
 await t.wait(1100);
 t.equal(editor.groups.k33ps01.variants.includes('late'), false, 'and its answer goes nowhere');
 t.equal(JSON.stringify(editor.getState()) === before, true, 'the document is as it was');

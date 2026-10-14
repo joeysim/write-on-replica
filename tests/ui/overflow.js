@@ -67,7 +67,7 @@ await settled();
   const box = el.getBoundingClientRect();
   t.equal([box.left, box.top, box.width, box.height], [innerWidth - 280, 0, 280, innerHeight], 'it covers the right 280px of the window');
   const style = getComputedStyle(el);
-  t.equal([style.backgroundColor, style.borderLeftWidth, style.borderLeftColor], ['rgb(10, 15, 31)', '1px', 'rgb(31, 35, 52)'], 'in the panel colour, with a hairline on its left');
+  t.equal([style.backgroundColor, style.borderLeftWidth, style.borderLeftColor], ['rgb(10, 15, 31)', '1px', 'rgb(31, 35, 52)'], 'in the panel color, with a hairline on its left');
   t.near($('#page').getBoundingClientRect().left, column, 0.01, 'the text column does not move');
   t.equal(getComputedStyle(editor.blockElement(2)).color, ink, 'and the page does not dim');
   t.equal(toggle.getAttribute('aria-pressed'), 'true', 'the button is pressed');
@@ -82,13 +82,13 @@ await settled();
 {
   const title = el.querySelector('.title');
   t.equal(title.textContent, 'Overflow', 'the header');
-  t.equal([getComputedStyle(title).color, getComputedStyle(title).fontFamily.includes('Caveat')], ['rgb(129, 124, 212)', true], 'in the hand, in the accent colour');
+  t.equal([getComputedStyle(title).color, getComputedStyle(title).fontFamily.includes('Caveat')], ['rgb(129, 124, 212)', true], 'in the hand, in the accent color');
   t.near(title.getBoundingClientRect().left + parseFloat(getComputedStyle(title).paddingLeft), 1291, 0.01, 'starting 22px inside the hairline');
 
   const style = getComputedStyle(field);
   // The clip sets its lines 23 and 22px apart by turns. This engine sets every line of a
   // field the same whole number of pixels apart, so it is the 22 the other panel's rows use.
-  t.equal([style.fontSize, style.lineHeight, style.color, style.backgroundColor], ['15px', '22px', 'rgb(245, 209, 192)', 'rgba(0, 0, 0, 0)'], 'the text is 15px on 22px lines, in the text colour');
+  t.equal([style.fontSize, style.lineHeight, style.color, style.backgroundColor], ['15px', '22px', 'rgb(245, 209, 192)', 'rgba(0, 0, 0, 0)'], 'the text is 15px on 22px lines, in the text color');
   const box = field.getBoundingClientRect();
   const pad = (side) => parseFloat(style[`padding${side}`]) + parseFloat(style[`border${side}Width`]);
   t.near(box.left + pad('Left'), 1291, 0.01, 'it starts 22px inside the hairline too');
@@ -142,7 +142,7 @@ ui.set({ read: true });
 await t.key('d', { ctrl: true, shift: true });
 t.equal([ui.get('overflow'), ui.get('read')], [true, false], 'and opens it, turning the tools on');
 await settled();
-// Read mode is just the text: the panel steps out of sight, and is there again afterwards.
+// Read mode is just the text: the panel steps out of sight, and is there again afterward.
 ui.set({ read: true });
 await settled();
 t.equal(getComputedStyle(el).visibility, 'hidden', 'in read mode the panel is out of sight');

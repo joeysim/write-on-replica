@@ -2,7 +2,7 @@
 
 > **Historical.** This is the plan the app was first built from, on 11 October 2026, task by task (steps use checkbox syntax). It has not been kept up to date. Where it and the code disagree, the code is right, and the design spec is the document that is kept in step with it.
 
-**Goal:** Build `Write_On.app`, a macOS replica of the writing tool shown in Jason Fried's thread, matching its look, motion, sound, behaviour and file format.
+**Goal:** Build `Write_On.app`, a macOS replica of the writing tool shown in Jason Fried's thread, matching its look, motion, sound, behavior and file format.
 
 **Architecture:** A Swift/AppKit shell owns the window, menus, files, secrets and network, and hosts the editor in a WKWebView. The editor is a dependency-free page of plain ES modules: pure document logic at the bottom (tested in Node), a thin `contenteditable` layer above it, features on top. The page talks to the shell over a small request/reply bridge and never sees the API key.
 
@@ -19,7 +19,7 @@
 - The page has no build step and no third-party code. Fonts are the only bundled third-party assets (IBM Plex Mono, Caveat; OFL, license files alongside).
 - The API key never reaches the page. The web view loads only `writeon://app/…` and refuses other navigation.
 - AI: base URL `https://gw.lunaroute.com/v1` (override `LUNAROUTE_BASE_URL`), model `glm-5.3-flash`, key from Keychain, then `LUNAROUTE_API_KEY` in the process environment, then the login shell. Alternatives use `"reasoning_effort": "low"`.
-- Reference page size 1548×976 CSS px. Colours, type and geometry come verbatim from spec §4 and §6.2.
+- Reference page size 1548×976 CSS px. Colors, type and geometry come verbatim from spec §4 and §6.2.
 - File format exactly as spec §6.11: Markdown, `<!-- overflow -->`, `<!-- write_on {…} -->` with `version`, `html`, `groups`.
 - Shortcuts are the Control combinations in spec §6.13, shown as "Ctrl+…" in the UI. The menu bar adds ⌘ equivalents.
 - The author's essay and frames from his clips are never committed. `reference/` stays untracked.
@@ -30,9 +30,9 @@
 
 Failure modes the spec implies but does not spell out, most likely first. Each is pinned by a test in the task named.
 
-1. **Pasting rich or multi-paragraph text** (from Pages, a browser, Slack) must arrive as plain paragraphs with no stray markup, colours or fonts, and blank lines preserved. — Task 8, UI scenario `paste.js`.
-2. **Opening files the app did not write**: no metadata comment, CRLF line endings, tabs, a trailing `-->` inside the text, a damaged metadata block, a 50,000-word file. Text must survive an open-and-save round trip byte for byte apart from line-ending normalisation, and opening must not hang. — Task 4 unit tests; Task 21 timing check.
-3. **Editing through a group**: Return, Backspace, select-all-and-type, and cut across word, sentence and paragraph groups and ghost runs must never leave duplicate ids, orphaned groups or a variant out of step with the text. — Task 8 unit tests on normalisation, UI scenario `group-edits.js`.
+1. **Pasting rich or multi-paragraph text** (from Pages, a browser, Slack) must arrive as plain paragraphs with no stray markup, colors or fonts, and blank lines preserved. — Task 8, UI scenario `paste.js`.
+2. **Opening files the app did not write**: no metadata comment, CRLF line endings, tabs, a trailing `-->` inside the text, a damaged metadata block, a 50,000-word file. Text must survive an open-and-save round trip byte for byte apart from line-ending normalization, and opening must not hang. — Task 4 unit tests; Task 21 timing check.
+3. **Editing through a group**: Return, Backspace, select-all-and-type, and cut across word, sentence and paragraph groups and ghost runs must never leave duplicate ids, orphaned groups or a variant out of step with the text. — Task 8 unit tests on normalization, UI scenario `group-edits.js`.
 4. **Text that is not plain ASCII**: emoji and other surrogate pairs, combining marks, CJK input through an input method, right-to-left runs. Counts, caret mapping, word and sentence targeting must not split a character or throw. — Task 3 unit tests; Task 8 composition guard.
 5. **AI that misbehaves**: 401, 429, 500, a stalled stream, a stream cut mid-line, empty output, numbered or quoted lines, Markdown fences round JSON, a trim that rewrites instead of deleting. The document must be untouched and one clear line shown. — Task 7 unit tests; Task 22 live and canned checks.
 
@@ -164,11 +164,11 @@ The shell skeleton and snapshot harness come second, before most of the page exi
 
 **Files:** Create `package.json`, `.gitignore`, `web/index.html`, `web/styles/base.css`, `web/styles/editor.css`, `web/fonts/*`, `scripts/fetch-fonts.sh`, `scripts/dev-server.sh`, `web/src/main.js`, `web/src/sample.js`, `README.md`.
 
-**Produces:** a page that renders a static sample document with the spec's type, column and colours; `npm test` wired to `node --test tests/unit/`.
+**Produces:** a page that renders a static sample document with the spec's type, column and colors; `npm test` wired to `node --test tests/unit/`.
 
 - [ ] Fetch IBM Plex Mono Regular/Bold woff2 and license from `@ibm/plex-mono@1.1.0`, Caveat variable TTF and OFL from `google/fonts`; write `fetch-fonts.sh` so the provenance is reproducible.
-- [ ] `base.css`: `@font-face` rules, colour tokens from spec §4.1 as custom properties, page background, selection colour.
-- [ ] `editor.css`: column 780 px centred, 20 px / line-height 1.82, padding 18vh / 45vh, edge mask (invisible to 53 px, full at 96 px), headings bold.
+- [ ] `base.css`: `@font-face` rules, color tokens from spec §4.1 as custom properties, page background, selection color.
+- [ ] `editor.css`: column 780 px centered, 20 px / line-height 1.82, padding 18vh / 45vh, edge mask (invisible to 53 px, full at 96 px), headings bold.
 - [ ] `index.html` + `main.js` + `sample.js`: render the sample document into `#editor`.
 - [ ] Verify in a browser at 1548×976: first text baseline 237.5 px, character advance 12.00 px, line pitch 36.40 px, left edge 384 px. Compare the handwriting face against `reference` crops and record the outcome in the README.
 - [ ] Commit.
@@ -199,7 +199,7 @@ The shell skeleton and snapshot harness come second, before most of the page exi
 Test cases (write first, watch them fail):
 - `countWords`/`countChars`: the two selections read off the clips, one of 21 words / 110 characters and one of 34 / 182, each stood in for by a sentence written to the same counts. Empty string → 0 / 0. Runs of spaces and newlines count as one separator.
 - `wordAt`: offsets at start, middle and end of a word; on a space between words picks the word to the left; apostrophes (`don’t`, `don't`) and hyphens (`trade-offs`) stay inside; punctuation is excluded; emoji and CJK do not throw and never return a range that splits a surrogate pair.
-- `sentences`: splits on `.`, `?`, `!` followed by space and capital or quote; keeps closing quotes with their sentence; does not split on `e.g.`, `etc.` mid-sentence, decimals, or initials; a heading with no full stop is one sentence.
+- `sentences`: splits on `.`, `?`, `!` followed by space and capital or quote; keeps closing quotes with their sentence; does not split on `e.g.`, `etc.` mid-sentence, decimals, or initials; a heading with no period is one sentence.
 - `scopeOfSelection`: whole multi-sentence paragraph → `paragraph`; exactly one or two whole sentences → `sentence`; a whole single-sentence paragraph → `sentence`; anything else → `word`.
 - `articleFor`: paperclip → a, eraser → an, hour → an, honest → an, user → a, unicorn → a, one-off → a, umbrella → an, FBI → an, 8-ball → an.
 - `fixArticle`: `"like a "`+eraser → `"like an "`; `"An "`+thumbtack → `"A "`; `"banana "`+apple unchanged; `"a  "` (two spaces) unchanged.
@@ -213,7 +213,7 @@ Test cases (write first, watch them fail):
 Test cases:
 - `newId`: 7 chars, `[0-9a-z]`, deterministic with a seeded `rand`.
 - Model: adding a duplicate or empty variant returns −1; removing the active variant activates the same index, or the last when it was last; removing an AI variant removes it from `ai`; `setVariantText` on an AI variant drops it from `ai`; `ai` key absent when empty.
-- `serialize` of a state modelled on the author's clip (heading group of scope `sentence`, word group with `ai`, paragraph group on the `<p>`, a blank first block, overflow of three paragraphs) produces: Markdown body with `# ` heading and one line per paragraph; `<!-- overflow -->` section; one `<!-- write_on {…} -->` line whose JSON has keys in the order `version`, `html`, `groups`, with `html` using `<p><br></p>`, `<p># <span data-vid="…">…</span></p>`, `<p data-vid="…">`.
+- `serialize` of a state modeled on the author's clip (heading group of scope `sentence`, word group with `ai`, paragraph group on the `<p>`, a blank first block, overflow of three paragraphs) produces: Markdown body with `# ` heading and one line per paragraph; `<!-- overflow -->` section; one `<!-- write_on {…} -->` line whose JSON has keys in the order `version`, `html`, `groups`, with `html` using `<p><br></p>`, `<p># <span data-vid="…">…</span></p>`, `<p data-vid="…">`.
 - `parse(serialize(state))` deep-equals `state` for that fixture and for: empty document, document with no groups, ghost inside a group, a group inside ghost, text containing `-->`, `<`, `&`, quotes and emoji.
 - `>` never appears inside the metadata comment body.
 - `readable`: same Markdown and overflow; metadata pretty-printed with the HTML one block per line, as in the clip.
@@ -245,12 +245,12 @@ Test cases:
 Test cases:
 - `tokenize("say, which")` → `["say", ",", " ", "which"]`; curly quotes, dashes and ellipsis are single tokens; `don’t` is one word.
 - `alignDeletion`: a middle clause removed gives one run covering the clause and its comma; the result of `applyCuts` equals the trimmed text exactly.
-- Leading words removed with the next word capitalised by the model ("Most of the struggle…" → "Struggle…") is accepted with one case fix.
+- Leading words removed with the next word capitalized by the model ("Most of the struggle…" → "Struggle…") is accepted with one case fix.
 - A reworded paragraph (any inserted or substituted word) returns `null`. Reordered words return `null`.
 - Identical text gives zero runs. Empty trimmed text gives `null` (a paragraph cannot be cut entirely by a trim).
 - Repeated words ("the big big dog" → "the big dog") gives one run of one word plus its space.
-- `tidy`: doubled spaces collapse, a space before `,.;:!?` is removed, leading spaces go, the first letter of the text and of any sentence is capitalised.
-- `wordStats`: 535 words with runs totalling 55 words → `{before: 535, after: 480, pct: -10}`.
+- `tidy`: doubled spaces collapse, a space before `,.;:!?` is removed, leading spaces go, the first letter of the text and of any sentence is capitalized.
+- `wordStats`: 535 words with runs totaling 55 words → `{before: 535, after: 480, pct: -10}`.
 
 - [ ] Tests, implementation, `npm test`, commit.
 
@@ -261,7 +261,7 @@ Test cases:
 Test cases:
 - `alternativesRequest` for each scope: target is marked in the paragraph, existing variants are listed, counts are 5 / 3 / 3, effort `low`, token caps 120 / 400 / 1500.
 - `LineStream`: chunks split mid-line reassemble; `flush` returns a final unterminated line; blank lines are skipped.
-- `cleanSuggestion`: strips `1. `, `- `, `• `, surrounding quotes and trailing full stop for word scope only.
+- `cleanSuggestion`: strips `1. `, `- `, `• `, surrounding quotes and trailing period for word scope only.
 - `acceptSuggestions`: drops case-insensitive duplicates of existing variants and of each other, caps at the count, drops lines over 12 words for word scope.
 - `labRequest` for each kind returns a JSON schema with `additionalProperties: false`.
 - `parseLabResponse`: accepts raw JSON and JSON inside a Markdown fence; rejects prose; for marks drops passages not found verbatim; for trims drops paragraphs where `alignDeletion` is `null`; for typos requires `find` verbatim and `replace` different from `find`; reports how many were rejected.
@@ -270,7 +270,7 @@ Test cases:
 
 ### Task 8: The editing surface — `editor/dom.js`, `editor/selection.js`, `editor/editor.js`, `state.js`
 
-**Files:** Create those; `tests/unit/normalise.test.js` (runs `normaliseBlocks` on block structures, no DOM); `tests/ui/{typing,paste,group-edits}.js`.
+**Files:** Create those; `tests/unit/normalize.test.js` (runs `normalizeBlocks` on block structures, no DOM); `tests/ui/{typing,paste,group-edits}.js`.
 
 **Produces:**
 ```js
@@ -278,7 +278,7 @@ Test cases:
 createEditor(root): {
   getState(): DocState, setState(state, {caret} = {}),
   groups: Record<string, Group>,
-  change(label, fn, {coalesceKey, meta} = {}),     // history + normalise + emit
+  change(label, fn, {coalesceKey, meta} = {}),     // history + normalize + emit
   on('change' | 'selection', handler),
   undo(), redo(), blockElements(): HTMLElement[], elementFor(vid): HTMLElement | null
 }
@@ -289,8 +289,8 @@ rangeFor(root, block, start, end): Range;  pointToCaret(root, x, y): {block, off
 wrapRange(range, attrs): HTMLElement;  unwrap(el);  textOf(blockEl): string;  splitBlockAt(root, pos): HTMLElement
 ```
 
-- [ ] Normalisation rules of spec §5.1 as a pure function over blocks, unit-tested: duplicate ids, orphaned groups, nested groups, empty spans, adjacent ghost runs merged, variant re-read from text.
-- [ ] Input handling: Return and Shift+Return split the block without copying `data-vid` or heading level to the new block; Backspace at the start of a heading demotes it; `# ` promotes; typing at a span edge lands outside; nothing is normalised during composition.
+- [ ] Normalization rules of spec §5.1 as a pure function over blocks, unit-tested: duplicate ids, orphaned groups, nested groups, empty spans, adjacent ghost runs merged, variant re-read from text.
+- [ ] Input handling: Return and Shift+Return split the block without copying `data-vid` or heading level to the new block; Backspace at the start of a heading demotes it; `# ` promotes; typing at a span edge lands outside; nothing is normalized during composition.
 - [ ] Paste and drop as plain text, split on newlines.
 - [ ] History wired: typing coalesced, ⌘Z / ⇧⌘Z / Ctrl+Z / Ctrl+Shift+Z.
 - [ ] UI scenarios assert the Review Focus cases 1 and 3 and snapshot the result.
@@ -315,7 +315,7 @@ wrapRange(range, attrs): HTMLElement;  unwrap(el);  textOf(blockEl): string;  sp
 - [ ] Hover highlight, the armed-hover guard, arrow cycling with wrap, blur-in swap, caret to the end of the swapped text.
 - [ ] Article agreement on word-scope swaps.
 - [ ] Ticks through `ToneSession` for hover; View ▸ Sound Effects respected.
-- [ ] `tests/ui/sound.js` renders each sound offline, writes WAVs through `t.writeFile`; analyse with `reference/tools`: 1900 ± 5 Hz, 1500 ± 5 Hz, tick audible 11–17 ms, boom fundamental 83–98 Hz.
+- [ ] `tests/ui/sound.js` renders each sound offline, writes WAVs through `t.writeFile`; analyze with `reference/tools`: 1900 ± 5 Hz, 1500 ± 5 Hz, tick audible 11–17 ms, boom fundamental 83–98 Hz.
 - [ ] Commit.
 
 ### Task 11: The alternatives panel — `features/panel.js`, `styles/panels.css`
@@ -323,7 +323,7 @@ wrapRange(range, attrs): HTMLElement;  unwrap(el);  textOf(blockEl): string;  sp
 **Files:** Create those; `tests/ui/panel.js`.
 
 - [ ] Slide-in panel, tabs, rows and markers, dimming of non-target paragraphs, pending-target underline, footer hint.
-- [ ] Row behaviour of spec §6.5, including live typing, Return, emptying a row, ↑/↓, click, Esc, retarget on click in the page, tab retargeting, dissolve on close.
+- [ ] Row behavior of spec §6.5, including live typing, Return, emptying a row, ↑/↓, click, Esc, retarget on click in the page, tab retargeting, dissolve on close.
 - [ ] Panel tone session.
 - [ ] Scenario reproduces the clip: target a word, add "challenge", arrow to the top, assert the tick sequence high…low, snapshot against `main.mp4@91.0s`.
 - [ ] Commit.
@@ -333,7 +333,7 @@ wrapRange(range, attrs): HTMLElement;  unwrap(el);  textOf(blockEl): string;  sp
 **Files:** Create those; `tests/ui/menu.js`.
 
 - [ ] Menu with the four items in both forms, labels and shortcuts verbatim, dimmed states, keyboard and click dismissal.
-- [ ] All shortcuts of spec §6.13, each cancelling the WebKit default (assert Ctrl+O does not insert a line).
+- [ ] All shortcuts of spec §6.13, each canceling the WebKit default (assert Ctrl+O does not insert a line).
 - [ ] Keyboard-icon card listing the shortcuts.
 - [ ] Commit.
 
@@ -360,7 +360,7 @@ wrapRange(range, attrs): HTMLElement;  unwrap(el);  textOf(blockEl): string;  sp
 **Files:** Create it; `tests/ui/ghost.js`.
 
 - [ ] Ghost and revive for a selection, a word, across paragraphs; runs split at group edges; flash on apply; menu label switches.
-- [ ] Snapshot against `main.mp4@160s`; ghost text measures 11% of text colour over the background.
+- [ ] Snapshot against `main.mp4@160s`; ghost text measures 11% of text color over the background.
 - [ ] Commit.
 
 ### Task 16: Overflow — `features/overflow.js`
@@ -394,7 +394,7 @@ wrapRange(range, attrs): HTMLElement;  unwrap(el);  textOf(blockEl): string;  sp
 
 **Files:** Modify `features/lab.js`, `styles/lab.css`; `tests/ui/lab-marks.js`.
 
-- [ ] Five mark passes and the typo pass through `parseLabResponse`; `lab`-coloured underline; reason on hover; click dismisses; card with counts and buttons from spec §9 items 4 and 5.
+- [ ] Five mark passes and the typo pass through `parseLabResponse`; `lab`-colored underline; reason on hover; click dismisses; card with counts and buttons from spec §9 items 4 and 5.
 - [ ] "The Lab guide…" card with a two-sentence explanation of each idea.
 - [ ] Commit.
 
@@ -430,9 +430,9 @@ wrapRange(range, attrs): HTMLElement;  unwrap(el);  textOf(blockEl): string;  sp
 
 **Files:** Create `scripts/make-icon.swift`; modify `scripts/build-app.sh`, `README.md`, CSS as needed.
 
-- [ ] App icon, Info.plist finalised, `build/Write_On.app` launches from Finder.
-- [ ] Run every scenario at 2×; compare each snapshot with its reference frame; fix differences in position, size and colour.
-- [ ] README: build, run, shortcuts, where the key comes from, the hands-on checklist of spec §10.5, and the list of inferred behaviour.
+- [ ] App icon, Info.plist finalized, `build/Write_On.app` launches from Finder.
+- [ ] Run every scenario at 2×; compare each snapshot with its reference frame; fix differences in position, size and color.
+- [ ] README: build, run, shortcuts, where the key comes from, the hands-on checklist of spec §10.5, and the list of inferred behavior.
 - [ ] `npm test` and all scenarios green; commit.
 
 ## Self-Review

@@ -35,7 +35,7 @@ test('a clause removed from the middle is one cut, comma included', () => {
   assert.equal(applyCuts(original, result.runs, result.caseFixes), trimmed);
 });
 
-test('a clause removed from the end keeps the full stop', () => {
+test('a clause removed from the end keeps the period', () => {
   const original = 'Tools assume you know what to say, which is almost never the case for most people.';
   const trimmed = 'Tools assume you know what to say.';
   const result = alignDeletion(original, trimmed);
@@ -43,7 +43,7 @@ test('a clause removed from the end keeps the full stop', () => {
   assert.equal(applyCuts(original, result.runs, result.caseFixes), trimmed);
 });
 
-test('words cut from the start may capitalise what now begins the sentence', () => {
+test('words cut from the start may capitalize what now begins the sentence', () => {
   const original = 'Most of the struggle in a second draft is with the first.';
   const trimmed = 'Struggle in a second draft is with the first.';
   const result = alignDeletion(original, trimmed);

@@ -231,9 +231,9 @@ test('where the numbers have slipped, a reworded sentence is taken to have slipp
 });
 
 // Found in review: taken one sentence at a time, a reworded sentence that happened to be its
-// neighbour with words deleted moved the numbers, and everything after it went to the wrong
+// neighbor with words deleted moved the numbers, and everything after it went to the wrong
 // sentence. So the numbers are only read as having slipped where that explains most of the answer.
-test('one sentence that could be its neighbour’s does not move the numbers', () => {
+test('one sentence that could be its neighbor’s does not move the numbers', () => {
   const late = [{ n: 1, text: 'It was late. It was, I think, far too late to call. Nobody answered anyway. We left.' }];
   const { items, rejected } = readTrim(
     [

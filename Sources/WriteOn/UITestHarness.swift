@@ -97,7 +97,7 @@ final class UITestHarness {
     // The scripted AI provider (`--ai mock`): what to answer next, and what was asked.
     private var aiScript: [String: Any] = [:]
     private var aiRequests: [[String: Any]] = []
-    private var aiCancelled: Set<String> = []
+    private var aiCanceled: Set<String> = []
 
     init(options: UITestOptions, controller: DocumentWindowController, app: AppDelegate, answers: ScriptedAsking) {
         self.options = options
@@ -176,9 +176,9 @@ final class UITestHarness {
             self?.snapshot(named: params["name"] as? String ?? "snapshot", reply: reply)
         }
         // test.pixels { x, y, w, h, near?, within? } -> { ground: [r, g, b], ink: [r, g, b], matching? }
-        // The colours painted in a part of the page: `ground` is what most of it shows (what
+        // The colors painted in a part of the page: `ground` is what most of it shows (what
         // lies behind the text), `ink` the brightest fiftieth of it (the text itself). Given a
-        // colour as `near`, `matching` counts the pixels no further than `within` from it.
+        // color as `near`, `matching` counts the pixels no further than `within` from it.
         bridge.on("test.pixels") { [weak self] params, reply in
             self?.pixels(params, reply: reply)
         }
@@ -272,7 +272,7 @@ final class UITestHarness {
     // MARK: Settings
 
     /// test.settings { key?, forget?, address?, format?, model?, sound?, test?, environment?, picture? } -> what the
-    /// Settings window shows afterwards. Each change is made the way a person makes it: the
+    /// Settings window shows afterward. Each change is made the way a person makes it: the
     /// control is given its value and sends its action. The window itself is never put up.
     private func registerSettings() {
         controller.bridge.on("test.settings") { [weak self] params, reply in
@@ -584,7 +584,7 @@ final class UITestHarness {
         bridge.on("test.ai", sync: { [weak self] params in
             guard let self else { return nil }
             if let script = params["set"] as? [String: Any] { self.aiScript = script }
-            return ["requests": self.aiRequests, "cancelled": Array(self.aiCancelled)] as [String: Any]
+            return ["requests": self.aiRequests, "canceled": Array(self.aiCanceled)] as [String: Any]
         })
         bridge.on("ai.start", sync: { [weak self] params in
             guard let self, let id = params["id"] as? String else { throw Bridge.Failure("ai.start needs an id") }
@@ -594,7 +594,7 @@ final class UITestHarness {
             let every = ((script["everyMs"] as? NSNumber)?.doubleValue ?? 0) / 1000
             let send: (TimeInterval, String, [String: Any]) -> Void = { [weak self] delay, event, payload in
                 DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
-                    guard let self, !self.aiCancelled.contains(id) else { return }
+                    guard let self, !self.aiCanceled.contains(id) else { return }
                     self.controller.bridge.emit(event, payload)
                 }
             }
@@ -610,7 +610,7 @@ final class UITestHarness {
             return nil
         })
         bridge.on("ai.cancel", sync: { [weak self] params in
-            if let id = params["id"] as? String { self?.aiCancelled.insert(id) }
+            if let id = params["id"] as? String { self?.aiCanceled.insert(id) }
             return nil
         })
     }
@@ -649,7 +649,7 @@ final class UITestHarness {
             guard let image = image?.cgImage(forProposedRect: nil, context: nil, hints: nil), image.width > 0, image.height > 0 else {
                 return reply(.failure(Bridge.Failure("cannot read pixels: \(error?.localizedDescription ?? "no image")")))
             }
-            // Drawn into the image's own colour space, so the values are those a snapshot file holds.
+            // Drawn into the image's own color space, so the values are those a snapshot file holds.
             let width = image.width, height = image.height
             var bytes = [UInt8](repeating: 0, count: width * height * 4)
             let space = image.colorSpace ?? CGColorSpaceCreateDeviceRGB()

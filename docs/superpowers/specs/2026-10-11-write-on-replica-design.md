@@ -7,8 +7,8 @@
 ## 1. Goal
 
 Build a macOS app that reproduces Write_On, the writing tool Jason Fried demonstrated, as
-closely as the published material allows: same layout, colours, type, motion, sounds, file
-format and behaviour.
+closely as the published material allows: same layout, colors, type, motion, sounds, file
+format and behavior.
 
 **Success looks like this.** Put the app next to the videos and run the same steps. The
 screen looks the same, the ticks and booms sound the same, the same things happen. A file
@@ -31,18 +31,18 @@ against LunaRoute with `glm-5.3-flash`.
 - Rich Markdown rendering. Only headings are styled; everything else is literal text.
 - Really posting to LinkedIn. The button exists to be impossible to click.
 - Posting to X through the X API. The app opens X's compose window instead (§6.11).
-- Notarisation. The app is ad-hoc signed by the Mac that builds it. A built copy is
+- Notarization. The app is ad-hoc signed by the Mac that builds it. A built copy is
   attached to each release, and macOS has to be told to open it.
 
 ## 2. Evidence and how far "exact" can go
 
 The original is not released, so the videos and the author's replies are the whole
-specification. Each behaviour below is one of three kinds:
+specification. Each behavior below is one of three kinds:
 
 - **Observed** — seen in a video frame or measured from the audio track.
 - **Stated** — said by the author in the thread.
 - **Inferred** — not shown anywhere; designed here to fit what is shown. Every inferred
-  behaviour is listed in §9 so it can be challenged in one place.
+  behavior is listed in §9 so it can be challenged in one place.
 
 Material used:
 
@@ -76,7 +76,7 @@ It opens as a bare editor. Clicking the word count turns the rest on.
 
 ## 4. Visual system
 
-### 4.1 Colour
+### 4.1 Color
 
 | Token | Value | Used for |
 | --- | --- | --- |
@@ -129,7 +129,7 @@ Opacity states: ghost text 11%; paragraphs other than the panel's target 35%.
 
 ### 4.3 Page layout
 
-- Text column: 780 px wide (65 characters), centred. It does not move when panels open.
+- Text column: 780 px wide (65 characters), centered. It does not move when panels open.
 - Top padding 18vh (175.7 px at 976) plus the 0.85 px that puts the first text baseline
   at 237.5 px, as measured; bottom padding 45vh.
 - The text is masked near the top and bottom edges of the page so lines dissolve rather
@@ -138,31 +138,31 @@ Opacity states: ghost text 11%; paragraphs other than the panel's target 35%.
 - The caret is never left in that fade. When the page scrolls to follow it (arrowing,
   typing past the bottom), it stops with the caret's line clear of the faded bands: at
   least 132 px from the top of the window and 168 px from the bottom.
-- The top row of chrome is centred 32 px from the top; the bottom row 32 px from the bottom.
+- The top row of chrome is centered 32 px from the top; the bottom row 32 px from the bottom.
 
 | Element | Position (1548×976) | Notes |
 | --- | --- | --- |
 | Word count | left 24 px, top row | "535 words 3115 chars"; with a selection "34 words 182 chars selected", and one of either is singular: "1 word 1 char selected". Words are whitespace-separated; chars include spaces (both readouts in the clips check out against the selected text). Lights up under the pointer. |
-| Alternates toggle | centre (753, 32) | Three 7 px dots (ring, disc, ring) over a 24.4 px bar; accent when on |
-| Source icon | centre (795, 32) | "M↓" in a 24.45 × 16.95 rounded rectangle |
-| Keyboard icon | centre (1513, 32) | Same rectangle; rows of four and five dots over a bar |
-| Save, Open, X, LinkedIn | centres at x = 31, 65.5, 101, 136, y = 944 | 16.9 px of ink each, 1.7 px strokes; X is the solid logo |
+| Alternates toggle | center (753, 32) | Three 7 px dots (ring, disc, ring) over a 24.4 px bar; accent when on |
+| Source icon | center (795, 32) | "M↓" in a 24.45 × 16.95 rounded rectangle |
+| Keyboard icon | center (1513, 32) | Same rectangle; rows of four and five dots over a bar |
+| Save, Open, X, LinkedIn | centers at x = 31, 65.5, 101, 136, y = 944 | 16.9 px of ink each, 1.7 px strokes; X is the solid logo |
 | LAB | 45.4 × 26 at (751.4, 937) | 1 px dashed outline, radius 5, dashes of 3 with gaps of 2; letter-spaced caps |
-| Overflow toggle | centre (1513, 944) | "XYZ" in the same rounded rectangle; accent when open |
+| Overflow toggle | center (1513, 944) | "XYZ" in the same rounded rectangle; accent when open |
 
 Icon geometry was measured from the frames to about a twentieth of a pixel and is drawn as
 inline SVG. WebKit paints an inline SVG from a whole pixel, so each control is laid out on
 whole pixels and any half pixel in a drawing's position is written into the drawing.
 
 An icon brightens under the pointer, and one that has a shortcut shows it in a small label
-centred 25.5 px above the icon's middle, kept 22 px inside the window's edge. Labels seen
+centered 25.5 px above the icon's middle, kept 22 px inside the window's edge. Labels seen
 in the clips: "Ctrl+S", "Ctrl+O", "Ctrl+Shift+P", "Ctrl+Shift+D". The label stays for as
 long as the pointer rests on the control, through a press on it.
 
 ### 4.4 Window
 
 A standard macOS window, default content size 1548×976, with the title bar blended into the
-page colour and the title text hidden. The traffic lights remain. Page content starts below
+page color and the title text hidden. The traffic lights remain. Page content starts below
 the title bar, so every control is clickable and the layout inside the page matches the
 video. In full screen the title bar disappears and the match is exact.
 
@@ -205,7 +205,7 @@ Rules that keep the model sound:
   but a run that would cross a group's edge is split at the edge, so ghosting dims exactly
   what was selected. Because variants are plain strings, ghost marking inside a group
   belongs to the variant that was showing; switching variants drops it.
-- After every edit the document is normalised: duplicate ids produced by splitting a
+- After every edit the document is normalized: duplicate ids produced by splitting a
   paragraph are resolved (the first keeps the group), orphaned groups are dropped, the
   active variant is re-read from the text.
 
@@ -251,7 +251,7 @@ paragraph (how it is drawn, its word count) is worked out once, however long the
   icon and mark is at full strength in the frame after the click.
 - Using any feature shortcut leaves Read mode.
 - The **alternates toggle** hides or shows only the underlines, dots and margin bars, "so
-  you can look at the document without any of that formatting". Behaviour is unchanged.
+  you can look at the document without any of that formatting". Behavior is unchanged.
 - The last-used mode is remembered between launches. First launch is Read mode.
 
 ### 6.2 How alternatives are drawn
@@ -261,10 +261,10 @@ Each scope has its own mark, so the three can sit near each other without confus
 | | Word | Sentence | Paragraph |
 | --- | --- | --- | --- |
 | Mark | Underline | Underline | Vertical bar in the left margin |
-| Colour | `word-line` | `sentence-line` | `paragraph-bar` |
+| Color | `word-line` | `sentence-line` | `paragraph-bar` |
 | Thickness | 1.3 px | 1.2 px | 2 px |
 | Position | 3.8 px below the baseline | 9.8 px below the baseline | 19.1 px left of the text, from 16.75 px above the first baseline to 2.4 px below the last |
-| Dots | Under the line, centred on the word, 7.9 px below the baseline | Inline at the right end, 0.75 px above the line; the line stops 3 px short of them | Stacked top to bottom around the bar's middle, 5.65 px to its left |
+| Dots | Under the line, centered on the word, 7.9 px below the baseline | Inline at the right end, 0.75 px above the line; the line stops 3 px short of them | Stacked top to bottom around the bar's middle, 5.65 px to its left |
 | Active dot | Filled `accent` | Filled `sentence-dot` | Filled `paragraph-dot` |
 
 - One dot per variant, in variant order. 3 px diameter, 5 px pitch. The active one is
@@ -273,16 +273,16 @@ Each scope has its own mark, so the three can sit near each other without confus
 - Each dot is seated on the display's own pixels, its edges on pixel edges. The positions
   below are where the clips have them; a dot is drawn at the nearest such seat, at most
   half a display pixel away. (Drawn between pixels a 3 px dot is smeared into its
-  neighbours; on a 1x display the rings could not be seen at all.)
+  neighbors; on a 1x display the rings could not be seen at all.)
 - Each dot sits at the start of a 5 px cell (3 px of dot, 2 px of air). A word's row of
-  cells is centred under the word, so the dots themselves sit 1 px left of centre; a
+  cells is centered under the word, so the dots themselves sit 1 px left of center; a
   sentence's row ends at the end of its text, so the last dot ends 2 px before it.
 - The lines are drawn like an editor's pen: a slow wobble of about ±0.3 px over roughly
   100 px, a slight tilt, and a stroke that fades in as the pen touches down and out as it
   lifts. The wobble is seeded from the group id, so a given line always looks the same.
 - The marks are drawn above the text, so a selection does not cover them.
 - An underline that wraps continues on each line. Sentence dots sit at the very end;
-  word dots centre under the last line of the wrapped phrase.
+  word dots center under the last line of the wrapped phrase.
 
 ### 6.3 Cycling in place
 
@@ -306,7 +306,7 @@ Each scope has its own mark, so the three can sit near each other without confus
   explosion (§6.12), and shows the next one. Undo brings it back with a small reverse
   burst and a thump. A group cannot be reduced below one variant this way.
 - **Article agreement.** For word scope, an "a" or "an" directly before the group follows
-  the new variant: "like a thumbtack" becomes "like an eraser". Capitalisation of the
+  the new variant: "like a thumbtack" becomes "like an eraser". Capitalization of the
   article is preserved. A short exception list covers silent h and "you"-sounds.
 - **Whose the keys are.** The arrows belong to the group under the pointer for as long as
   the pointer is what the writer last used: it has moved, pressed, or turned its wheel
@@ -432,7 +432,7 @@ icons stay in view over it. Going into Read mode closes it.
 - The same 280 px panel (279 px and a hairline) down the right of the window, toggled by
   the "XYZ" button or Ctrl+Shift+D, sliding as the alternatives panel does. Header
   "Overflow" where the other panel has its tabs. A plain editable text area, 15 px, 26
-  characters wide, starting 22 px inside the hairline; its caret is the accent colour.
+  characters wide, starting 22 px inside the hairline; its caret is the accent color.
   Footer hint "ctrl+↵ or drag into the page to use". The page neither moves nor dims, and
   the keyboard icon and the "XYZ" button stay in reach over the panel.
 - The clip sets the lines of that text 23 and 22 px apart by turns (22.5 px, each line
@@ -476,7 +476,7 @@ caret there and is about the word under it; inside an existing group, about that
 ### 6.10 The Lab
 
 The dashed "LAB" button opens a popover that stands on the button's bottom edge and
-covers it: 620 × 327 px, centred. It opens outwards from the button, a reveal that takes
+covers it: 620 × 327 px, centered. It opens outwards from the button, a reveal that takes
 about 270 ms and slows as it goes; its shadow arrives when the reveal is over. It closes
 the same way in reverse, faster and fading.
 
@@ -496,12 +496,12 @@ Mark hedges and filler
 
 The first line is lit when the popover opens; the line under the pointer is lit, and
 stays lit while the pointer is on the trims below. "Original" is outlined in the accent
-colour while nothing is proposed; otherwise the level that is.
+color while nothing is proposed; otherwise the level that is.
 
 **Trims** (observed in full, except "Make the cuts" and "Walk through", which are only
 pointed at):
 
-1. Choosing a trim closes the popover and at once shows a card at the bottom centre,
+1. Choosing a trim closes the popover and at once shows a card at the bottom center,
    500 × 88 px, 55 px above the bottom of the window: "**Slight trim** Reading…", then
    "Faded words would go. Click one to keep it.", with buttons "Make the cuts" and "Done".
 2. While it reads, a crimson line the width of the text column sweeps down each block of
@@ -540,7 +540,7 @@ removes all of it removes the group. Any change to the document while a pass is 
 (an edit, an undo, a redo) puts the pass away, since it was about the text as it was.
 
 After "Make the cuts" the app does only mechanical tidying: collapse doubled spaces,
-remove a space left before punctuation, and capitalise a sentence whose first words were
+remove a space left before punctuation, and capitalize a sentence whose first words were
 cut. A paragraph left with nothing goes, and a blank line with it, so that the paragraphs
 around it stay one blank line apart. The tidying is done in the paragraph as it stands
 on the page, ghosted words and all: they are left a space from what remains either side
@@ -618,7 +618,7 @@ fixed JSON shape. What the app accepts is narrow by construction:
   checked against the words: where fewer than half of what comes back are their own
   sentences with words deleted, and reading every number as so many too high or too low
   (up to six) explains at least two of them and more than twice as many, they are read
-  that way. One sentence that could pass for its neighbour moves nothing. An answer
+  that way. One sentence that could pass for its neighbor moves nothing. An answer
   that speaks of fewer than half the sentences is asked for once more; a second such is
   used as it is.
 - **Marks:** the AI returns verbatim passages with a short reason. Any passage that does
@@ -671,7 +671,7 @@ Overflow text, as plain paragraphs.
   hold and cut at a word to 80 characters, or "Untitled". The window goes by the same
   name until the document has a file, and then by the file's.
 - The Save icon is accent while the document differs from its file, and follows it both
-  ways: in the main clip it is grey whenever the heading shows the version that was
+  ways: in the main clip it is gray whenever the heading shows the version that was
   saved. It changes 0.42 s after the change that decides it, over 0.13 s. The shell is
   told of a change at once, so a window closed in that moment still asks. A change taken
   back (undone, or typed out again as it was) dims it.
@@ -745,9 +745,9 @@ clipboard instead and the compose window opens empty, with a note by the X icon 
 so: "Too long to fill in: it is on the clipboard, ready to paste." The same happens when
 the link itself would run past 8,000 characters, which text outside the Latin alphabet
 does much sooner: X's servers refuse a request much past 14,000 bytes (measured), and the
-browser's own headers count towards that.
+browser's own headers count toward that.
 
-The note is the control's label put to another use (§4.3): in the colour of a lit
+The note is the control's label put to another use (§4.3): in the color of a lit
 control, shown in Read mode too, for four seconds counted from when the window is next in
 front, since the browser has just covered it. A press anywhere puts it away. If the
 browser cannot be opened, the note says that instead. With no text on the page the
@@ -764,7 +764,7 @@ does not move in Read mode. These numbers are measured from the clip.
 
 ### 6.12 Sound and explosions
 
-All sound is synthesised; there are no audio files.
+All sound is synthesized; there are no audio files.
 
 | Sound | Recipe |
 | --- | --- |
@@ -778,15 +778,15 @@ Explosion, drawn on a canvas over the page:
 - 0 ms: white-yellow flash with a red-orange glow, ~45 px radius, and short white streaks.
 - 50 ms: several fireballs (yellow-white core to orange), white spark lines, white debris.
 - 100–300 ms: sparks reach ~145 px; debris falls under gravity; fire breaks into embers.
-- 400 ms on: grey-brown smoke, gone by about 1.3 s.
+- 400 ms on: gray-brown smoke, gone by about 1.3 s.
 
 For a deleted alternative the burst is stretched along the word, and the word itself
 flies apart: at the first instant it stands there broken into 2 px pieces, which then
 scatter, cooling from cream through yellow to orange. The next variant rises under the
 fire over about 420 ms. A paragraph burns along every one of its lines. For the LinkedIn
-icon the burst is centred on the icon.
+icon the burst is centered on the icon.
 
-Undo of such a delete runs the first 330 ms of the same burst backwards in 280 ms (what
+Undo of such a delete runs the first 330 ms of the same burst backward in 280 ms (what
 an explosion leaves closes in to fire, then to the word in pieces) and the word then
 blurs in; the thump's thud lands as the burst closes. Redo blows it up again.
 
@@ -845,7 +845,7 @@ Write_On.app
 └── Page (plain ES modules, no build step, no dependencies)
     ├── doc/      model, file format, text utilities, history      ← pure, unit-tested
     ├── ai/       prompt builders and response parsers             ← pure, unit-tested
-    ├── editor/   editing surface, selection, normalisation, decorations
+    ├── editor/   editing surface, selection, normalization, decorations
     ├── features/ alternatives, panel, ghost, overflow, menu, lab, source view, sharing
     └── fx/       sound, explosions
 ```
@@ -920,7 +920,7 @@ live gateway on 2026-10-11:
   cut nothing. Other shapes of answer were tried that day against the service: passages
   quoted with a level each, or tagged in the text (fast, but about one deletion in six
   left a sentence broken, "The format was."); the paragraph cut up into parts (the
-  full stops went with the cuts); one request for each paragraph (no faster in all,
+  periods went with the cuts); one request for each paragraph (no faster in all,
   and the service refuses many at once). What held up was the model writing each
   sentence as it would read, so that it sees its own result, and the app doing the
   arithmetic. Live that way, through the app, on 13 October: the welcome piece read in
@@ -1027,7 +1027,7 @@ other than the usual one work in practice.
   reason, more room being asked for than the model can give, is passed on as it came:
   another name would not cure it.) Once asking in a service's way has worked, the app
   asks that way first, for that address and model, until it is quit. If that way is
-  then refused, what was learnt is forgotten and the request is asked once more as the
+  then refused, what was learned is forgotten and the request is asked once more as the
   app words it: the same name may have come to mean another model. The last refusal is
   the one shown. OpenAI's way, the JSON schema a Lab pass carries has no such
   fallback, because without it the answers could not be read (above). Anthropic's way
@@ -1077,7 +1077,7 @@ sound toggle reaches every open window at once.
 
 ## 8. Errors
 
-| Situation | Behaviour |
+| Situation | Behavior |
 | --- | --- |
 | No API key, and the service is the usual one | AI commands show one line in place: "No API key — add one in Settings (⌘,)". Nothing is sent and nothing else is blocked. (Another service is asked without a key, §7.1.) |
 | Network or gateway error, timeout (60 s of silence) | The pending animation stops, a one-line reason shows for a few seconds, the document is untouched. The lines: "The key was not accepted (401). Check it in Settings (⌘,)."; "This service wants a key (401). Add one in Settings (⌘,)." when none was sent; "Only an address on this Mac or its own network may be plain http. Use https."; "The address in Settings (⌘,) sends requests on elsewhere (307), and they are not followed."; "Too many requests, or out of quota (429). Try again in a moment."; "The AI service had a problem (503). Try again in a moment."; "The request was refused (400): …" with the service's own first line; "Could not reach the AI service. Check the network, and the address in Settings (⌘,)."; "The connection was lost before the answer was complete."; "The AI took too long to answer."; "The AI ran out of room before it finished its answer. Try again." A key the service quotes back is taken out before the line is shown. |
@@ -1086,7 +1086,7 @@ sound toggle reaches every open window at once.
 | File has a damaged metadata comment | Opens as plain Markdown; a one-line note says the alternatives could not be read. The file is not modified until the user saves. |
 | Crash or forced quit | On next launch the snapshot is offered as an unsaved document. |
 
-## 9. Inferred behaviour
+## 9. Inferred behavior
 
 None of this is shown in the clips. Each item is a decision made here; say if any should
 go another way.
@@ -1096,13 +1096,13 @@ go another way.
 | 1 | Keyboard icon | Opens a card listing the shortcuts in §6.13. |
 | 2 | "The Lab guide…" | Opens a card, in the look of the shortcut card, headed "The Lab": each of the six ideas and the trims with two sentences on what it does, and a closing line that the AI never rewrites. |
 | 3 | "Walk through" | Steps through the proposal one passage at a time with Cut / Keep / Stop, showing "3 of 9" where the numbers were. The passage in question is underlined in the Lab's crimson and scrolled into view. Cut and Keep only decide; nothing is cut until "Make the cuts". After the last passage, or on Stop or Esc, the summary is back. |
-| 4 | "Mark…" passes | Marked passages get a `lab`-coloured underline; hovering shows a short reason; clicking a mark dismisses it, and dismissing the last puts the card away; "Done" clears them. The card names the pass and counts ("Mark hedges and filler 2 marked") over the line "Hover a mark to see why. Click one to dismiss it." A quote the model made up, or changed, is dropped; if nothing is left the card says "The AI marked nothing." Never saved. |
+| 4 | "Mark…" passes | Marked passages get a `lab`-colored underline; hovering shows a short reason; clicking a mark dismisses it, and dismissing the last puts the card away; "Done" clears them. The card names the pass and counts ("Mark hedges and filler 2 marked") over the line "Hover a mark to see why. Click one to dismiss it." A quote the model made up, or changed, is dropped; if nothing is left the card says "The AI marked nothing." Never saved. |
 | 5 | "Fix punctuation and typos" | Proposed fixes are marked the same way, with the correction shown on hover. The card counts them ("4 found") over "Hover a mark to see the fix. Click one to keep the original." Card buttons: "Fix all", "Walk through", "Done". Clicking a mark keeps the original and drops the fix. "Fix all" makes every fix still marked, as one step to undo. "Walk through" shows each fix on the card in turn with Fix / Keep / Stop; as for a trim they only decide, and "Fix all" then makes what was not kept. A fix inside an alternative group changes what the group is showing. A clean page gets "The AI found no slips." |
 | 6 | Stash with no selection | Moves the whole paragraph at the caret. |
 | 7 | Where stashed text lands | Appended to the end of Overflow. |
 | 8 | Ctrl+Return in Overflow | Moves text into the page (rather than copying it). |
 | 9 | Post to X | Opens X's compose window with the text; does not use the X API. Ghosted text is left out. |
-| 10 | Save icon colour | Accent means unsaved changes. Saving is always explicit. (The file-format clip hints the original may autosave once a file exists.) |
+| 10 | Save icon color | Accent means unsaved changes. Saving is always explicit. (The file-format clip hints the original may autosave once a file exists.) |
 | 11 | Scope of a selection | The rules in §6.5. |
 | 12 | Suggestions per AI request | Five for words (observed), three for sentences and paragraphs. |
 | 13 | Groups do not nest | §5.1. |
@@ -1119,7 +1119,7 @@ go another way.
 | 24 | Arrow keys while hovering | → and ↓ go forward, ← and ↑ go back. The clips show both directions and wrap-around, not which key is which. |
 | 25 | Panel details | Clicking a tab retargets at that scope; ↑ / ↓ do not wrap; a group cannot be deleted down to nothing. |
 | 26 | Lab popover while a proposal is pending | The pending level is highlighted; choosing "Original" dismisses it, like "Done". |
-| 27 | Source view details | "As saved" reflects the document as it would be saved now. "Copy" copies the tab that is showing and reads "Copied" for a second and a half. Esc, Ctrl+U again, the M↓ icon or a click off the card closes it, and so does going into Read mode. While it is open the keys scroll it and none reach the page; afterwards the caret is where it was. What shows the first time the view opens on a document is item 53's. |
+| 27 | Source view details | "As saved" reflects the document as it would be saved now. "Copy" copies the tab that is showing and reads "Copied" for a second and a half. Esc, Ctrl+U again, the M↓ icon or a click off the card closes it, and so does going into Read mode. While it is open the keys scroll it and none reach the page; afterward the caret is where it was. What shows the first time the view opens on a document is item 53's. |
 | 28 | Read mode details | Feature shortcuts leave Read mode; the mode is remembered between launches. |
 | 29 | Ghost with no selection | Applies to the word at the caret, like the alternatives commands. |
 | 30 | Mac shell additions | Blended title bar, menu bar with ⌘ equivalents, Save As, Open Recent, unsaved-changes prompt, crash snapshots, file name suggested from the first heading, a sound toggle. None of these are in the clips. |
@@ -1127,19 +1127,19 @@ go another way.
 | 32 | Plain documents | A document with no groups and no ghost runs is saved without the metadata comment. The clips only show a file that has groups. |
 | 33 | Line pitch | 36 px instead of the measured 36.4 px; see §4.2. |
 | 34 | Other tooltips | The source icon shows "Ctrl+U". An icon in the top row has no room above it, so its label goes below. The alternates toggle, keyboard icon, LAB and LinkedIn show none. |
-| 35 | Alternates toggle when off | Drawn in the inactive icon colour. The clips only show it on. |
+| 35 | Alternates toggle when off | Drawn in the inactive icon color. The clips only show it on. |
 | 36 | A target with no alternatives | While the panel looks at a word that has none, the word is a group of one. Making and unmaking that group is not an undo step, and it is never left behind: closing the panel, moving it on, undo, redo or opening a file turns a group of one back into plain text. |
 | 37 | Rows | The empty row is always the last. Emptying a row in the middle removes its variant and puts the caret in the empty row at the end. A row typed into the same words as another row does not become a second copy; the row it repeats shows instead. The only variant of a group cannot be emptied away. |
 | 38 | Typing an alternative and undo | The letters of an alternative typed in one go are one undo step. Undo and redo in the panel are the document's. That an empty row opened with Return is a step like the first, and that a flip which loses ghosted words is one, are decisions made here. |
 | 40 | Context menu states | Items that cannot apply are dimmed and do nothing: the two alternatives items for a selection across paragraphs or where there is no word (they then read just "Alternatives" and "AI alternatives"), Ghost with nothing to ghost, Stash on a blank line. Arrow keys and Return work in the menu; Esc, a click elsewhere, scrolling or any other key puts it away. Near the window's edge it opens on the other side of the pointer. |
-| 41 | Shortcut card | The keyboard icon opens a centred card listing the shortcuts of §6.13 and the keys that work under the pointer; Esc, a click outside or the icon again closes it. It has the look of the source view's card, the one card the clips show: the same edge, corners and shadow, and the page behind is not dimmed. |
+| 41 | Shortcut card | The keyboard icon opens a centered card listing the shortcuts of §6.13 and the keys that work under the pointer; Esc, a click outside or the icon again closes it. It has the look of the source view's card, the one card the clips show: the same edge, corners and shadow, and the page behind is not dimmed. |
 | 42 | Which shortcuts leave Read mode | The feature shortcuts (alternatives, AI alternatives, ghost, stash, Overflow, source view) and any context-menu item. Save, Open, Post to X, undo and redo do not. |
 | 43 | Undo keys | ⌘Z and Ctrl+Z (with Shift to redo) undo the document wherever the focus is, except in a plain text field, which keeps its own history. |
 | 44 | While the AI is asked | The row of `??` cannot be typed in while it dances. Closing the panel or moving it to another target calls the request off, and nothing arrives. Suggestions show as they come but become variants together, when the answer is complete; a request that fails part-way leaves none of them. After a failure the row keeps its `??`, still, with the caret in it: deleting a mark and typing it again asks again. The reason replaces the footer hint for four seconds. |
 | 45 | Ghost at the edges | A run of ghosted text is what runs on unbroken within one paragraph; where the edge of a group splits it, it is still one. A caret on a ghosted word revives even at the very edge of the run, and a caret inside ghosted spaces or punctuation revives too. A selection with no words in it, a blank line and a caret among plain spaces give the command nothing to do, and the menu item is dimmed. A word beside ghosted text is ghosted in its own right. |
 | 46 | Stash and use, in detail | Stashed text is trimmed, and marks do not travel: a group or ghosted words go as the words that were showing. Where a stash empties a paragraph, the paragraph goes and a blank line with it, so the page stays one blank line between paragraphs. Taking whole lines out of Overflow closes it up the same way. Used text goes in as a paste would, the caret goes to the page and stands after it, and the page scrolls to show it; where the page has had no caret yet it is added at the end as a paragraph of its own. A blank line, or a selection with no words, gives either command nothing to do. |
 | 47 | Trims, in detail | A click on a faded passage keeps it and a second click lets it go again. Choosing another level, or "Original", puts a pending proposal away first. If the request fails the card keeps the trim's name, gives the reason in one line and offers only "Done"; the same if the answer holds nothing that is the text with words deleted ("The AI found nothing it could cut without rewording."), or nothing at all ("The AI found nothing to cut."). A sentence that came back reworded is left as it is while the others are proposed. An answer that could not be read is not kept: the next trim asks again. Going into Read mode puts the popover and any pass away. Arrow keys are not needed in the popover; Esc and a click elsewhere close it. |
-| 48 | Post to X, in detail | The clip only hovers the X icon, so everything past "opens X's compose window" is a choice: the address (`x.com/intent/post`), the text sent (the page as it reads: no heading mark, nothing ghosted, nothing from Overflow, nothing of the other versions), the two limits and the clipboard fallback, the wording and behaviour of the note, and doing nothing for an empty page. |
+| 48 | Post to X, in detail | The clip only hovers the X icon, so everything past "opens X's compose window" is a choice: the address (`x.com/intent/post`), the text sent (the page as it reads: no heading mark, nothing ghosted, nothing from Overflow, nothing of the other versions), the two limits and the clipboard fallback, the wording and behavior of the note, and doing nothing for an empty page. |
 | 49 | Documents and windows | Where a file opens (the window that has it, else one nobody has written in, else its own); a new window being blank and the welcome piece shown once; unsaved work coming back after a crash as an unsaved document rather than being offered in a dialog; one question at a time; Undo and Redo in the menu being the document's; which commands the menus hold and what they are called. |
 | 50 | A shortcut with the caret on no word | With the caret on no word, or no caret in the text, Alternatives and AI alternatives act on what the pointer is resting on: the group, or the word. The clip only shows the case with the caret in a word, which wins over the pointer. |
 | 51 | Where the caret is | A window opens with the caret at the start of the piece; a press on the bare page beside or below the text lands in the text; and the page never scrolls the caret into its faded edges (§4.3, §5.2). None of it is shown in the clips. |
@@ -1152,7 +1152,7 @@ go another way.
 
 1. **Unit tests** (Node's built-in runner) on the pure modules: file format round-trips,
    including the structure in the author's clip; opening files edited elsewhere;
-   normalisation; scope detection; sentence and word boundaries; article agreement; the
+   normalization; scope detection; sentence and word boundaries; article agreement; the
    tone rule replayed against the tick sequences recorded from the clips; history;
    prompt building and response parsing, including hostile responses.
 2. **Scripted UI runs in the real web view.** A harness built into the app, which does
@@ -1172,7 +1172,7 @@ go another way.
    page scrolls beneath it, as it does for a person. Scenarios follow the clips:
    read mode, each scope's marks, hover-cycling, the panel, `??`, ghost, overflow, the
    context menu, the Lab popover, a trim, the source view. Snapshots are compared with
-   the corresponding frames for position, size and colour. The reference frames stay out
+   the corresponding frames for position, size and color. The reference frames stay out
    of the repository. A run uses the half of the app that suits the Mac; with
    `WRITEON_ARCH=x86_64` it uses the Intel half, which on an Apple silicon Mac runs
    under Rosetta. The first scenario checks that the app has both halves and that a
@@ -1207,12 +1207,12 @@ go another way.
 
 | Risk | Mitigation |
 | --- | --- |
-| `contenteditable` edge cases: splitting and merging paragraphs through groups, input methods, drag and drop | One normalisation pass after every input; group invariants unit-tested; scripted editing scenarios. |
+| `contenteditable` edge cases: splitting and merging paragraphs through groups, input methods, drag and drop | One normalization pass after every input; group invariants unit-tested; scripted editing scenarios. |
 | WebKit maps some Control keys to Emacs-style editing (Ctrl+O inserts a line) | The page handles its shortcuts on key-down and cancels the default; covered by a scripted run. |
 | The display it was built on is 1× while the clips are 2× | Geometry is compared in CSS px; glyphs look lighter at 1×. For a pixel-level comparison the page is snapshotted at 2× zoom. |
 | `glm-5.3-flash` at low reasoning may choose poor cuts or miss the target length | Raise reasoning for Lab passes only; the card always reports the real numbers. |
 | A service other than LunaRoute may not take the requests as they are worded, or may not hold an answer to a schema | The two parts known to be refused are asked for again in the service's way (§7.1); the rest is on the hands-on checklist until someone has tried a second service for real. |
-| macOS refuses a copy downloaded from a release, because it is signed ad hoc and not notarised | The README and each release's notes say how to open it. Only a Developer ID certificate and notarisation would take the refusal away. Nobody has yet opened a downloaded copy on another Mac: it is on the hands-on checklist. |
+| macOS refuses a copy downloaded from a release, because it is signed ad hoc and not notarized | The README and each release's notes say how to open it. Only a Developer ID certificate and notarization would take the refusal away. Nobody has yet opened a downloaded copy on another Mac: it is on the hands-on checklist. |
 | The Intel half has never run on an Intel Mac | Every scenario is run on it under Rosetta, which is not the same thing; an Intel Mac is on the hands-on checklist. |
 | The handwriting face may not be Caveat | Compare glyphs early; substitute and record. |
 | The original may differ wherever §9 guesses | All guesses are in one table and cheap to change. |

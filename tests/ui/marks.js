@@ -24,7 +24,7 @@ function lastBaselineOf(el) {
   probe.remove();
   return y;
 }
-// Decorations, in window coordinates. Lines are measured along their centre.
+// Decorations, in window coordinates. Lines are measured along their center.
 const origin = () => decor.getBoundingClientRect();
 const lineBox = (path) => {
   const b = path.getBBox();
@@ -62,8 +62,8 @@ t.equal(decor.querySelectorAll('g[data-vid]').length, Object.keys(editor.groups)
   t.equal(dots.length, 3, 'one dot per variant');
   t.equal([...g.querySelectorAll('circle.dot')].map((d) => d.classList.contains('active')), [true, false, false], 'the showing variant is the filled dot');
   t.near(dots[0].y, base + 7.9, 0.2 + SNAP, 'word dots sit 7.9px under the baseline');
-  // Each dot is a 3px disc in a 5px cell; the cells are centred under the word.
-  t.near(dots[0].x, rect.left + rect.width / 2 - 7.5 + 1.5, 0.2 + SNAP, 'word dots are centred under the word');
+  // Each dot is a 3px disc in a 5px cell; the cells are centered under the word.
+  t.near(dots[0].x, rect.left + rect.width / 2 - 7.5 + 1.5, 0.2 + SNAP, 'word dots are centered under the word');
   t.near(dots[1].x - dots[0].x, 5, 0.01, 'dot pitch');
   t.near(dots[2].x - dots[1].x, 5, 0.01, 'dot pitch');
   t.near(dots[0].r * 2, 3, 0.1, 'filled dot diameter');
@@ -115,7 +115,7 @@ t.equal(decor.querySelectorAll('g[data-vid]').length, Object.keys(editor.groups)
 
 // --- dots on the display's own pixels -----------------------------------------------------------
 // A dot is three pixels across on an ordinary display. Drawn between pixels it is smeared
-// into its neighbours and all but disappears, so each one is seated on whole pixels: its
+// into its neighbors and all but disappears, so each one is seated on whole pixels: its
 // edges on pixel edges, and a ring's line at least one pixel thick.
 {
   const onGrid = (value) => Math.abs(value * dpr - Math.round(value * dpr)) < 0.02;
@@ -130,13 +130,13 @@ t.equal(decor.querySelectorAll('g[data-vid]').length, Object.keys(editor.groups)
       if (circle.classList.contains('active')) continue;
       t.assert(parseFloat(getComputedStyle(circle).strokeWidth) * dpr >= 0.99, `${vid} ring ${index} is drawn with a line at least a pixel thick`);
     }
-    // What is painted: a ring shows its own colour, at full strength, on at least four pixels.
+    // What is painted: a ring shows its own color, at full strength, on at least four pixels.
     const hollow = circles.find((circle) => !circle.classList.contains('active'));
     const dot = dotAt(hollow);
     const box = hollow.getBoundingClientRect();
     if (box.top < 110 || box.bottom > innerHeight - 110) continue; // the page fades its edges
     const seen = await t.pixels(dot.x - dot.r, dot.y - dot.r, dot.r * 2, dot.r * 2, { near: ring, within: 36 });
-    t.assert(seen.matching >= 4, `${vid}: a ring can be seen, ${seen.matching} of its ${seen.width * seen.height} pixels in its colour`);
+    t.assert(seen.matching >= 4, `${vid}: a ring can be seen, ${seen.matching} of its ${seen.width * seen.height} pixels in its color`);
   }
 }
 

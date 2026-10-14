@@ -53,7 +53,7 @@ export function alternativesRequest({ scope, paragraph, start, end, existing = [
       '- Each must drop into its place with no other change to the sentence: same part of speech, same tense and number.',
       '- Keep the meaning the sentence needs, and the register of the writing around it. Prefer plain, natural words to showy ones.',
       '- Make them clearly different from one another. A short phrase is fine where a single word will not do.',
-      '- Use lower case unless the marked part is capitalised.',
+      '- Use lower case unless the marked part is capitalized.',
       alreadyHave(existing),
     ].join('\n');
   } else if (scope === 'sentence') {
@@ -183,7 +183,7 @@ export function labRequest(kind, paragraphs) {
             '- Deletion only. A shortened sentence is the original with words deleted: every word it keeps is exactly as written and in the same order. Do not add, change or move a word. You may change the capital letter of the word that now starts it, and nothing else.',
             '- A shortened sentence must be grammatical and read naturally, by itself and in its place.',
             '- Be hard on the draft. Most sentences can lose a word or two. To halve it about half of its sentences would have to go, so use the whole scale in every paragraph, and give a 5 to no more than one sentence in three.',
-            '- Do not count words. How much goes is worked out afterwards, from what you say here.',
+            '- Do not count words. How much goes is worked out afterward, from what you say here.',
             '',
             sentences.join('\n\n'),
           ].join('\n'),

@@ -204,7 +204,7 @@ function alike(unit, shorter) {
  * easily miscounted: the real model has sent a whole answer back with every sentence under
  * the number of one four further on. That is nought, unless fewer than half of what it
  * sent are their own sentences with words deleted and another reading explains at least
- * two, and more than twice as many. One sentence that could pass for its neighbour moves
+ * two, and more than twice as many. One sentence that could pass for its neighbor moves
  * nothing.
  */
 function slipOf(entries, units) {

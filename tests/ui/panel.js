@@ -72,7 +72,7 @@ await settled();
 {
   const box = el.getBoundingClientRect();
   t.equal([box.left, box.top, box.width, box.height], [0, 0, 280, innerHeight], 'it covers the left 280px of the window');
-  t.equal(getComputedStyle(el).backgroundColor, 'rgb(10, 15, 31)', 'in the panel colour');
+  t.equal(getComputedStyle(el).backgroundColor, 'rgb(10, 15, 31)', 'in the panel color');
   t.equal(getComputedStyle(el).borderRightWidth, '1px', 'with a hairline on its right');
   t.near($('#page').getBoundingClientRect().left, 384, 0.5, 'the text column does not move');
 }
@@ -96,7 +96,7 @@ t.equal(heard(), '', 'opening is silent');
   const ink = range.getBoundingClientRect();
   t.near(ink.left, 40.4, 0.5, 'row text starts 40px in');
   t.equal(getComputedStyle(text).fontSize, '15px', 'row text size');
-  t.near(marker.left + marker.width / 2, 26, 0.3, 'markers are centred 26px in');
+  t.near(marker.left + marker.width / 2, 26, 0.3, 'markers are centered 26px in');
   t.near(rows()[1].getBoundingClientRect().top - first.getBoundingClientRect().top, 31.8, 0.05, 'rows are 31.8px apart');
   t.near(rows()[7 - 1].getBoundingClientRect().top - first.getBoundingClientRect().top, 31.8 * 6, 0.2, 'all the way down');
   const probe = document.createElement('span');

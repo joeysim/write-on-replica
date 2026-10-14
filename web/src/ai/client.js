@@ -25,7 +25,7 @@ export function createAIClient(native) {
     /**
      * Starts a request. `onText` is called with each piece of the answer as it comes.
      * @returns {{ done: Promise<void>, cancel: () => void }} `done` rejects with a reason
-     *   to show, or with an error whose `cancelled` is true if the request was called off
+     *   to show, or with an error whose `canceled` is true if the request was called off
      */
     start(request, onText) {
       serial += 1;
@@ -35,7 +35,7 @@ export function createAIClient(native) {
       return {
         done,
         cancel() {
-          settle(id, (r) => r.reject(Object.assign(new Error('cancelled'), { cancelled: true })));
+          settle(id, (r) => r.reject(Object.assign(new Error('canceled'), { canceled: true })));
           native.call('ai.cancel', { id }).catch(() => {});
         },
       };

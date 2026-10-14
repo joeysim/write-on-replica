@@ -399,11 +399,11 @@ export function createPanel({ editor, ui, alternatives, commands, decor }) {
     }
     // Undo that leaves the target with nothing but itself (a batch of suggestions taken
     // back) leaves it as it was when it was taken: waiting, with an empty row.
-    const travelled = label === 'undo' || label === 'redo';
-    if (travelled && !rowStep && group().variants.length === 1) draft = true;
+    const traveled = label === 'undo' || label === 'redo';
+    if (traveled && !rowStep && group().variants.length === 1) draft = true;
     const focused = rows().findIndex((row) => row.contains(document.activeElement));
     sync(true);
-    if (travelled && rowStep) focusRow(draft ? rows().length - 1 : group().active);
+    if (traveled && rowStep) focusRow(draft ? rows().length - 1 : group().active);
     else if (focused >= 0) focusRow(Math.min(focused, rows().length - 1));
     rowStep = false;
   });

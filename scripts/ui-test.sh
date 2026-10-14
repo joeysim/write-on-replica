@@ -34,7 +34,7 @@ done
 
 # A scenario can also ask for a stand-in for the AI gateway, on its second line:
 #   // gateway: tests/ui/support/fake-gateway.mjs
-# It is started here and stopped afterwards, and the app is given its address and a key it
+# It is started here and stopped afterward, and the app is given its address and a key it
 # knows. Nothing of the run then leaves this Mac.
 GATEWAY="$(sed -n '2s|^// gateway: ||p' "$SCENARIO")"
 if [ -n "$GATEWAY" ]; then

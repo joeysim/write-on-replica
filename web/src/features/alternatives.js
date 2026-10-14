@@ -20,7 +20,7 @@ const RISE_IN = [
   [{ opacity: 0 }, { opacity: 0, filter: 'blur(1.5px)', offset: 0.2 }, { opacity: 0.6, filter: 'blur(0)', offset: 0.6 }, { opacity: 1, filter: 'blur(0)' }],
   { duration: 420, easing: 'ease-out' },
 ];
-// Undoing a blast: the word stays out of sight while the burst runs backwards (280 ms),
+// Undoing a blast: the word stays out of sight while the burst runs backward (280 ms),
 // then arrives as any swap does.
 const RETURN_IN = [
   [{ opacity: 0 }, { opacity: 0, offset: 0.65 }, { opacity: 0.45, filter: 'blur(1.5px)', offset: 0.65 }, { filter: 'blur(0)', offset: 0.86 }, { opacity: 1, filter: 'blur(0)' }],
@@ -315,7 +315,7 @@ export function createAlternatives({ editor, ui, decor, sound, explosions }) {
     return true;
   }
 
-  // Undo puts a blown-up variant back with the burst run backwards and a thump; redo blows
+  // Undo puts a blown-up variant back with the burst run backward and a thump; redo blows
   // it up again. The burst needs the place of the text as it was before the page changed.
   let doomed = null;
   editor.on('travel', ({ direction, meta }) => {

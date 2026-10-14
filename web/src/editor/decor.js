@@ -8,7 +8,7 @@ import { wobblePath } from './wobble.js';
 
 const SVG = 'http://www.w3.org/2000/svg';
 
-// Measured from the clips, in px. Heights are from the text baseline, downwards.
+// Measured from the clips, in px. Heights are from the text baseline, downward.
 const DOT_PITCH = 5; // a 3px dot and 2px of air
 const DOT_SIZE = 3; // across, for the filled dot and for a ring with its line
 const RING_LINE = 0.5; // one pixel of the display the clips were made on
@@ -33,20 +33,20 @@ const el = (name, attributes = {}) => {
 /**
  * Where dots go on a display with `ratio` pixels to the px, for marks drawn from `origin`.
  * A dot is three px across. Drawn between the display's pixels it is smeared into its
- * neighbours, and on a display with one pixel to the px it can hardly be seen; so each dot
+ * neighbors, and on a display with one pixel to the px it can hardly be seen; so each dot
  * is seated with its edges on pixel edges, and a ring's line is never thinner than a pixel.
  */
 function dotGrid(origin, ratio) {
   const whole = (length) => Math.max(1, Math.round(length * ratio)) / ratio;
   const size = whole(DOT_SIZE);
   const line = Math.max(RING_LINE, 1 / ratio);
-  const seat = (centre, from) => Math.round((from + centre - size / 2) * ratio) / ratio + size / 2 - from;
+  const seat = (center, from) => Math.round((from + center - size / 2) * ratio) / ratio + size / 2 - from;
   return {
     line,
     filled: size / 2,
-    ring: (size - line) / 2, // radius of the ring's centre line
-    x: (centre) => seat(centre, origin.left),
-    y: (centre) => seat(centre, origin.top),
+    ring: (size - line) / 2, // radius of the ring's center line
+    x: (center) => seat(center, origin.left),
+    y: (center) => seat(center, origin.top),
   };
 }
 
@@ -142,7 +142,7 @@ export function createDecor({ svg, underlay, editor }) {
     lines.forEach((line, index) => {
       stroke(group, { from: line.left, to: line.right - 0.5, across: line.top + ascent + WORD.line, seed: `${vid}:${index}`, lead: WORD.lead, trail: WORD.trail });
     });
-    // Dots sit in 5px cells, the row of cells centred under the last line of the word.
+    // Dots sit in 5px cells, the row of cells centered under the last line of the word.
     const last = lines[lines.length - 1];
     const first = (last.left + last.right) / 2 - (count * DOT_PITCH) / 2 + DOT_SIZE / 2;
     dots(group, model, count, grid, (index) => [first + index * DOT_PITCH, last.top + ascent + WORD.dots]);

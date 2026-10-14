@@ -16,7 +16,7 @@ const ask = (name, extra = {}) => {
   );
   const outcome = request.done.then(
     () => 'done',
-    (error) => (error.cancelled ? 'called off' : error.message),
+    (error) => (error.canceled ? 'called off' : error.message),
   );
   return { pieces, request, outcome, took: () => performance.now() - began };
 };
@@ -267,7 +267,7 @@ for (const [shell, started] of [['/bin/zsh', ['-f', '-o', 'nounset']], ['/bin/ba
   t.equal([sent.took, sent.max_tokens, sent.max_completion_tokens, sent.reasoning_effort], [3, null, 64, null], 'one that takes neither, and says so in another shape, is given neither');
 
   // A refusal that names the room for some other reason is passed on as it came. Nothing is
-  // asked twice and nothing is learnt from it.
+  // asked twice and nothing is learned from it.
   await settings({ model: 'small-1' });
   count = (await seen({ maxTokens: 8 })).asked;
   const { outcome } = ask('echo');
@@ -275,10 +275,10 @@ for (const [shell, started] of [['/bin/zsh', ['-f', '-o', 'nounset']], ['/bin/ba
   sent = await again({ maxTokens: 8 });
   t.equal([sent.took, sent.max_tokens, sent.max_completion_tokens], [2, 8, null], 'having been asked once, and the room is asked for as before');
 
-  // What was learnt can stop being true: the same name may come to mean another model.
+  // What was learned can stop being true: the same name may come to mean another model.
   await settings({ model: 'turn-1' });
   sent = await again();
-  t.equal([sent.took, sent.max_completion_tokens], [2, 64], 'a model’s way is learnt');
+  t.equal([sent.took, sent.max_completion_tokens], [2, 64], 'a model’s way is learned');
   sent = await again();
   t.equal([sent.took, sent.max_tokens, sent.max_completion_tokens], [2, 64, null], 'and forgotten when it stops working: the request is asked again as the app words it');
   sent = await again();

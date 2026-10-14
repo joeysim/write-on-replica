@@ -71,13 +71,13 @@
       return call('test.snap', { name });
     },
     /**
-     * The colours painted in a part of the page: `ground` is what most of it shows (what
+     * The colors painted in a part of the page: `ground` is what most of it shows (what
      * lies behind the text), `ink` the brightest fiftieth of it (the text). Each is [r, g, b].
-     * With `colour` as { near: [r, g, b], within }, `matching` counts the pixels that close to it.
+     * With `color` as { near: [r, g, b], within }, `matching` counts the pixels that close to it.
      */
-    async pixels(x, y, w, h, colour = {}) {
+    async pixels(x, y, w, h, color = {}) {
       await t.settle();
-      return call('test.pixels', { x, y, w, h, ...colour });
+      return call('test.pixels', { x, y, w, h, ...color });
     },
     // Input. Coordinates are CSS pixels in the page.
     //

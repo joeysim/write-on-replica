@@ -18,17 +18,17 @@ function painted(left, top, width, height) {
   let count = 0;
   let hot = 0; // bright yellow-white: the heart of the fire
   let warm = 0; // orange and red
-  let grey = 0; // smoke
+  let gray = 0; // smoke
   for (let i = 0; i < data.length; i += 4) {
     const [r, g, b, a] = [data[i], data[i + 1], data[i + 2], data[i + 3]];
     if (a < 24) continue;
     count += 1;
     if (r > 230 && g > 200 && a > 200) hot += 1;
     else if (r > 180 && r - b > 90) warm += 1;
-    else if (Math.abs(r - g) < 45 && Math.abs(g - b) < 45 && a < 120) grey += 1;
+    else if (Math.abs(r - g) < 45 && Math.abs(g - b) < 45 && a < 120) gray += 1;
   }
   const total = data.length / 4;
-  return { any: count / total, hot: hot / total, warm: warm / total, grey: grey / total };
+  return { any: count / total, hot: hot / total, warm: warm / total, gray: gray / total };
 }
 const textOf = (i) => editor.blocks[i].runs.map((r) => r.text).join('');
 const hoverGroup = async (vid) => {
@@ -97,7 +97,7 @@ moment(400);
 {
   const around = painted(box.left - 40, box.top - 60, box.width + 80, box.height + 90);
   t.equal(around.hot, 0, 'by 400ms the fire is out');
-  t.assert(around.grey > 0.02, `smoke hangs over the place (${around.grey.toFixed(3)})`);
+  t.assert(around.gray > 0.02, `smoke hangs over the place (${around.gray.toFixed(3)})`);
   t.assert(around.any > 0.03, 'with embers still falling');
   await t.snap('boom-400');
 }
@@ -126,7 +126,7 @@ explosions.seek(0);
 await t.key('z', { meta: true });
 t.equal(editor.groups.wb3nch1.variants, ['workbench', 'easel', 'sketchpad'], 'undo brings the alternative back');
 t.assert(textOf(PARA).endsWith('Think of it as a workbench for sentences.'), 'showing, with its article');
-t.equal(explosions.active(), 1, 'with a burst that runs backwards');
+t.equal(explosions.active(), 1, 'with a burst that runs backward');
 {
   // It starts where an explosion ends up, and closes in on the word.
   const el = editor.elementFor('wb3nch1');
@@ -230,7 +230,7 @@ await away();
   await t.key('z', { meta: true });
   t.equal(textOf(LINE), line, 'undo restores the line');
 
-  // A selection made first, and the pointer brought to rest on a word afterwards.
+  // A selection made first, and the pointer brought to rest on a word afterward.
   editor.select({ block: LINE, offset: 6 }, { block: LINE, offset: 9 });
   await t.settle();
   await away();

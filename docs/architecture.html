@@ -33,7 +33,7 @@ img { max-width: 100%; }
     --shell-wash: #dcefeb;
     --out: #666b85;
     --out-wash: #eceef5;
-    /* The app's own colours, for the one inset that shows the app as it looks. */
+    /* The app's own colors, for the one inset that shows the app as it looks. */
     --app-ground: #050a1c;
     --app-text: #f5d1c0;
     --app-accent: #817cd4;
@@ -271,7 +271,7 @@ img { max-width: 100%; }
   <header class="top">
     <p class="eyebrow">Architecture report · 13 October 2026</p>
     <h1>How Write_On is <span class="alt">built<svg viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true"><path d="M0 3.2 C 16 1.4, 34 4.6, 52 3 S 84 1.8, 100 3.4" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg><span class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></span></span></h1>
-    <p class="lede">This is an unofficial replica of Write_On, the writing tool Jason Fried shows in <a href="https://x.com/jasonfried/status/2105403067793584590">his post on X</a>, and not his own. The app is a small native Mac program wrapped around a web page. The Swift part owns the windows, the files, the key and the network. The page is the editor. This report walks through both, how they talk, where each behaviour lives, and how the whole thing is tested.</p>
+    <p class="lede">This is an unofficial replica of Write_On, the writing tool Jason Fried shows in <a href="https://x.com/jasonfried/status/2105403067793584590">his post on X</a>, and not his own. The app is a small native Mac program wrapped around a web page. The Swift part owns the windows, the files, the key and the network. The page is the editor. This report walks through both, how they talk, where each behavior lives, and how the whole thing is tested.</p>
     <dl class="facts">
       <div><dt>The shell</dt><dd>3,838 lines of Swift in 13 files</dd></div>
       <div><dt>The page</dt><dd>7,519 lines of JavaScript in 43 modules, 1,205 of CSS</dd></div>
@@ -596,7 +596,7 @@ overflow = 'Spare lines wait here.'</pre>
           <li><strong>Groups do not nest.</strong> Variants are plain strings. Making a larger group over smaller ones turns the smaller ones back into text.</li>
           <li><strong>A group needs two variants.</strong> Left with one, it dissolves into plain text, which is why an underline disappears when you undo the last alternative.</li>
           <li><strong>Ghost text and groups never straddle.</strong> A ghost run that would cross a group's edge is split there.</li>
-          <li><strong>Every edit ends with <code>normaliseBlocks()</code>.</strong> It turns a line starting <code># </code> into a heading, removes duplicate ids left by splitting a paragraph, drops groups with no text left, and re-reads each group's showing variant from the text.</li>
+          <li><strong>Every edit ends with <code>normalizeBlocks()</code>.</strong> It turns a line starting <code># </code> into a heading, removes duplicate ids left by splitting a paragraph, drops groups with no text left, and re-reads each group's showing variant from the text.</li>
         </ul>
         <p>Blocks are never modified once made. Every function in <code>doc/blocks.js</code> returns new blocks, so a list of blocks is also a snapshot of the document. Undo relies on that.</p>
 
@@ -642,14 +642,14 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
                 <span class="hand">the model edits</span>
                 <p class="when">Return, joining lines, deleting across lines, paste, drop, typing at the edge of a mark, and every command.</p>
                 <ol>
-                  <li><code>beforeinput</code> is cancelled, or a feature calls in directly.</li>
+                  <li><code>beforeinput</code> is canceled, or a feature calls in directly.</li>
                   <li><code>editor.change(label, fn)</code> hands <code>fn</code> a draft of the document.</li>
                   <li><code>fn</code> rewrites the draft with the pure functions in <code>doc/blocks.js</code> and says where the caret goes.</li>
                 </ol>
               </div>
               <div class="join is-page">
                 <span class="hand">then, either way</span>
-                <div class="chain"><span>normaliseBlocks()</span><i>→</i><span>history.record()</span><i>→</i><span>render()</span><i>→</i><span>emit('change')</span></div>
+                <div class="chain"><span>normalizeBlocks()</span><i>→</i><span>history.record()</span><i>→</i><span>render()</span><i>→</i><span>emit('change')</span></div>
                 <p><code>render()</code> touches only the paragraphs that differ; after the browser's own typing that is usually none. Listeners to <code>change</code> do the rest: <code>decor</code> redraws the marks, <code>files</code> lights the Save icon and schedules a draft, and the panel, Overflow and the word count follow.</p>
               </div>
             </div>
@@ -684,8 +684,8 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td>The piece as Markdown, and the file as saved</td><td><code>features/sourceview.js</code></td><td>Markdown is the piece as it reads now, to copy and take elsewhere. As saved shows exactly what Save would write.</td></tr>
               <tr><td>Save, Open, the unsaved mark</td><td><code>features/files.js</code></td><td>See <a href="#files">files and windows</a>.</td></tr>
               <tr><td>Post to X, the LinkedIn button</td><td><code>features/share.js</code>, <code>fx/flee.js</code></td><td>Opens X's compose window. The LinkedIn button bolts six times and blows up on the seventh approach.</td></tr>
-              <tr><td>Ticks, the boom, the thump</td><td><code>fx/sound.js</code></td><td>Synthesised with Web Audio. There are no audio files. A tick is a triangle wave at 1,900 or 1,500 Hz, about 14 ms long.</td></tr>
-              <tr><td>Explosions</td><td><code>fx/explosion.js</code></td><td>Drawn on a canvas from a seed, so a burst is repeatable and can run backwards for undo.</td></tr>
+              <tr><td>Ticks, the boom, the thump</td><td><code>fx/sound.js</code></td><td>Synthesized with Web Audio. There are no audio files. A tick is a triangle wave at 1,900 or 1,500 Hz, about 14 ms long.</td></tr>
+              <tr><td>Explosions</td><td><code>fx/explosion.js</code></td><td>Drawn on a canvas from a seed, so a burst is repeatable and can run backward for undo.</td></tr>
             </tbody>
           </table>
         </div>
@@ -769,7 +769,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <table>
             <thead><tr><th>Kind</th><th>What it covers</th><th>Size</th><th>Runs in</th><th>Command</th></tr></thead>
             <tbody>
-              <tr><td class="name">Unit tests</td><td>The pure modules: file-format round trips, files edited elsewhere, normalising, word and sentence boundaries, a and an, the tone rule, history, prompts, hostile answers from the model</td><td class="name">355 tests in 16 files</td><td>Node's own test runner</td><td class="name"><code>npm test</code></td></tr>
+              <tr><td class="name">Unit tests</td><td>The pure modules: file-format round trips, files edited elsewhere, normalizing, word and sentence boundaries, a and an, the tone rule, history, prompts, hostile answers from the model</td><td class="name">355 tests in 16 files</td><td>Node's own test runner</td><td class="name"><code>npm test</code></td></tr>
               <tr><td class="name">UI scenarios</td><td>Everything that needs the page or the shell: typing, marks, the panel, Overflow, the Lab, menus, files, crash recovery, the AI client</td><td class="name">34 scenarios</td><td>The built app's own web view, hidden</td><td class="name"><code>scripts/ui-test.sh &lt;name&gt;</code></td></tr>
               <tr><td class="name">Launch check</td><td>The real app starts as Finder would start it, opens one window, reports no error and quits</td><td class="name">1 script</td><td>The real app, opened hidden</td><td class="name"><code>scripts/launch-check.sh</code></td></tr>
               <tr><td class="name">Hands-on list</td><td>What only a person can confirm: real hover, real sound, real panels, dragging out of Overflow</td><td class="name">16 checks</td><td>You, at the Mac</td><td>In the README</td></tr>
@@ -827,13 +827,13 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <li><strong>The icon is drawn by code.</strong> <code>scripts/make-icon.swift</code> draws the app's own mark, a W with the pen stroke and three dots, at every size macOS asks for.</li>
           <li><strong>Fonts are bundled:</strong> IBM Plex Mono and Caveat, both under the SIL Open Font License. <code>scripts/fetch-fonts.sh</code> records where they came from and checks them by hash.</li>
           <li><strong>It registers as an editor for Markdown</strong> at the rank Alternate, so it appears under Open With without taking over your <code>.md</code> files.</li>
-          <li><strong>It is not notarised.</strong> It is signed ad hoc, by the Mac that builds it, so macOS refuses a copy downloaded from a release until it is told to open it. Because each build is signed anew, macOS may ask once after a rebuild for permission to read the saved key.</li>
+          <li><strong>It is not notarized.</strong> It is signed ad hoc, by the Mac that builds it, so macOS refuses a copy downloaded from a release until it is told to open it. Because each build is signed anew, macOS may ask once after a rebuild for permission to read the saved key.</li>
         </ul>
       </section>
 
       <section id="order">
         <h2>The order it was built in</h2>
-        <p>The work followed the layers from the bottom up. First came the evidence: the three clips in the thread, measured frame by frame and by audio analysis. Then a written spec, in which every behaviour is marked as observed, stated by the author, or inferred, and a plan of 23 tasks. Each task was built test first. A fresh reviewer then read the whole branch, and one pass fixed what it found.</p>
+        <p>The work followed the layers from the bottom up. First came the evidence: the three clips in the thread, measured frame by frame and by audio analysis. Then a written spec, in which every behavior is marked as observed, stated by the author, or inferred, and a plan of 23 tasks. Each task was built test first. A fresh reviewer then read the whole branch, and one pass fixed what it found.</p>
 
         <figure id="fig-order">
           <div class="plate">
@@ -842,7 +842,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <figcaption><b>Fig. 9</b>All 32 commits, 11 October 2026, by time of day. The shell's skeleton, the bridge and the test harness went in early, so every feature could be tested inside the real web view from the start. Files, the menu bar and the real AI client came last; until then scenarios used a scripted stand-in for the model.</figcaption>
         </figure>
         <p>The two harness commits in mid-afternoon are there because the first scripted runs took the keyboard and the pointer from the person at the Mac. They moved the runs into the background and then made them fully headless, and the harness has failed any run that comes to the front ever since.</p>
-        <p>A second pass followed on 12 October, after the app had been used for real, and is not on the chart. It changed who the arrow keys belong to (a click on an underlined word no longer takes them away), seated the dots on the display's own pixels so that they can be seen on a 1x display, put the caret in the text from the moment a window opens and kept it out of the page's faded edges, and made a keystroke in a long piece cost about a third of what it did. An independent pass through the clips then found a dozen behaviours that differed from the original: undo around alternatives, where the caret goes when a word is flipped, trim levels that are there at once, and several smaller ones. The measurements behind the speed work are in <code>tests/perf</code> and the README's section on speed.</p>
+        <p>A second pass followed on 12 October, after the app had been used for real, and is not on the chart. It changed who the arrow keys belong to (a click on an underlined word no longer takes them away), seated the dots on the display's own pixels so that they can be seen on a 1x display, put the caret in the text from the moment a window opens and kept it out of the page's faded edges, and made a keystroke in a long piece cost about a third of what it did. An independent pass through the clips then found a dozen behaviors that differed from the original: undo around alternatives, where the caret goes when a word is flipped, trim levels that are there at once, and several smaller ones. The measurements behind the speed work are in <code>tests/perf</code> and the README's section on speed.</p>
         <p>Readying the repository to be published, on 12 and 13 October, is not on the chart either. Besides the license and the documents a stranger needs, it let the AI client ask services other than LunaRoute properly: names of the app's own for the key, the address and the model in the environment, a service asked without a key, and the two parts of a request that OpenAI's service refuses asked for again in its way. It taught it Anthropic's way of speaking beside OpenAI's, and to ask again with more room when a model's thinking uses its room up. It made three rules about where a key may go: one under LunaRoute's name goes to LunaRoute only, plain http goes no further than the Mac's own network, and a request is never sent on to where an answer points. And it shut scripted runs in. One scenario had been putting its last question, with a made-up key, to LunaRoute's real address; a scripted run is now given nothing of the tester's own settings, and its client asks nothing that is not on this Mac.</p>
         <p>The first use of that build, on 13 October, changed two more things. Trims had been asked for a level at a time, the model told how many words to reach, and on a real draft that took minutes and missed by a wide margin; they are now asked for once, a sentence at a time, and counted by the app (<a href="#ai">The Lab asks differently</a>, above). And the card behind the M↓ icon gained a tab ahead of the original's two: the piece as Markdown, to copy, without the record the file keeps for the app. The same day the version became three numbers, and the build became universal (<a href="#build">Build and packaging</a>, above).</p>
         <details>
@@ -861,7 +861,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
         <dl class="decisions">
           <div>
             <dt>A web editor inside a native shell</dt>
-            <dd><b>Buys</b>The original's look and motion in its own medium, and real Mac behaviour around it.</dd>
+            <dd><b>Buys</b>The original's look and motion in its own medium, and real Mac behavior around it.</dd>
             <dd><b>Costs</b>Two languages and a bridge to keep in step. WebKit sets lines a whole number of pixels apart, so lines are 36 px apart where the clips measure 36.4.</dd>
           </div>
           <div>
@@ -905,7 +905,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
       <section id="gaps">
         <h2>Known gaps</h2>
         <h3>Where it had to guess</h3>
-        <p>The original is not released, so the clips and the author's replies are the whole specification. Section 9 of the spec lists 54 decisions the clips do not settle, each in one row so it can be challenged. The README summarises them.</p>
+        <p>The original is not released, so the clips and the author's replies are the whole specification. Section 9 of the spec lists 54 decisions the clips do not settle, each in one row so it can be challenged. The README summarizes them.</p>
         <h3>Differences from the original</h3>
         <ul>
           <li>Lines are 36 px apart, not 36.4, and Overflow's are 22, not 22.5.</li>
@@ -955,7 +955,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>sample.js</code></td><td class="num">57</td><td>The welcome piece and the blank document.</td></tr>
 
               <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/doc, pure</td></tr>
-              <tr><td class="name"><code>blocks.js</code></td><td class="num">463</td><td>Editing the document as data: split, merge, delete, insert, group, show a variant, normalise.</td></tr>
+              <tr><td class="name"><code>blocks.js</code></td><td class="num">463</td><td>Editing the document as data: split, merge, delete, insert, group, show a variant, normalize.</td></tr>
               <tr><td class="name"><code>format.js</code></td><td class="num">564</td><td>The file format in every direction, and reading files edited elsewhere.</td></tr>
               <tr><td class="name"><code>model.js</code></td><td class="num">92</td><td>A group and its variants: add, remove, set active, validate.</td></tr>
               <tr><td class="name"><code>ids.js</code></td><td class="num">15</td><td>Group ids, and which ids are safe to accept from a file.</td></tr>
@@ -998,7 +998,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>files.js</code></td><td class="num">122</td><td>Unsaved or not, save, open, drafts.</td></tr>
 
               <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/fx and web/styles</td></tr>
-              <tr><td class="name"><code>sound.js</code></td><td class="num">134</td><td>Tick, boom and thump, synthesised.</td></tr>
+              <tr><td class="name"><code>sound.js</code></td><td class="num">134</td><td>Tick, boom and thump, synthesized.</td></tr>
               <tr><td class="name"><code>explosion.js</code></td><td class="num">325</td><td>Bursts on a canvas, repeatable and reversible.</td></tr>
               <tr><td class="name"><code>flee.js</code></td><td class="num">39</td><td>Where a fleeing button goes.</td></tr>
               <tr><td class="name"><code>styles/*.css</code></td><td class="num">1,205</td><td>Six stylesheets. <code>base.css</code> holds the fonts and every value measured from the clips as CSS variables.</td></tr>
@@ -1007,7 +1007,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>scripts/</code></td><td class="num">646</td><td>Eleven things to run: build the app, make the copy a release carries, run everything, look for keys, run one scenario, run a measurement, check a real launch, serve the page to a browser, take the README's pictures, draw the icon, fetch the fonts.</td></tr>
               <tr><td class="name"><code>tests/unit/</code></td><td class="num">3,334</td><td>16 test files for the pure modules.</td></tr>
               <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,524</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
-              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,219</td><td>The design spec: measurements, behaviour, and the 54 decisions the clips did not settle.</td></tr>
+              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,219</td><td>The design spec: measurements, behavior, and the 54 decisions the clips did not settle.</td></tr>
               <tr><td class="name"><code>docs/superpowers/plans/</code></td><td class="num">443</td><td>The 23-task plan the app was built from.</td></tr>
             </tbody>
           </table>
@@ -1020,7 +1020,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <table>
             <thead><tr><th>To change</th><th>Look in</th></tr></thead>
             <tbody>
-              <tr><td>A colour, a font, the column width</td><td><code>web/styles/base.css</code>, where the measured values are CSS variables</td></tr>
+              <tr><td>A color, a font, the column width</td><td><code>web/styles/base.css</code>, where the measured values are CSS variables</td></tr>
               <tr><td>What the model is asked, or how many suggestions come back</td><td><code>web/src/ai/prompts.js</code></td></tr>
               <tr><td>What is accepted from the model</td><td><code>web/src/ai/parse.js</code> and <code>web/src/doc/trim.js</code></td></tr>
               <tr><td>The model or the service address</td><td>Settings, or the defaults at the top of <code>Sources/WriteOn/AIClient.swift</code></td></tr>
@@ -1035,7 +1035,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
             </tbody>
           </table>
         </div>
-        <p>For more, the README covers building, using and testing, and the spec at <code>docs/superpowers/specs/2026-10-11-write-on-replica-design.md</code> has every measurement and the reasoning behind each inferred behaviour.</p>
+        <p>For more, the README covers building, using and testing, and the spec at <code>docs/superpowers/specs/2026-10-11-write-on-replica-design.md</code> has every measurement and the reasoning behind each inferred behavior.</p>
       </section>
     </main>
   </div>
@@ -1091,7 +1091,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
       ['12:48', 0, 'Add design spec for the Write_On macOS replica'],
       ['13:08', 0, 'Add implementation plan; refine ghost/group rule in spec'],
       ['13:08', 0, 'Correct task references in the plan’s Review Focus'],
-      ['13:11', 2, 'Scaffold the page: fonts, colour tokens, typography and sample document'],
+      ['13:11', 2, 'Scaffold the page: fonts, color tokens, typography and sample document'],
       ['13:35', 3, 'Add the native shell, bridge and scripted UI harness'],
       ['13:35', 4, 'Add a single check script for tests, build and UI scenarios'],
       ['13:37', 1, 'Add text utilities: counts, word and sentence ranges, scope, a/an'],

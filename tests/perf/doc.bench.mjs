@@ -4,7 +4,7 @@
 // Times are per call, in thousandths of a millisecond (µs), the median of several rounds.
 import { performance } from 'node:perf_hooks';
 import { htmlToBlocks, blocksToHtml, serialize, parse } from '../../web/src/doc/format.js';
-import { normaliseBlocks, textOf, lengthOf } from '../../web/src/doc/blocks.js';
+import { normalizeBlocks, textOf, lengthOf } from '../../web/src/doc/blocks.js';
 import { cloneGroups } from '../../web/src/doc/model.js';
 import { countWords } from '../../web/src/doc/text.js';
 
@@ -49,7 +49,7 @@ const sizes = process.argv.slice(2).map(Number).filter(Boolean);
 const rows = [];
 for (const words of sizes.length ? sizes : [1000, 5000, 20000, 50000]) {
   const state = make(words);
-  const tidy = normaliseBlocks(htmlToBlocks(state.html), state.groups);
+  const tidy = normalizeBlocks(htmlToBlocks(state.html), state.groups);
   const { blocks, groups } = tidy;
   const file = serialize({ html: blocksToHtml(blocks), groups, overflow: state.overflow });
   // One paragraph changed, as after a keystroke: a new object for it, the rest shared.
@@ -65,7 +65,7 @@ for (const words of sizes.length ? sizes : [1000, 5000, 20000, 50000]) {
     groups: Object.keys(groups).length,
     'file KB': Math.round(file.length / 1024),
     // every keystroke
-    'normalise µs': Math.round(time(() => normaliseBlocks(edited(), groups))),
+    'normalize µs': Math.round(time(() => normalizeBlocks(edited(), groups))),
     'clone groups µs': Math.round(time(() => cloneGroups(groups))),
     'groups to JSON x2 µs': Math.round(time(() => JSON.stringify(groups) !== JSON.stringify(groups))),
     'count words µs': Math.round(time(() => { let w = 0, c = 0; for (const block of blocks) { w += countWords(textOf(block)); c += lengthOf(block); } return w + c; })),

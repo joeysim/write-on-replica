@@ -3,7 +3,7 @@
 //
 //   swift scripts/make-icon.swift [out.icns]
 //
-// The icon is the app's own mark for a word with alternatives: a letter in the text colour,
+// The icon is the app's own mark for a word with alternatives: a letter in the text color,
 // the pen-stroke underline and the row of dots beneath it, on the page's dark blue. It is
 // drawn here, at every size macOS asks for, so there is no artwork to keep in step.
 import AppKit
@@ -64,8 +64,8 @@ func draw(side: Int) -> NSBitmapImageRep {
     // The dots: the one showing is filled, the others are open.
     let (radius, gap, row): (CGFloat, CGFloat, CGFloat) = (27, 92, line - 86)
     for index in 0..<3 {
-        let centre = NSPoint(x: 512 + CGFloat(index - 1) * gap, y: row)
-        let dot = NSBezierPath(ovalIn: NSRect(x: centre.x - radius, y: centre.y - radius, width: radius * 2, height: radius * 2))
+        let center = NSPoint(x: 512 + CGFloat(index - 1) * gap, y: row)
+        let dot = NSBezierPath(ovalIn: NSRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2))
         if index == 0 {
             accent.setFill()
             dot.fill()

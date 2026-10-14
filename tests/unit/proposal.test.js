@@ -4,7 +4,7 @@ import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes, wo
 import { alignDeletion, chooseCuts } from '../../web/src/doc/trim.js';
 import { parseLabResponse } from '../../web/src/ai/parse.js';
 import { htmlToBlocks, blocksToHtml } from '../../web/src/doc/format.js';
-import { textOf, normaliseBlocks } from '../../web/src/doc/blocks.js';
+import { textOf, normalizeBlocks } from '../../web/src/doc/blocks.js';
 
 const B = (html) => htmlToBlocks(html);
 const H = (blocks) => blocksToHtml(blocks);
@@ -127,7 +127,7 @@ test('other blocks are the same blocks as before', () => {
 test('a cut inside a group shortens what the group is showing, and ghosted text is left alone', () => {
   const blocks = B(DOC);
   const proposal = propose(blocks, { 2: 'Keep short and plain today.' });
-  const made = normaliseBlocks(applyProposal(blocks, proposal), structuredClone(GROUPS));
+  const made = normalizeBlocks(applyProposal(blocks, proposal), structuredClone(GROUPS));
   assert.ok(H(made.blocks).endsWith('<p>Keep <span data-ghost>this aside </span>short and <span data-vid="aaaaaaa">plain</span> today.</p>'), H(made.blocks).slice(-120));
   assert.deepEqual(made.groups.aaaaaaa.variants, ['plain', 'simple']);
 });
@@ -135,7 +135,7 @@ test('a cut inside a group shortens what the group is showing, and ghosted text 
 test('a cut that takes all of a group takes the group with it', () => {
   const blocks = B(DOC);
   const proposal = propose(blocks, { 2: 'Keep short today.' });
-  const made = normaliseBlocks(applyProposal(blocks, proposal), structuredClone(GROUPS));
+  const made = normalizeBlocks(applyProposal(blocks, proposal), structuredClone(GROUPS));
   assert.equal(textOf(made.blocks[4]), 'Keep this aside short today.');
   assert.deepEqual(made.groups, {});
 });
@@ -297,7 +297,7 @@ test('nothing outside a cut is ever lost but a space', () => {
 
 test('a paragraph group that goes whole goes with its paragraph', () => {
   const blocks = B('<p>Stays.</p><p><br></p><p data-vid="bbbbbbb">Goes, every word.</p>');
-  const made = normaliseBlocks(applyProposal(blocks, cutWhole(blocks, 2)), { bbbbbbb: { scope: 'paragraph', variants: ['Goes, every word.', 'Another.'], active: 0 } });
+  const made = normalizeBlocks(applyProposal(blocks, cutWhole(blocks, 2)), { bbbbbbb: { scope: 'paragraph', variants: ['Goes, every word.', 'Another.'], active: 0 } });
   assert.equal(H(made.blocks), '<p>Stays.</p>');
   assert.deepEqual(made.groups, {});
 });
@@ -364,7 +364,7 @@ test('fixes replace what they point at, several to a paragraph, and nothing else
 
 test('a fix inside a group changes what the group is showing and leaves it a group', () => {
   const blocks = B(TYPOS);
-  const made = normaliseBlocks(applyFixes(blocks, marksFor(blocks, [[2, 'realy', 'misspelt', 'really']])), {
+  const made = normalizeBlocks(applyFixes(blocks, marksFor(blocks, [[2, 'realy', 'misspelt', 'really']])), {
     aaaaaaa: { scope: 'word', variants: ['realy plain', 'simple'], active: 0 },
   });
   assert.ok(H(made.blocks).endsWith('it <span data-vid="aaaaaaa">really plain</span> ,and stop.</p>'), H(made.blocks).slice(-90));

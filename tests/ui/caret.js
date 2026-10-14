@@ -27,7 +27,7 @@ t.equal(editor.blocks[0].kind, 'blank', 'and undo takes it back');
 
 // --- the faded edges ----------------------------------------------------------------------------
 
-// The page fades its text out towards the top and bottom of the window: nothing can be read
+// The page fades its text out toward the top and bottom of the window: nothing can be read
 // within 53px of an edge, and text is at full strength only from 96px. The caret is kept on
 // lines that can be read.
 ui.set({ read: false });

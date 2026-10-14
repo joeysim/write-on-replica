@@ -17,7 +17,7 @@ const ask = (name, extra = {}) => {
   );
   const outcome = request.done.then(
     () => 'done',
-    (error) => (error.cancelled ? 'called off' : error.message),
+    (error) => (error.canceled ? 'called off' : error.message),
   );
   return { pieces, request, outcome, took: () => performance.now() - began };
 };

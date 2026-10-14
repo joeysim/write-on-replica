@@ -19,7 +19,7 @@ function clean(when) {
   t.assert([...editor.root.children].every(isTidy), `${when}: every paragraph is tidy`);
 }
 
-// 1. Rich text with headings, bold, colours and blank lines.
+// 1. Rich text with headings, bold, colors and blank lines.
 load('<p><br></p>');
 editor.select({ block: 0, offset: 0 });
 const rich = '<meta charset="utf-8"><h1 style="color:#c00;font-family:Georgia">Heading</h1><p style="margin:0"><b>First</b> paragraph with <a href="https://example.com">a link</a>.</p><p>Second paragraph.</p>';

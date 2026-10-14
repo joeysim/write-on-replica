@@ -83,7 +83,7 @@ test('wordAt never splits a surrogate pair and does not throw on emoji or CJK', 
 
 const split = (text) => sentences(text).map((r) => text.slice(r.start, r.end));
 
-test('sentences split on a full stop, question mark or exclamation mark before a capital', () => {
+test('sentences split on a period, question mark or exclamation mark before a capital', () => {
   assert.deepEqual(split('It dims. It stays put! Does it wait? Yes.'), ['It dims.', 'It stays put!', 'Does it wait?', 'Yes.']);
 });
 

@@ -140,7 +140,7 @@ await t.until(() => menu.getAnimations({ subtree: false }).length === 0, 1500, '
   t.equal([box.left, box.width, box.height], [(innerWidth - 620) / 2, 620, 327], 'a 620 by 327 popover in the middle of the window');
   t.near(box.bottom, button.bottom, 0.01, 'standing on the bottom edge of the button, which it covers');
   const style = getComputedStyle(menu);
-  t.equal([style.backgroundColor, style.borderTopWidth, style.borderTopColor, style.clipPath], ['rgb(18, 21, 34)', '1px', 'rgb(35, 39, 53)', 'none'], 'in the popover colour with a hairline edge, whole once it is open');
+  t.equal([style.backgroundColor, style.borderTopWidth, style.borderTopColor, style.clipPath], ['rgb(18, 21, 34)', '1px', 'rgb(35, 39, 53)', 'none'], 'in the popover color with a hairline edge, whole once it is open');
   t.equal(
     rows().map((row) => row.querySelector('.label').textContent),
     ['The Lab guide…', 'Fix punctuation and typos', 'Mark the weakest sentences', 'Mark sentences that run long', 'Mark convoluted sentences', 'Mark words that don’t fit the tone', 'Mark hedges and filler'],
@@ -153,7 +153,7 @@ await t.until(() => menu.getAnimations({ subtree: false }).length === 0, 1500, '
     'and five levels of trim, each with how much it takes',
   );
   t.equal(pending(), 'Original', 'with nothing proposed, Original is the one marked');
-  t.equal(getComputedStyle(level('Original')).borderTopColor, 'rgb(129, 124, 212)', 'in the accent colour');
+  t.equal(getComputedStyle(level('Original')).borderTopColor, 'rgb(129, 124, 212)', 'in the accent color');
   t.equal(current(), rows()[0].textContent, 'the first line is lit to begin with');
 }
 
@@ -212,7 +212,7 @@ t.assert(shown(card), 'and puts a card at the foot of the page');
   t.near(innerHeight - box.bottom, 55, 0.01, '55px above the bottom of the window');
   const [first, second] = [...card.querySelectorAll('.actions button')].map((b) => b.getBoundingClientRect());
   t.equal([first.height, Math.round((second.left - first.right) * 10) / 10, Math.round((first.left - box.left) * 10) / 10], [22, 8, 16], 'its buttons are 22px tall and 8px apart, starting 16px in');
-  t.equal(getComputedStyle(card.querySelector('.state')).color, 'rgb(129, 124, 212)', 'Reading… is in the accent colour');
+  t.equal(getComputedStyle(card.querySelector('.state')).color, 'rgb(129, 124, 212)', 'Reading… is in the accent color');
   await t.until(() => !shown(menu), 1000, 'the popover to be out of the way');
   await t.snap('reading');
 }
@@ -266,7 +266,7 @@ t.assert(!shown(scan), 'the line is gone');
   const box = card.getBoundingClientRect();
   t.near(box.width, 601.5, 0.01, 'the card is 601.5px wide now, as in the clip');
   t.near(box.left + box.width / 2, innerWidth / 2, 0.3, 'still in the middle');
-  t.equal(getComputedStyle(card.querySelector('.state')).color, 'rgb(129, 124, 212)', 'the numbers are in the accent colour');
+  t.equal(getComputedStyle(card.querySelector('.state')).color, 'rgb(129, 124, 212)', 'the numbers are in the accent color');
   await t.snap('proposal');
 }
 await openMenu();
@@ -420,7 +420,7 @@ await t.key('Escape');
   await t.wait(900);
   const after = await t.call('test.ai');
   t.equal(after.requests.length, asks + 1, 'Done while it reads: the model is asked nothing more');
-  t.assert(after.cancelled.includes(after.requests.at(-1).id), 'and the request is called off');
+  t.assert(after.canceled.includes(after.requests.at(-1).id), 'and the request is called off');
   t.equal(lab.read(), false, 'with nothing kept of an answer that never came');
   await choose('Tighten more');
   t.equal(title(), 'Tighten more Reading…', 'so the next trim asks again');
@@ -463,8 +463,8 @@ await load();
   editor.focus();
   await t.type('y');
   t.equal([shown(card), shown(scan)], [false, false], 'an edit while it reads puts the card and the line away');
-  const { requests, cancelled } = await t.call('test.ai');
-  t.assert(cancelled.includes(requests[requests.length - 1].id), 'and calls the request off');
+  const { requests, canceled } = await t.call('test.ai');
+  t.assert(canceled.includes(requests[requests.length - 1].id), 'and calls the request off');
   await load();
 }
 
@@ -560,8 +560,8 @@ await act('Done');
   await t.until(async () => (await asked()).length === asks + 2, 4000, 'the second asking');
   t.equal(title(), 'Slight trim Reading…', 'the card is still reading');
   await act('Done');
-  const { requests, cancelled } = await t.call('test.ai');
-  t.assert(cancelled.includes(requests.at(-1).id), 'Done calls the second asking off');
+  const { requests, canceled } = await t.call('test.ai');
+  t.assert(canceled.includes(requests.at(-1).id), 'Done calls the second asking off');
   t.equal([lab.read(), shown(card)], [false, false], 'and nothing is kept of the thin answer that came first');
   await t.wait(300);
   t.equal((await asked()).length, asks + 2, 'nor is anything more asked');

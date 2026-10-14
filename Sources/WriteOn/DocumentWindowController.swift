@@ -199,7 +199,7 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
         configuration.userContentController.addScriptMessageHandler(bridge, contentWorld: .page, name: Bridge.name)
         registerBridgeHandlers()
 
-        // The title bar blends into the page: same colour, no title, traffic lights kept.
+        // The title bar blends into the page: same color, no title, traffic lights kept.
         window.titlebarAppearsTransparent = true
         window.titleVisibility = .hidden
         window.backgroundColor = Self.pageBackground

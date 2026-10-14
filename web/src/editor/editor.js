@@ -8,7 +8,7 @@
 //    deleting across lines, pasting, typing at the edge of a group or ghost run, and all
 //    commands) is done on the blocks and rendered.
 //
-// Every change, of either kind, goes through one history and ends by normalising the
+// Every change, of either kind, goes through one history and ends by normalizing the
 // document, so groups never end up duplicated, orphaned or out of step with their text.
 
 import { htmlToBlocks, blocksToHtml } from '../doc/format.js';
@@ -78,7 +78,7 @@ export function createEditor(root) {
   /**
    * Makes one change to the document. `fn` receives a draft { blocks, groups, overflow,
    * selection } to modify with the functions in doc/blocks.js; set `draft.selection` to
-   * { start, end? } to place the selection afterwards.
+   * { start, end? } to place the selection afterward.
    * @param record false for a change that is not the writer's edit and so not a step to
    *   undo (the panel marking the word it is looking at); listeners are told as much
    * @returns {boolean} whether anything changed
@@ -87,7 +87,7 @@ export function createEditor(root) {
     const before = snapshot();
     const draft = { blocks, groups: cloneGroups(groups), overflow, selection: null };
     fn(draft);
-    const tidy = doc.normaliseBlocks(draft.blocks, draft.groups);
+    const tidy = doc.normalizeBlocks(draft.blocks, draft.groups);
     const same = draft.overflow === overflow && sameKeys(tidy.blocks.map(blockKey), keys) && JSON.stringify(tidy.groups) === JSON.stringify(groups);
     if (!same) {
       if (record) history.record(before, { coalesceKey, meta: meta ?? { label } });
@@ -169,7 +169,7 @@ export function createEditor(root) {
       keys = [];
     }
 
-    const tidy = doc.normaliseBlocks(next, groups);
+    const tidy = doc.normalizeBlocks(next, groups);
     // A paragraph that just became a heading lost its marker; move the caret back by as much.
     if (selection) {
       for (const end of selection.collapsed ? [selection.start] : [selection.start, selection.end]) {
@@ -423,7 +423,7 @@ export function createEditor(root) {
 
     /** Loads a document, discarding the current one and its history. */
     setState(state, { caret } = {}) {
-      const tidy = doc.normaliseBlocks(htmlToBlocks(state.html ?? ''), state.groups ?? {});
+      const tidy = doc.normalizeBlocks(htmlToBlocks(state.html ?? ''), state.groups ?? {});
       blocks = tidy.blocks;
       groups = tidy.groups;
       overflow = state.overflow ?? '';

@@ -58,7 +58,7 @@ though an argument that one of them is dangerous is welcome:
 - `WRITEON_WEB_ROOT` in the app's environment makes it read the page from another folder.
 - Started with `--ui-test`, the app runs a test script in its page. The test harness uses
   methods of `WKWebView` that Apple does not publish.
-- The app is signed ad hoc on the Mac that builds it. It is not notarised. That goes for
+- The app is signed ad hoc on the Mac that builds it. It is not notarized. That goes for
   the copy attached to a release too, which macOS will not open until it is told to.
 
 Each needs someone who can already run programs as you, or change how the app is started.

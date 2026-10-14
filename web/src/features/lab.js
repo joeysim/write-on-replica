@@ -161,7 +161,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     (event) => {
       if (event.key !== 'Escape') return;
       if (ui.get('lab')) closeMenu();
-      else if (pass?.mode === 'walking') summarise();
+      else if (pass?.mode === 'walking') summarize();
       else return;
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -203,11 +203,11 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     } else if (sort === 'trim') {
       const { before, after } = counts(editor.blocks, pass.proposal, pass.kept);
       state.textContent = walking ? `${pass.step + 1} of ${pass.proposal.cuts.length}` : `${before} → ${after} words · ${String(percentChange(before, after)).replace('-', '−')}%`;
-      buttons = walking ? [['Cut', () => decide(false)], ['Keep', () => decide(true)], ['Stop', summarise]] : [['Make the cuts', makeCuts], ['Walk through', walk], ['Done', dismiss]];
+      buttons = walking ? [['Cut', () => decide(false)], ['Keep', () => decide(true)], ['Stop', summarize]] : [['Make the cuts', makeCuts], ['Walk through', walk], ['Done', dismiss]];
     } else if (sort === 'typos') {
       state.textContent = walking ? `${pass.step + 1} of ${pass.marks.length}` : `${pass.marks.length} found`;
       if (walking) hint.textContent = fixLine(pass.marks[pass.step]);
-      buttons = walking ? [['Fix', () => decide(false)], ['Keep', () => decide(true)], ['Stop', summarise]] : [['Fix all', fixAll], ['Walk through', walk], ['Done', dismiss]];
+      buttons = walking ? [['Fix', () => decide(false)], ['Keep', () => decide(true)], ['Stop', summarize]] : [['Fix all', fixAll], ['Walk through', walk], ['Done', dismiss]];
     } else {
       state.textContent = `${pass.marks.length} marked`;
     }
@@ -431,7 +431,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
         report();
       },
       (error) => {
-        if (!error.cancelled) fail(error.message);
+        if (!error.canceled) fail(error.message);
       },
     );
   }
@@ -588,7 +588,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     entry.heard = hear;
     hear(); // an answer asked for under another level may have some of itself here already
     reading.then(settle, (error) => {
-      if (pass === mine && !error.cancelled) fail(error.message);
+      if (pass === mine && !error.canceled) fail(error.message);
     });
   }
 
@@ -660,11 +660,11 @@ export function createLab({ editor, ui, ai, commands, cards }) {
       if (!pass) return; // that was the last of them
       next = pass.step;
     }
-    if (next >= passages().length) summarise();
+    if (next >= passages().length) summarize();
     else step(next);
   }
 
-  function summarise() {
+  function summarize() {
     if (pass?.mode !== 'walking') return;
     pass.mode = 'proposal';
     paint();

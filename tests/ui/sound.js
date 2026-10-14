@@ -1,4 +1,4 @@
-// The synthesised sounds, rendered offline and measured (design spec 6.12).
+// The synthesized sounds, rendered offline and measured (design spec 6.12).
 // Each is also written to the output folder as a WAV, for the analysis tools used on the clips.
 const { sound } = window.writeOn;
 const { createSound } = await import('./src/fx/sound.js');
@@ -140,7 +140,7 @@ for (const [name, hz] of [['tick-high', 1900], ['tick-low', 1500]]) {
   const x = await sound.render('thump');
   await save('thump', x);
   const h = hiss(x);
-  t.assert(rms(h.subarray(ms(100), ms(138))) > rms(h.subarray(ms(10), ms(50))) * 2, 'noise rises towards 140 ms');
+  t.assert(rms(h.subarray(ms(100), ms(138))) > rms(h.subarray(ms(10), ms(50))) * 2, 'noise rises toward 140 ms');
   t.assert(rms(h.subarray(ms(150), ms(250))) < rms(h.subarray(ms(100), ms(138))) * 0.1, 'and is cut off there');
   t.near(strongest(x.subarray(ms(150), ms(400)), 60, 140, 0.5), 98, 3, 'then a thump at 98 Hz');
   t.assert(peak(x.subarray(ms(140), ms(200))) > 0.6, 'which is the loud part');

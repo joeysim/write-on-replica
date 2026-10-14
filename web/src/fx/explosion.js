@@ -3,13 +3,13 @@
 // A burst is built once, from a seed, as a list of things with fixed numbers: pieces of
 // the text, balls of fire, sparks, debris, embers, smoke. Where each of them is at any
 // moment follows from those numbers and the time alone. So a burst looks the same every
-// time, can be drawn at any moment for a scenario to look at, and can be run backwards,
+// time, can be drawn at any moment for a scenario to look at, and can be run backward,
 // which is how undo puts a blown-up alternative back.
 
 import { seededRandom } from '../editor/wobble.js';
 
 const DURATION = 1300; // ms, all of it; the fire itself is out by 330
-const REVERSE = { from: 330, over: 280 }; // undo: the first 330 ms played backwards in 280
+const REVERSE = { from: 330, over: 280 }; // undo: the first 330 ms played backward in 280
 
 const clamp = (x, lo = 0, hi = 1) => Math.max(lo, Math.min(hi, x));
 const easeOut = (x) => 1 - (1 - clamp(x)) ** 2;
@@ -129,7 +129,7 @@ function build(lines, font) {
 function blob(ctx, x, y, radius, stops) {
   if (radius <= 0) return;
   const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
-  for (const [at, colour] of stops) gradient.addColorStop(at, colour);
+  for (const [at, color] of stops) gradient.addColorStop(at, color);
   ctx.fillStyle = gradient;
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -290,7 +290,7 @@ export function createExplosions({ canvas, font = '400 20px "IBM Plex Mono", mon
     /**
      * Sets off a burst over `lines`, each { left, top, right, bottom } in window pixels and,
      * to have the text itself fly apart, its `text` (and `font`, if not the page's).
-     * @param reverse run it backwards, from what an explosion leaves to the text in pieces
+     * @param reverse run it backward, from what an explosion leaves to the text in pieces
      */
     burst(lines, { reverse = false } = {}) {
       if (!lines?.length) return;
