@@ -270,3 +270,107 @@ export function applyFixes(blocks, marks) {
   }
   return made;
 }
+
+// --- marks through an edit ----------------------------------------------------------------------
+
+const textOfBlock = (block) => block.runs.map((piece) => piece.text).join('');
+const sameText = (a, b) => a === b || textOfBlock(a) === textOfBlock(b);
+/** Whether a character is part of a word. Nothing (the edge of the text) is not. */
+const wordly = (ch) => ch !== undefined && /[\p{L}\p{N}'’]/u.test(ch);
+
+/** Where each block of a stretch starts in the stretch's text, its blocks one line each. */
+function startsOf(texts) {
+  const starts = [];
+  let at = 0;
+  for (const text of texts) {
+    starts.push(at);
+    at += text.length + 1;
+  }
+  return starts;
+}
+
+/** The index of the last start at or before `at`. */
+function locate(starts, at) {
+  let low = 0;
+  let high = starts.length - 1;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (starts[middle] <= at) low = middle;
+    else high = middle - 1;
+  }
+  return low;
+}
+
+/**
+ * The marks as they stand after an edit, from the blocks before it and after it. A mark the
+ * edit did not touch moves with its words. One goes if the edit changed any of its words, or
+ * the text between its parts, or ran its words together with letters they stood apart from:
+ * it was about words that are no longer there as they were.
+ * @returns the marks that are left, in the same order; one that has not moved is the same mark
+ */
+export function followMarks(before, after, marks) {
+  // Whole blocks that are the same at either end are left out of the reckoning.
+  const most = Math.min(before.length, after.length);
+  let head = 0;
+  while (head < most && sameText(before[head], after[head])) head += 1;
+  if (head === before.length && head === after.length) return marks;
+  let tail = 0;
+  while (tail < most - head && sameText(before[before.length - 1 - tail], after[after.length - 1 - tail])) tail += 1;
+  const lastBefore = before.length - tail;
+  const wasTexts = before.slice(head, lastBefore).map(textOfBlock);
+  const nowTexts = after.slice(head, after.length - tail).map(textOfBlock);
+  const was = wasTexts.join('\n');
+  const now = nowTexts.join('\n');
+  const wasStarts = startsOf(wasTexts);
+  const nowStarts = startsOf(nowTexts);
+
+  // What changed, in the text of the blocks between: `was` from `from` to `to` became `now`
+  // from `from` to `to + shift`.
+  const shorter = Math.min(was.length, now.length);
+  let from = 0;
+  while (from < shorter && was[from] === now[from]) from += 1;
+  let back = 0;
+  while (back < shorter - from && was[was.length - 1 - back] === now[now.length - 1 - back]) back += 1;
+  const to = was.length - back;
+  const shift = now.length - was.length;
+
+  const left = [];
+  for (const mark of marks) {
+    if (mark.block < head) {
+      left.push(mark);
+      continue;
+    }
+    if (mark.block >= lastBefore) {
+      left.push(after.length === before.length ? mark : { ...mark, block: mark.block + after.length - before.length });
+      continue;
+    }
+    const base = wasStarts[mark.block - head];
+    const start = base + mark.ranges[0].start;
+    const end = base + mark.ranges[mark.ranges.length - 1].end;
+    // Text put in where nothing was taken out touches a mark only if it goes inside it.
+    const touched = from === to ? start < from && from < end : start < to && from < end;
+    if (touched) continue;
+    const by = start >= to ? shift : 0;
+    const edge = (text, at) => wordly(text[at]);
+    if (edge(was, start - 1) !== edge(now, start + by - 1) || edge(was, end) !== edge(now, end + by)) continue;
+    const index = locate(nowStarts, start + by);
+    const offset = base + by - nowStarts[index];
+    const block = head + index;
+    if (block === mark.block && offset === 0) {
+      left.push(mark);
+      continue;
+    }
+    left.push({ ...mark, block, ranges: mark.ranges.map((range) => ({ start: range.start + offset, end: range.end + offset })) });
+  }
+  return left;
+}
+
+/** Where a position is once a mark's fix is made. It keeps to the words beside it. */
+export function positionAfterFix(mark, pos) {
+  if (pos.block !== mark.block || pos.offset <= mark.ranges[0].start) return pos;
+  const start = mark.ranges[0].start;
+  const end = mark.ranges[mark.ranges.length - 1].end;
+  if (pos.offset < end) return { block: pos.block, offset: start + mark.replace.length };
+  const taken = mark.ranges.reduce((n, range) => n + range.end - range.start, 0);
+  return { block: pos.block, offset: pos.offset + mark.replace.length - taken };
+}

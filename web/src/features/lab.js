@@ -11,7 +11,7 @@
 
 import { TRIM_LEVELS, labRequest } from '../ai/prompts.js';
 import { parseLabResponse, arrivedSoFar } from '../ai/parse.js';
-import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes, wordsIn } from '../doc/proposal.js';
+import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes, followMarks, positionAfterFix, wordsIn } from '../doc/proposal.js';
 import { percentChange, chooseCuts } from '../doc/trim.js';
 
 const IDEAS = [
@@ -205,7 +205,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
       state.textContent = walking ? `${pass.step + 1} of ${pass.proposal.cuts.length}` : `${before} → ${after} words · ${String(percentChange(before, after)).replace('-', '−')}%`;
       buttons = walking ? [['Cut', () => decide(false)], ['Keep', () => decide(true)], ['Stop', summarize]] : [['Make the cuts', makeCuts], ['Walk through', walk], ['Done', dismiss]];
     } else if (sort === 'typos') {
-      state.textContent = walking ? `${pass.step + 1} of ${pass.marks.length}` : `${pass.marks.length} found`;
+      state.textContent = walking ? `${pass.order.indexOf(pass.marks[pass.step].id) + 1} of ${pass.order.length}` : `${pass.marks.length} found`;
       if (walking) hint.textContent = fixLine(pass.marks[pass.step]);
       buttons = walking ? [['Fix', () => decide(false)], ['Keep', () => decide(true)], ['Stop', summarize]] : [['Fix all', fixAll], ['Walk through', walk], ['Done', dismiss]];
     } else {
@@ -257,7 +257,20 @@ export function createLab({ editor, ui, ai, commands, cards }) {
   // --- what a pass puts in the text -----------------------------------------------------------
 
   // Faded passages are spans with data-trim, marks are spans with data-mark. Neither is
-  // part of the document: the editor reads straight through them (editor/dom.js).
+  // part of the document: the editor reads straight through them (editor/dom.js). Putting
+  // them in or taking them out moves the text the caret is in, so the caret is put back.
+
+  /** Does `fn` to the page and puts the selection back where it was in the text. */
+  function keepingSelection(fn) {
+    const was = editor.selection();
+    fn();
+    if (!was) return;
+    const now = editor.selection();
+    const same = (a, b) => a.block === b.block && a.offset === b.offset;
+    if (now && same(now.start, was.start) && same(now.end, was.end)) return;
+    if (was.backward) editor.select(was.end, was.start);
+    else editor.select(was.start, was.end);
+  }
 
   /** Wraps a stretch of a paragraph's text in spans carrying `attr` = `id`. */
   function wrap(paragraph, start, end, attr, id) {
@@ -283,21 +296,26 @@ export function createLab({ editor, ui, ai, commands, cards }) {
 
   /** Puts the given passages (cuts or marks) into the text. */
   function show(passages, attr) {
-    for (const passage of passages) {
-      const paragraph = editor.blockElement(passage.block);
-      for (const range of passage.ranges) wrap(paragraph, range.start, range.end, attr, passage.id);
-    }
+    keepingSelection(() => {
+      for (const passage of passages) {
+        const paragraph = editor.blockElement(passage.block);
+        for (const range of passage.ranges) wrap(paragraph, range.start, range.end, attr, passage.id);
+      }
+    });
   }
 
   /** Takes the Lab's spans out again, all of them or those of one passage. */
   function unwrap(id = null) {
-    const touched = new Set();
-    for (const span of editor.root.querySelectorAll('[data-trim], [data-mark]')) {
-      if (id !== null && span.dataset.mark !== id) continue;
-      touched.add(span.closest('p'));
-      span.replaceWith(...span.childNodes);
-    }
-    for (const paragraph of touched) paragraph?.normalize();
+    const spans = [...editor.root.querySelectorAll('[data-trim], [data-mark]')].filter((span) => id === null || span.dataset.mark === id);
+    if (spans.length === 0) return;
+    keepingSelection(() => {
+      const touched = new Set();
+      for (const span of spans) {
+        touched.add(span.closest('p'));
+        span.replaceWith(...span.childNodes);
+      }
+      for (const paragraph of touched) paragraph?.normalize();
+    });
   }
 
   const spansOf = (id) => [...editor.root.querySelectorAll(`[data-trim="${id}"], [data-mark="${id}"]`)];
@@ -319,7 +337,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
   function drop(found) {
     hideTip();
     unwrap(found.id);
-    pass.marks = pass.marks.filter((other) => other !== found);
+    pass.marks = pass.marks.filter((other) => other.id !== found.id);
     if (pass.marks.length === 0) dismiss();
   }
 
@@ -398,7 +416,8 @@ export function createLab({ editor, ui, ai, commands, cards }) {
   function ask(kind, name, options, found) {
     dismiss();
     if (!kind) return; // Original: nothing proposed
-    const paragraphs = offered(editor.blocks);
+    const { blocks } = editor; // what the answer will be about
+    const paragraphs = offered(blocks);
     pass = { kind, name, mode: 'reading', ...options };
     report();
     if (paragraphs.length === 0) {
@@ -425,7 +444,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
           fail(outcome);
           return;
         }
-        pass = { kind, name, mode: 'proposal', ...options, ...outcome };
+        pass = { kind, name, mode: 'proposal', ...options, ...outcome, blocks };
         stopSweep();
         show(passages(), kind === 'trim' ? 'trim' : 'mark');
         report();
@@ -620,6 +639,19 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     carryOut('fix typos', (blocks) => applyFixes(blocks, marks));
   }
 
+  /**
+   * Makes one fix in the text, a step of its own to undo, and leaves the pass out: the edit
+   * takes the fix's mark away like any other (follow). Says whether the text changed.
+   */
+  function fix(found) {
+    hideTip();
+    const at = editor.selection();
+    return editor.change('fix typo', (draft) => {
+      draft.blocks = applyFixes(draft.blocks, [found]);
+      if (at) draft.selection = { start: positionAfterFix(found, at.start), end: positionAfterFix(found, at.end) };
+    });
+  }
+
   // --- walking through --------------------------------------------------------------------------
 
   /** Brings the passage being asked about into view, above the card and clear of the top edge. */
@@ -641,27 +673,45 @@ export function createLab({ editor, ui, ai, commands, cards }) {
   function walk() {
     if (pass?.mode !== 'proposal') return;
     pass.mode = 'walking';
+    pass.order = passages().map((passage) => passage.id); // what the walk counts through
     step(0);
   }
 
   /**
+   * Where a walk through the typos goes on once marks have gone: to the first one left at or
+   * after `id` in the walk's order, or, with none left there, back to the summary.
+   */
+  function resume(id) {
+    const left = pass.marks.map((found) => found.id);
+    const next = pass.order.slice(pass.order.indexOf(id)).find((other) => left.includes(other));
+    if (next === undefined) pass.mode = 'proposal';
+    else pass.step = left.indexOf(next);
+  }
+
+  /**
    * Answers the walk's question about the passage it is on, and goes on to the next. For a
-   * trim both answers only decide; for typos, keeping the original drops the fix.
+   * trim both answers only decide. For typos, Fix makes the fix there and then and Keep
+   * leaves the words as they are; either way the mark goes.
    */
   function decide(keep) {
     if (pass?.mode !== 'walking') return;
     const passage = passages()[pass.step];
-    let next = pass.step + 1;
     if (pass.kind === 'trim') {
       if (keep) pass.kept.add(passage.id);
       else pass.kept.delete(passage.id);
-    } else if (keep) {
+      if (pass.step + 1 >= passages().length) summarize();
+      else step(pass.step + 1);
+      return;
+    }
+    if (keep || !fix(passage)) {
       drop(passage);
       if (!pass) return; // that was the last of them
-      next = pass.step;
+      resume(passage.id);
     }
-    if (next >= passages().length) summarize();
-    else step(next);
+    if (!pass) return; // the fix was the last of them
+    paint();
+    report();
+    if (pass.mode === 'walking') reveal(passages()[pass.step]);
   }
 
   function summarize() {
@@ -673,13 +723,34 @@ export function createLab({ editor, ui, ai, commands, cards }) {
 
   // --- what makes a pass stale ------------------------------------------------------------------
 
-  // A pass is about the text as it was when it was asked for. Any change to the document,
-  // undo and redo included, puts it away, and calls off a request still out. What the model
-  // said about trimming the piece as it was goes too.
-  editor.on('change', () => {
-    dismiss();
+  // A pass is about the text as it was when it was asked for. Marks are about words, and
+  // stay through an edit, undo and redo included: those on words it changed go, and the rest
+  // move with their words. Anything else the Lab has out, a trim or a request still on its
+  // way, is put away by any change to the document; what the model said about trimming the
+  // piece as it was goes too. A document opened in place of this one takes everything away.
+  editor.on('change', ({ label }) => {
     forgetTrims();
+    const marking = pass && family(pass.kind) !== 'trim' && (pass.mode === 'proposal' || pass.mode === 'walking');
+    if (marking && label !== 'load') follow();
+    else dismiss();
   });
+
+  /** Brings the marks up to date with an edit. */
+  function follow() {
+    hideTip();
+    const current = pass.mode === 'walking' ? pass.marks[pass.step].id : null;
+    pass.marks = followMarks(pass.blocks, editor.blocks, pass.marks);
+    pass.blocks = editor.blocks;
+    if (pass.marks.length === 0) {
+      dismiss();
+      return;
+    }
+    if (current !== null) resume(current); // the walk stays on its passage, or goes on from it if it went
+    unwrap();
+    show(pass.marks, 'mark');
+    paint();
+    report();
+  }
   // Read mode is just the text.
   ui.on((flags, patch) => {
     if (patch.read !== true) return;

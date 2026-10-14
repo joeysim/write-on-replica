@@ -131,7 +131,7 @@ t.assert(!editor.canUndo, 'and there is nothing to undo');
   t.equal([marked().length, getComputedStyle(card).visibility], [0, 'hidden'], 'dismissing the last mark puts the card away');
 }
 
-// Done clears them all; so does an edit.
+// Done clears them all. An edit takes away only the marks on the words it changes.
 await answer(MARKS);
 await pick('Mark hedges and filler');
 await t.until(() => marked().length === 2, 4000, 'the marks again');
@@ -141,8 +141,16 @@ t.same(html(), before, 'and leaves the text as it was');
 await pick('Mark hedges and filler');
 await t.until(() => marked().length === 2, 4000, 'the marks once more');
 editor.focus();
+editor.select({ block: 7, offset: 0 });
 await t.type('x');
-t.equal([marked().length, getComputedStyle(card).visibility], [0, 'hidden'], 'an edit puts the marks away: they were about the text as it was');
+t.equal(textOf(7), 'xThe third is fine.', 'typing away from the marks goes where the caret is');
+t.equal([marked(), title()], [['really quite', 'plain'], 'Mark hedges and filler 2 marked'], 'and leaves the marks where they are');
+t.selectText('plain');
+getSelection().collapseToEnd();
+await t.key('Backspace');
+t.equal([marked(), title()], [['really quite'], 'Mark hedges and filler 1 marked'], 'an edit to marked words takes their mark away, and no other');
+await t.type('n');
+t.equal(textOf(5), 'Keep this aside the second realy plain ,and stop there.', 'and the caret stays where the edit was');
 await load();
 
 // Each idea asks its own question.
@@ -216,8 +224,13 @@ t.same(html(), before, 'nothing is changed yet');
   t.equal(tip.textContent, 'Teh → The · Misspelled.', 'the label shows the fix and why');
   await t.hover(300, 300);
 }
-await t.click(...t.center(markOf('has has')));
-t.equal(marked(), ['Teh', 'realy', ' ,and'], 'a click on a mark keeps the original');
+{
+  const [x, y] = t.center(markOf('has has'));
+  const aimed = editor.positionFromPoint(x, y);
+  await t.click(x, y);
+  t.equal(marked(), ['Teh', 'realy', ' ,and'], 'a click on a mark keeps the original');
+  t.equal(editor.selection()?.start, aimed, 'and leaves the caret where the click put it');
+}
 t.equal(title(), 'Fix punctuation and typos 3 found', 'and the card counts one fewer');
 await act('Fix all');
 t.equal(textOf(3), P1.replace('Teh', 'The'), 'Fix all makes the fixes that are left, and not the one that was kept');
@@ -229,25 +242,62 @@ t.same(html(), before, 'one undo takes every fix back');
 t.assert(!editor.canUndo, 'it was a single step');
 await load();
 
-// Walking through the fixes.
+// Mending a slip by hand takes its mark away and leaves the others, even beside it.
 await answer(FIXES);
 await pick('Fix punctuation and typos');
 await t.until(() => marked().length === 4, 4000, 'the fixes');
+t.selectText('realy');
+getSelection().collapseToEnd();
+await t.key('Backspace');
+t.equal([marked(), title()], [['Teh', 'has has', ' ,and'], 'Fix punctuation and typos 3 found'], 'mending a slip by hand takes its mark away, and only its mark');
+await t.type('ly');
+t.equal(textOf(5), 'Keep this aside the second really plain ,and stop there.', 'and what is typed next goes where the caret is');
+await t.key('z', { meta: true });
+t.equal([textOf(5), marked()], ['Keep this aside the second real plain ,and stop there.', ['Teh', 'has has', ' ,and']], 'an undo is an edit like any other: the other marks stay, on their words');
+await t.key('z', { meta: true, shift: true });
+t.equal([textOf(5), marked()], ['Keep this aside the second really plain ,and stop there.', ['Teh', 'has has', ' ,and']], 'and so is a redo');
+t.selectText('Teh');
+await t.type('The');
+t.equal([textOf(3), marked()], [P1.replace('Teh', 'The'), ['has has', ' ,and']], 'a slip typed over loses its mark; the one beside it in the paragraph keeps its own');
+await act('Fix all');
+t.equal(
+  [textOf(3), textOf(5)],
+  [P1.replace('Teh', 'The').replace('has has', 'has'), 'Keep this aside the second really plain, and stop there.'],
+  'Fix all makes the fixes that are left, where their words now are',
+);
+await load();
+
+// Walking through the fixes: Fix makes the fix there and then, Keep leaves the words as they are.
+await answer(FIXES);
+await pick('Fix punctuation and typos');
+await t.until(() => marked().length === 4, 4000, 'the fixes');
+editor.select({ block: 3, offset: P1.length }); // the caret at the end of the first paragraph
 await act('Walk through');
 t.equal([title(), hint(), actions().join(' | ')], ['Fix punctuation and typos 1 of 4', 'Teh → The · Misspelled.', 'Fix | Keep | Stop'], 'the walk asks about each fix in turn, showing it');
 t.equal(editor.root.querySelector('[data-mark].is-current')?.textContent, 'Teh', 'and points it out');
 await act('Fix');
-t.equal([title(), hint()], ['Fix punctuation and typos 2 of 4', 'has has → has · Said twice.'], 'Fix moves on');
+t.equal(textOf(3), P1.replace('Teh', 'The'), 'Fix makes that fix in the text');
+t.equal(marked(), ['has has', 'realy', ' ,and'], 'its mark goes, and the others stay');
+t.equal([title(), hint()], ['Fix punctuation and typos 2 of 4', 'has has → has · Said twice.'], 'and the walk goes on to the next');
+t.equal(editor.root.querySelector('[data-mark].is-current')?.textContent, 'has has', 'pointing it out');
+await act('Fix');
+t.equal(textOf(3), P1.replace('Teh', 'The').replace('has has', 'has'), 'each Fix makes its fix');
+t.equal(editor.selection()?.start, { block: 3, offset: P1.length - 4 }, 'and the caret stays with the words it was beside');
 await act('Keep');
-t.equal([title(), marked().join('|')], ['Fix punctuation and typos 2 of 3', 'Teh|realy| ,and'], 'Keep drops that fix and moves on');
+t.equal([textOf(5), marked()], ['Keep this aside the second realy plain ,and stop there.', [' ,and']], 'Keep leaves the words as they are and drops the fix');
+t.equal([title(), hint()], ['Fix punctuation and typos 4 of 4', ' ,and → , and · Space before the comma.'], 'and goes on');
 await act('Stop');
-t.equal([title(), actions().join(' | '), hint()], ['Fix punctuation and typos 3 found', 'Fix all | Walk through | Done', FIX_HINT], 'Stop goes back to the summary');
-t.same(html(), before, 'the walk itself changes nothing');
+t.equal([title(), actions().join(' | '), hint()], ['Fix punctuation and typos 1 found', 'Fix all | Walk through | Done', FIX_HINT], 'Stop goes back to the summary of what is left');
 await act('Walk through');
-for (let i = 0; i < 3; i++) await act('Fix');
-t.equal(actions().join(' | '), 'Fix all | Walk through | Done', 'after the last fix the summary is back');
-await act('Fix all');
-t.equal(textOf(3), P1.replace('Teh', 'The'), 'and Fix all makes what was not kept');
+t.equal(title(), 'Fix punctuation and typos 1 of 1', 'a walk again goes through what is left');
+await act('Fix');
+t.equal(textOf(5), 'Keep this aside the second realy plain, and stop there.', 'the last Fix makes its fix');
+t.equal([marked().length, getComputedStyle(card).visibility], [0, 'hidden'], 'and with nothing left the card is put away');
+await t.key('z', { meta: true });
+t.equal(textOf(5), 'Keep this aside the second realy plain ,and stop there.', 'each fix is a step of its own to undo');
+await t.key('z', { meta: true });
+await t.key('z', { meta: true });
+t.same(html(), before, 'and three undos take the three fixes back');
 await load();
 
 // No slips at all.

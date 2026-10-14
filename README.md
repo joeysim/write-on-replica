@@ -333,8 +333,9 @@ from what the AI says of each sentence: first the words sentences could lose, th
 sentences, the least needed first; a sentence the piece does not work without goes only
 in Cut in half, and last; and each level holds everything the lighter ones take.
 The marking passes underline in the Lab's crimson and give their reason on hover; a click
-dismisses a mark. The typo pass shows each fix on hover and has Fix all. The Lab guide and
-the keyboard icon open cards.
+dismisses a mark, and an edit takes away only the marks on the words it changes. The typo
+pass shows each fix on hover and has Fix all; walking through it makes each fix as you go.
+The Lab guide and the keyboard icon open cards.
 
 **Files and the Mac.** Everything about being a Mac app: the blended title bar, the menu
 bar, Save As, Open Recent, the unsaved-changes question, drafts against a crash, several

@@ -1,10 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes, wordsIn } from '../../web/src/doc/proposal.js';
+import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes, followMarks, positionAfterFix, wordsIn } from '../../web/src/doc/proposal.js';
 import { alignDeletion, chooseCuts } from '../../web/src/doc/trim.js';
 import { parseLabResponse } from '../../web/src/ai/parse.js';
 import { htmlToBlocks, blocksToHtml } from '../../web/src/doc/format.js';
-import { textOf, normalizeBlocks } from '../../web/src/doc/blocks.js';
+import { textOf, normalizeBlocks, insertText, deleteRange, splitBlock, mergeBackward } from '../../web/src/doc/blocks.js';
 
 const B = (html) => htmlToBlocks(html);
 const H = (blocks) => blocksToHtml(blocks);
@@ -380,4 +380,125 @@ test('a fix across ghosted text leaves the ghosted text where it is', () => {
 test('marks without a replacement are not fixes and change nothing', () => {
   const blocks = B(TYPOS);
   assert.equal(applyFixes(blocks, marksFor(blocks, [[1, 'Teh', 'misspelled']])), blocks);
+});
+
+// --- marks through an edit --------------------------------------------------------------------------
+
+const SLIPS = [
+  [1, 'Teh', 'misspelled', 'The'],
+  [1, 'has has', 'said twice', 'has'],
+  [2, 'realy', 'misspelled', 'really'],
+  [2, ' ,and', 'space before the comma', ', and'],
+];
+/** What each mark points at: [id, block, the words under it]. */
+const pointing = (blocks, marks) => marks.map((mark) => [mark.id, mark.block, cutText(blocks, mark).join('|')]);
+const at = (block, offset) => ({ block, offset });
+
+test('an edit away from the marks leaves each on its words, moved along with them', () => {
+  const blocks = B(TYPOS);
+  const marks = marksFor(blocks, SLIPS);
+  const after = insertText(blocks, at(2, 6), 'ii').blocks; // "first" becomes "fiiirst"
+  const moved = followMarks(blocks, after, marks);
+  assert.deepEqual(pointing(after, moved), [
+    ['m1', 2, 'Teh'],
+    ['m2', 2, 'has has'],
+    ['m3', 4, 'realy'],
+    ['m4', 4, ' ,and'],
+  ]);
+  assert.equal(moved[1].ranges[0].start, marks[1].ranges[0].start + 2);
+  assert.deepEqual(moved[1].replace, 'has', 'a mark keeps its fix and its reason');
+  assert.deepEqual(moved[1].reason, 'said twice');
+});
+
+test('an edit to a marked passage takes that mark away, and no other', () => {
+  const blocks = B(TYPOS);
+  const marks = marksFor(blocks, SLIPS);
+  const y = textOf(blocks[4]).indexOf('realy') + 4;
+  const after = deleteRange(blocks, at(4, y), at(4, y + 1)).blocks; // Backspace after "realy"
+  assert.deepEqual(pointing(after, followMarks(blocks, after, marks)), [
+    ['m1', 2, 'Teh'],
+    ['m2', 2, 'has has'],
+    ['m4', 4, ' ,and'],
+  ]);
+  const retyped = insertText(deleteRange(blocks, at(2, 0), at(2, 3)).blocks, at(2, 0), 'The').blocks;
+  assert.deepEqual(
+    followMarks(blocks, retyped, marks).map((mark) => mark.id),
+    ['m2', 'm3', 'm4'],
+    'a marked word typed over goes the same way',
+  );
+});
+
+test('a fix made in the text takes its own mark away', () => {
+  const blocks = B(TYPOS);
+  const marks = marksFor(blocks, SLIPS);
+  const after = applyFixes(blocks, [marks[1]]);
+  assert.deepEqual(pointing(after, followMarks(blocks, after, marks)), [
+    ['m1', 2, 'Teh'],
+    ['m3', 4, 'realy'],
+    ['m4', 4, ' ,and'],
+  ]);
+});
+
+test('letters typed against a marked word take its mark away; a space or a comma beside it does not', () => {
+  const blocks = B(TYPOS);
+  const marks = marksFor(blocks, SLIPS);
+  const typed = (pos, text) => followMarks(blocks, insertText(blocks, pos, text).blocks, marks).map((mark) => mark.id);
+  assert.deepEqual(typed(at(2, 3), 's'), ['m2', 'm3', 'm4'], 'a letter after "Teh"');
+  assert.deepEqual(typed(at(2, 0), 'A'), ['m2', 'm3', 'm4'], 'a letter before it');
+  assert.deepEqual(typed(at(2, 3), ','), ['m1', 'm2', 'm3', 'm4'], 'a comma after it');
+  assert.deepEqual(typed(at(2, 0), ' '), ['m1', 'm2', 'm3', 'm4'], 'a space before it');
+  assert.deepEqual(typed(at(2, 14), ' '), ['m1', 'm2', 'm3', 'm4'], 'a second space before "has has"');
+  assert.deepEqual(typed(at(2, 22), 'h'), ['m1', 'm3', 'm4'], 'a letter after "has has"');
+});
+
+test('a mark goes with its words into a new paragraph, and back again', () => {
+  const blocks = B(TYPOS);
+  const marks = marksFor(blocks, SLIPS);
+  const split = splitBlock(blocks, at(2, 15)).blocks; // Return just before "has has"
+  const moved = followMarks(blocks, split, marks);
+  assert.deepEqual(pointing(split, moved), [
+    ['m1', 2, 'Teh'],
+    ['m2', 3, 'has has'],
+    ['m3', 5, 'realy'],
+    ['m4', 5, ' ,and'],
+  ]);
+  const joined = mergeBackward(split, 3).blocks; // and Backspace at the start of the new paragraph
+  assert.deepEqual(pointing(joined, followMarks(split, joined, moved)), pointing(blocks, marks));
+});
+
+test('a paragraph deleted takes its marks with it; those below move up with their words', () => {
+  const blocks = B(TYPOS);
+  const marks = marksFor(blocks, SLIPS);
+  const after = deleteRange(blocks, at(1, 0), at(3, 0)).blocks;
+  assert.deepEqual(pointing(after, followMarks(blocks, after, marks)), [
+    ['m3', 2, 'realy'],
+    ['m4', 2, ' ,and'],
+  ]);
+});
+
+test('an edit between the parts of a mark that runs across ghosted text takes the mark away', () => {
+  const blocks = B(TYPOS);
+  const [mark] = marksFor(blocks, [[2, 'Keep it', 'a test']]);
+  const from = textOf(blocks[4]).indexOf('aside');
+  const after = deleteRange(blocks, at(4, from), at(4, from + 6)).blocks;
+  assert.deepEqual(followMarks(blocks, after, [mark]), []);
+});
+
+test('a change that leaves the words as they were leaves the marks as they were', () => {
+  const blocks = B(TYPOS);
+  const marks = marksFor(blocks, SLIPS);
+  const ghosted = B(TYPOS.replace('stop.', '<span data-ghost>stop.</span>'));
+  assert.deepEqual(followMarks(blocks, ghosted, marks), marks);
+  assert.deepEqual(followMarks(blocks, blocks, marks), marks);
+});
+
+test('a position keeps to the words beside it when a fix is made', () => {
+  const blocks = B(TYPOS);
+  const [, doubled] = marksFor(blocks, SLIPS); // "has has", at 15, becomes "has"
+  const moved = (block, offset) => positionAfterFix(doubled, at(block, offset));
+  const end = textOf(blocks[2]).length;
+  assert.deepEqual(moved(2, end), at(2, end - 4), 'after the fix: moved by what it took out');
+  assert.deepEqual(moved(2, 15), at(2, 15), 'just before it: where it was');
+  assert.deepEqual(moved(2, 20), at(2, 18), 'inside what is fixed: at the end of the new words');
+  assert.deepEqual(moved(4, 3), at(4, 3), 'in another paragraph: where it was');
 });

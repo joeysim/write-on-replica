@@ -14,8 +14,9 @@
 //   WRITEON_API_FORMAT=anthropic scripts/ui-test.sh ai-live --ai live
 //
 // It asks for five other words, three other sentences, the hedges in the welcome piece, a
-// trim of that piece and of a longer draft at every level, and the slips in a page that has
-// some. It never sees the key: the shell holds it and says only where it came from.
+// trim of that piece and of a longer draft at every level, and the slips put into that draft,
+// then mends one by hand and fixes another on a walk through them. It never sees the key: the
+// shell holds it and says only where it came from.
 const { editor, ui, commands, lab } = window.writeOn;
 if (!(await t.call('test.options')).aiLive) {
   t.log('skipped: this run does not ask the real service (scripts/ui-test.sh ai-live --ai live does)');
@@ -254,18 +255,69 @@ const DRAFT = [
 
 // --- slips of the pen ---------------------------------------------------------------------------------
 
-// The last thing, since it puts another page in the window: one with slips in it that any
-// reader would catch, so that there is something for the answer to hold.
+// The last thing, since it puts another page in the window: the draft again, with slips put in
+// it that any reader would catch, so that there is something for the answer to hold. Then what
+// a writer does with them: one mended by hand, and a walk through the rest, fixing as it goes.
 {
-  editor.setState({
-    html: '<p><br></p><p># A page with slips</p><p><br></p><p>Teh first paragraph has has a slip or two, and it goes on a little after it has made its point.</p><p><br></p><p>The second is fine.</p>',
-    groups: {},
-    overflow: '',
-  });
+  // [as it was, as it is put in, the slip]
+  const PUT_IN = [
+    ['we basically had', 'we basicly had', 'basicly'],
+    ['The format was', 'Teh format was', 'Teh'],
+    ['because the meeting', 'because the the meeting', 'the the'],
+    ['What surprised me', 'What suprised me', 'suprised'],
+  ];
+  const slipped = DRAFT.map((line) => PUT_IN.reduce((made, [right, wrong]) => made.replace(right, wrong), line));
+  editor.setState({ html: `<p><br></p>${slipped.map((line) => `<p>${line}</p><p><br></p>`).join('')}`, groups: {}, overflow: '' });
   await t.settle();
   const before = editor.getState().html;
   const pass = await mark('Fix punctuation and typos', /^Fix punctuation and typos \d+ found$/);
-  t.assert(pass.found && pass.marked.some((text) => text.includes('Teh')), `the slips are found, "Teh" among them: ${JSON.stringify(pass.marked)} ${pass.said}`);
+  const caught = PUT_IN.map(([, , slip]) => slip).filter((slip) => pass.marked.some((text) => text.includes(slip)));
+  t.log(`of the four slips put in, ${caught.length} found: ${JSON.stringify(caught)}`);
+  t.assert(pass.found && pass.marked.some((text) => text.includes('Teh')) && pass.marked.length >= 2, `the slips are found, "Teh" among them: ${JSON.stringify(pass.marked)} ${pass.said}`);
   t.equal(editor.getState().html, before, 'and nothing is changed until the writer says so');
+
+  const card = $('#labcard');
+  const title = () => card.querySelector('.title').textContent.replace(/\s+/g, ' ').trim();
+  const hint = () => card.querySelector('.hint').textContent;
+  const marks = () => {
+    const found = new Map();
+    for (const span of editor.root.querySelectorAll('[data-mark]')) found.set(span.dataset.mark, (found.get(span.dataset.mark) ?? '') + span.textContent);
+    return [...found.values()];
+  };
+  const act = async (label) => {
+    const button = [...card.querySelectorAll('.actions button')].find((b) => b.textContent === label);
+    if (t.assert(button, `the card has a ${label} button`)) await t.click(...t.center(button));
+  };
+
+  // "Teh" mended by hand: its mark goes, and only its mark.
+  const others = pass.marked.filter((text) => !text.includes('Teh'));
+  t.selectText('Teh');
+  await t.type('The');
+  t.equal(marks(), others, 'mending a slip by hand takes away its mark and leaves the rest');
+  t.equal(title(), `Fix punctuation and typos ${others.length} found`, 'and the card counts what is left');
+
+  // A walk: Fix makes the first fix in the text, there and then.
+  await act('Walk through');
+  const asked = hint();
+  const current = editor.root.querySelector('[data-mark].is-current');
+  const paragraph = current.closest('p');
+  const block = [...editor.root.children].indexOf(paragraph);
+  const range = document.createRange();
+  range.setStart(paragraph, 0);
+  range.setEnd(current.firstChild ?? current, 0);
+  const offset = range.toString().length;
+  const replace = asked.slice(asked.indexOf(' → ') + 3, asked.includes(' · ') ? asked.lastIndexOf(' · ') : undefined);
+  const was = textOf(block);
+  await act('Fix');
+  t.log(`walked: ${asked}`);
+  t.equal(textOf(block).slice(offset, offset + replace.length), replace, 'Fix makes the fix where the mark was');
+  t.assert(textOf(block) !== was, 'so the paragraph is changed');
+  t.equal(
+    [marks().length, others.length > 1 ? title() : getComputedStyle(card).visibility],
+    [others.length - 1, others.length > 1 ? `Fix punctuation and typos 2 of ${others.length}` : 'hidden'],
+    'its mark goes, and the walk goes on to the next',
+  );
+  await t.key('z', { meta: true });
+  t.equal(textOf(block), was, 'one undo takes that fix back');
   lab.dismiss();
 }

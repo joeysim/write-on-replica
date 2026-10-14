@@ -536,8 +536,8 @@ at twice ghost's strength and lives beside the document, not in it. Text the use
 already ghosted is treated as already out: it is not offered for cutting and is left out
 of both word counts on the card. Headings are not offered either, though their words are
 counted. A cut inside an alternative group edits that group's active variant; a cut that
-removes all of it removes the group. Any change to the document while a pass is out
-(an edit, an undo, a redo) puts the pass away, since it was about the text as it was.
+removes all of it removes the group. Any change to the document while a trim is out
+(an edit, an undo, a redo) puts the trim away, since it was about the text as it was.
 
 After "Make the cuts" the app does only mechanical tidying: collapse doubled spaces,
 remove a space left before punctuation, and capitalize a sentence whose first words were
@@ -601,8 +601,11 @@ in 8 to 25 seconds, mostly without thinking at all, and the four levels come to 
 are inferred (§9 items 4 and 5): the same card and scan line, with marked passages
 underlined in `lab` at full strength, and a small label by the passage under the pointer
 giving the reason, or for a typo the fix ("Teh → The · Misspelled."). They are passes like a
-trim: only one is out at a time, a new one puts the last away, and so does any change to
-the document.
+trim: only one is out at a time, and a new one puts the last away. Unlike a trim they stay
+through an edit, an undo or a redo. A mark goes when the edit changes its words, or runs
+them into letters they stood apart from; the others move with their words. With none
+left, the card goes. A mark that went does not come back on an undo. Opening another
+document puts them away.
 
 **AI contract.** Each pass sends the document as numbered paragraphs and gets back a
 fixed JSON shape. What the app accepts is narrow by construction:
@@ -1096,8 +1099,8 @@ go another way.
 | 1 | Keyboard icon | Opens a card listing the shortcuts in §6.13. |
 | 2 | "The Lab guide…" | Opens a card, in the look of the shortcut card, headed "The Lab": each of the six ideas and the trims with two sentences on what it does, and a closing line that the AI never rewrites. |
 | 3 | "Walk through" | Steps through the proposal one passage at a time with Cut / Keep / Stop, showing "3 of 9" where the numbers were. The passage in question is underlined in the Lab's crimson and scrolled into view. Cut and Keep only decide; nothing is cut until "Make the cuts". After the last passage, or on Stop or Esc, the summary is back. |
-| 4 | "Mark…" passes | Marked passages get a `lab`-colored underline; hovering shows a short reason; clicking a mark dismisses it, and dismissing the last puts the card away; "Done" clears them. The card names the pass and counts ("Mark hedges and filler 2 marked") over the line "Hover a mark to see why. Click one to dismiss it." A quote the model made up, or changed, is dropped; if nothing is left the card says "The AI marked nothing." Never saved. |
-| 5 | "Fix punctuation and typos" | Proposed fixes are marked the same way, with the correction shown on hover. The card counts them ("4 found") over "Hover a mark to see the fix. Click one to keep the original." Card buttons: "Fix all", "Walk through", "Done". Clicking a mark keeps the original and drops the fix. "Fix all" makes every fix still marked, as one step to undo. "Walk through" shows each fix on the card in turn with Fix / Keep / Stop; as for a trim they only decide, and "Fix all" then makes what was not kept. A fix inside an alternative group changes what the group is showing. A clean page gets "The AI found no slips." |
+| 4 | "Mark…" passes | Marked passages get a `lab`-colored underline; hovering shows a short reason; clicking a mark dismisses it, and dismissing the last puts the card away; "Done" clears them. An edit takes away only the marks on the words it changes. The card names the pass and counts ("Mark hedges and filler 2 marked") over the line "Hover a mark to see why. Click one to dismiss it." A quote the model made up, or changed, is dropped; if nothing is left the card says "The AI marked nothing." Never saved. |
+| 5 | "Fix punctuation and typos" | Proposed fixes are marked the same way, with the correction shown on hover. The card counts them ("4 found") over "Hover a mark to see the fix. Click one to keep the original." Card buttons: "Fix all", "Walk through", "Done". Clicking a mark keeps the original and drops the fix. "Fix all" makes every fix still marked, as one step to undo. "Walk through" shows each fix on the card in turn with Fix / Keep / Stop, counting through the fixes it set out with ("2 of 4"). Fix makes that fix there and then, as a step of its own to undo; Keep leaves the words as they are. Either way the mark goes and the walk goes on, and when none is left the card goes. Stop or Esc goes back to the summary of what is left. A slip mended by hand loses its mark; the others stay. A fix inside an alternative group changes what the group is showing. A clean page gets "The AI found no slips." |
 | 6 | Stash with no selection | Moves the whole paragraph at the caret. |
 | 7 | Where stashed text lands | Appended to the end of Overflow. |
 | 8 | Ctrl+Return in Overflow | Moves text into the page (rather than copying it). |
