@@ -819,6 +819,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
         <ul>
           <li><strong>No Xcode project.</strong> <code>Package.swift</code> declares one executable target for macOS 13 and later, with no dependencies. The Command Line Tools are enough to build it.</li>
           <li><strong><code>scripts/build-app.sh</code></strong> runs <code>swift build</code>, then assembles <code>build/Write_On.app</code> by hand: the binary, <code>Info.plist</code>, a copy of <code>web/</code> in Resources, and the icon. It signs the bundle ad hoc.</li>
+          <li><strong>The version is kept in one place.</strong> <code>CFBundleShortVersionString</code> in <code>packaging/Info.plist</code>: three numbers, read as Semantic Versioning reads them. The README says what each promises, and the first scenario checks that the built app reports it in that form. <code>CFBundleVersion</code> beside it is the build, a whole number that goes up with each release.</li>
           <li><strong>The page ships as source.</strong> The files in the bundle are the files in <code>web/</code>, unprocessed.</li>
           <li><strong>The icon is drawn by code.</strong> <code>scripts/make-icon.swift</code> draws the app's own mark, a W with the pen stroke and three dots, at every size macOS asks for.</li>
           <li><strong>Fonts are bundled:</strong> IBM Plex Mono and Caveat, both under the SIL Open Font License. <code>scripts/fetch-fonts.sh</code> records where they came from and checks them by hash.</li>
@@ -1002,8 +1003,8 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr class="group"><td colspan="3">Scripts, tests and documents</td></tr>
               <tr><td class="name"><code>scripts/</code></td><td class="num">582</td><td>Ten things to run: build the app, run everything, look for keys, run one scenario, run a measurement, check a real launch, serve the page to a browser, take the README's pictures, draw the icon, fetch the fonts.</td></tr>
               <tr><td class="name"><code>tests/unit/</code></td><td class="num">3,334</td><td>16 test files for the pure modules.</td></tr>
-              <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,515</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
-              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,200</td><td>The design spec: measurements, behaviour, and the 54 decisions the clips did not settle.</td></tr>
+              <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,518</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
+              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,202</td><td>The design spec: measurements, behaviour, and the 54 decisions the clips did not settle.</td></tr>
               <tr><td class="name"><code>docs/superpowers/plans/</code></td><td class="num">443</td><td>The 23-task plan the app was built from.</td></tr>
             </tbody>
           </table>

@@ -873,7 +873,9 @@ off.
 
 **Build.** The Command Line Tools are enough, without Xcode: the app is a Swift
 package built with `swift build`, and a script assembles and ad-hoc signs
-`Write_On.app` (Info.plist, resources, fonts, icon). Minimum macOS 13.
+`Write_On.app` (Info.plist, resources, fonts, icon). Minimum macOS 13. The app's version
+is `CFBundleShortVersionString` in that Info.plist and nowhere else: three numbers, read
+as Semantic Versioning reads them. The README's "Versions" says what each promises.
 
 ### 7.1 The AI service
 

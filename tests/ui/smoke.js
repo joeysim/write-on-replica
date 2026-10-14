@@ -2,6 +2,9 @@
 // the design spec (section 4), which were taken from the source clips at 1548x976.
 const info = await t.call('app.info');
 t.assert(info && info.inApp === true, 'the bridge answers app.info');
+// The version is the bundle's, written as Semantic Versioning writes one: major, minor and
+// patch, none with a leading zero, and nothing after them (README, "Versions").
+t.assert(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(info.version), `the app gives its version as three numbers: it says ${info.version}`);
 
 // A scripted run is headless and stays out of the way of whoever is using the Mac: it has
 // no Dock icon and is not the active app, its window is on no display, cannot take the

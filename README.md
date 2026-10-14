@@ -124,7 +124,7 @@ LunaRoute (`https://gw.lunaroute.com/v1`) for `glm-5.3-flash`, OpenAI's way.
 - **API key.** Paste it and it is saved in your keychain, and nowhere else.
 - **Address.** The service's base address: `https://api.openai.com/v1`, say, or
   `https://api.anthropic.com`, or `https://openrouter.ai/api/v1`, or
-  `http://localhost:11434/v1` for a model served on this Mac. The whole address of where
+  `http://localhost:11434/v1` for a model served locally. The whole address of where
   its requests go will do as well.
 - **Format.** Which of the two ways the service is spoken to. Left on Automatic it goes
   by `WRITEON_API_FORMAT` if your environment sets that, and otherwise by the address:
@@ -274,8 +274,9 @@ These need someone at the Mac:
 13. **Full screen** (the green button, or fn F): the layout then matches the clips exactly,
     with no title bar above the page.
 14. **Post to X** (the X icon): the browser opens X's compose window with the piece in it.
-15. **About.** Write_On ▸ About Write_On: under the version, a line saying that this is an
-    unofficial replica, inspired by Jason Fried's.
+15. **About.** Write_On ▸ About Write_On: the version as three numbers, with the build in
+    brackets after it (see [Versions](#versions)), and under them a line saying that this
+    is an unofficial replica, inspired by Jason Fried's.
 16. **Another AI service.** In Settings give the address, the model and the key of a
     service other than LunaRoute, and press Test connection. Then ask for alternatives
     (Ctrl+Shift+G) and run a pass from the Lab. Nobody has yet, OpenAI's way or
@@ -470,6 +471,25 @@ started. With a caret in the text it and WebKit's processes hold about 210 MB, o
 The document's own work is a few hundredths of a millisecond a keystroke, which is why
 WebAssembly has nothing to offer here: in the trial a WebAssembly loop is no faster than
 the same loop in JavaScript, and three times slower once the text has been handed to it.
+
+## Versions
+
+The app's version is three numbers, as [Semantic Versioning](https://semver.org) writes
+them: major, minor, patch. Write_On ▸ About Write_On shows it. What each number promises:
+
+- **Major** goes up when something you rely on stops working as it did: a file an earlier
+  version saved no longer opens with all that was in it, a setting or a name read from the
+  environment (`WRITEON_API_KEY` and the others) goes or changes its meaning, or the app
+  needs a newer macOS than it did.
+- **Minor** goes up when the app can do something it could not, and all of that still
+  holds.
+- **Patch** goes up for a mend that adds nothing and takes nothing away.
+
+The number is kept in one place, `CFBundleShortVersionString` in `packaging/Info.plist`,
+and `tests/ui/smoke.js` checks on every run that the built app reports three plain
+numbers. `CFBundleVersion` beside it is the build: a whole number, one more with each
+release. The version changes when a release is made, not with each commit, and a release
+is the commit tagged with it, as `v1.0.0`. There are none yet.
 
 ## Contributing
 

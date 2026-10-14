@@ -24,7 +24,8 @@ ideas about the tool itself.
 
 Open an issue, and say:
 
-- the version of macOS, and the commit you built;
+- the version of macOS, the app's version (Write_On ▸ About Write_On) and the commit you
+  built;
 - what you did, step by step, and what happened in place of what you expected;
 - for anything to do with a file, a small `.md` file that shows it;
 - for a difference from the original, which clip and how far into it.
@@ -122,6 +123,10 @@ itself has to be changed.
 
 Open a pull request against `main`. Say what it changes and why, how you tested it, and
 anything you could not test. Small pull requests are read sooner.
+
+Leave the app's version as it is: it changes when a release is made. If your change would
+call for a new major or minor version by the README's [rules](README.md#versions), say
+so.
 
 By contributing you agree that your contribution is under the project's
 [MIT licence](LICENSE), and that it is yours to give.
