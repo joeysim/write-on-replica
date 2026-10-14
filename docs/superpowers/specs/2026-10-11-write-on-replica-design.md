@@ -125,7 +125,7 @@ Opacity states: ghost text 11%; paragraphs other than the panel's target 35%.
 - **Labels:** Caveat, 20.2 px, for the panel tabs ("Word", "Sentence", "Paragraph"),
   "Overflow", "As saved", "Readable" and "Copy". Compared word by word with the clip at 2x
   (the three tabs and "Overflow"): widths and heights agree to about a quarter of a pixel.
-- Both families are OFL-licensed and bundled with their licence files.
+- Both families are OFL-licensed and bundled with their license files.
 
 ### 4.3 Page layout
 

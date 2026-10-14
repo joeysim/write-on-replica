@@ -543,7 +543,7 @@ should not be reported in public. Everyone taking part is asked to keep to the
 - **Write_On is Jason Fried's**: the idea, the design, the name and the wording of the
   interface. This project is not connected with him and he has not endorsed it.
 - **The fonts** in `web/fonts` are IBM Plex Mono (© IBM Corp.) and Caveat (© The Caveat
-  Project Authors), each under the SIL Open Font License 1.1. Their licences sit beside
+  Project Authors), each under the SIL Open Font License 1.1. Their licenses sit beside
   them and go into the app with them. `scripts/fetch-fonts.sh` records where the files
   came from and checks them against what was published.
 - **The marks on two buttons** are their owners': X's logo, and LinkedIn's redrawn in
@@ -560,9 +560,9 @@ should not be reported in public. Everyone taking part is asked to keep to the
   sentences are also built the way his opening one is. `reference/`, which git ignores,
   is where the measurements were made.
 
-## Licence
+## License
 
-The code and documents here are under the [MIT licence](LICENSE), © 2026 Joey Simhon.
+The code and documents here are under the [MIT license](LICENSE), © 2026 Joey Simhon.
 The fonts keep their own, and so does the code of conduct, which is the Contributor
-Covenant's (CC BY 4.0). The licence covers what was made for this project: Write_On's
+Covenant's (CC BY 4.0). The license covers what was made for this project: Write_On's
 name and design are not this project's to give.

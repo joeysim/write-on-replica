@@ -10,4 +10,4 @@
 
 **What could not be tested**
 
-<!-- By contributing you agree that the contribution is under the project's MIT licence. -->
+<!-- By contributing you agree that the contribution is under the project's MIT license. -->

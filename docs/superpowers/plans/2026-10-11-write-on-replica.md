@@ -16,7 +16,7 @@
 
 - App display name `Write_On`; bundle id `com.thesimhons.writeon`; executable and SwiftPM target `WriteOn`; minimum macOS 13.
 - No Xcode: everything builds with `swift build` plus `scripts/build-app.sh`. Ad-hoc signing only.
-- The page has no build step and no third-party code. Fonts are the only bundled third-party assets (IBM Plex Mono, Caveat; OFL, licence files alongside).
+- The page has no build step and no third-party code. Fonts are the only bundled third-party assets (IBM Plex Mono, Caveat; OFL, license files alongside).
 - The API key never reaches the page. The web view loads only `writeon://app/…` and refuses other navigation.
 - AI: base URL `https://gw.lunaroute.com/v1` (override `LUNAROUTE_BASE_URL`), model `glm-5.3-flash`, key from Keychain, then `LUNAROUTE_API_KEY` in the process environment, then the login shell. Alternatives use `"reasoning_effort": "low"`.
 - Reference page size 1548×976 CSS px. Colours, type and geometry come verbatim from spec §4 and §6.2.
@@ -64,7 +64,7 @@ scripts/
 web/
   index.html
   styles/base.css editor.css chrome.css panels.css popovers.css lab.css
-  fonts/…                          woff2/ttf + licences
+  fonts/…                          woff2/ttf + licenses
   src/
     main.js                        boot and wiring
     native.js                      bridge wrapper; browser shim when not inside the app
@@ -166,7 +166,7 @@ The shell skeleton and snapshot harness come second, before most of the page exi
 
 **Produces:** a page that renders a static sample document with the spec's type, column and colours; `npm test` wired to `node --test tests/unit/`.
 
-- [ ] Fetch IBM Plex Mono Regular/Bold woff2 and licence from `@ibm/plex-mono@1.1.0`, Caveat variable TTF and OFL from `google/fonts`; write `fetch-fonts.sh` so the provenance is reproducible.
+- [ ] Fetch IBM Plex Mono Regular/Bold woff2 and license from `@ibm/plex-mono@1.1.0`, Caveat variable TTF and OFL from `google/fonts`; write `fetch-fonts.sh` so the provenance is reproducible.
 - [ ] `base.css`: `@font-face` rules, colour tokens from spec §4.1 as custom properties, page background, selection colour.
 - [ ] `editor.css`: column 780 px centred, 20 px / line-height 1.82, padding 18vh / 45vh, edge mask (invisible to 53 px, full at 96 px), headings bold.
 - [ ] `index.html` + `main.js` + `sample.js`: render the sample document into `#editor`.

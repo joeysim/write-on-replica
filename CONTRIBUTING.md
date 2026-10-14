@@ -137,6 +137,6 @@ call for a new major or minor version by the README's [rules](README.md#versions
 so.
 
 By contributing you agree that your contribution is under the project's
-[MIT licence](LICENSE), and that it is yours to give.
+[MIT license](LICENSE), and that it is yours to give.
 
 Everyone taking part is asked to keep to the [code of conduct](CODE_OF_CONDUCT.md).

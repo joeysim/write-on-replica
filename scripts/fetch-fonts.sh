@@ -7,7 +7,7 @@ cd "$(dirname "$0")/../web/fonts"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-fetch() { # url, output file, sha256 (none for the licence texts, which git will show changed)
+fetch() { # url, output file, sha256 (none for the license texts, which git will show changed)
   curl -fsSL --max-time 60 -o "$TMP/$2" "$1"
   if [ -n "${3:-}" ]; then
     echo "$3  $TMP/$2" | shasum -a 256 -c - >/dev/null 2>&1 ||

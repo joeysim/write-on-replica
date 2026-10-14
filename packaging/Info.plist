@@ -49,7 +49,7 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSHumanReadableCopyright</key>
-    <string>Inspired by Jason Fried’s Write_On. An unofficial replica, not connected with him. © 2026 Joey Simhon. MIT licence.</string>
+    <string>Inspired by Jason Fried’s Write_On. An unofficial replica, not connected with him. © 2026 Joey Simhon. MIT license.</string>
     <key>NSLocalNetworkUsageDescription</key>
     <string>Write_On reaches your local network only to ask an AI model served there, and only if the address in its Settings names one.</string>
     <key>NSPrincipalClass</key>
