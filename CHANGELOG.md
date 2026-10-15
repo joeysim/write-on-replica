@@ -6,6 +6,8 @@ release that brings it.
 
 ## Unreleased
 
+## 1.0.2 (2026-10-15)
+
 - On a Mac where nothing says what a Markdown file is, the Open window showed every `.md`
   file grayed out. It takes `.md`, `.markdown` and `.txt` files on any Mac.
 
