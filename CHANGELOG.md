@@ -6,6 +6,8 @@ release that brings it.
 
 ## Unreleased
 
+## 1.0.1 (2026-10-14)
+
 - The Lab's typo pass keeps its marks through an edit. Mending a slip by hand takes away
   that slip's mark and leaves the others on their words, and so do an undo and a redo.
   The marking passes do the same.
