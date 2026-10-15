@@ -296,9 +296,10 @@ These need someone at the Mac:
 13. **Full screen** (the green button, or fn F): the layout then matches the clips exactly,
     with no title bar above the page.
 14. **Post to X** (the X icon): the browser opens X's compose window with the piece in it.
-15. **About.** Write_On ▸ About Write_On: the version as three numbers, with the build in
-    brackets after it (see [Versions](#versions)), and under them a line saying that this
-    is an unofficial replica, inspired by Jason Fried's.
+15. **About.** Write_On ▸ About Write_On: for a release (from 1.0.3), the version as three
+    numbers with the commit it was built from in brackets; for a build of your own, where
+    it came from, marked "(development)" (see [Versions](#versions)). Under them, a line
+    saying that this is an unofficial replica, inspired by Jason Fried's.
 16. **Another AI service.** In Settings give the address, the model and the key of a
     service other than LunaRoute, and press Test connection. Then ask for alternatives
     (Ctrl+Shift+G) and run a pass from the Lab. Nobody has yet, OpenAI's way or
