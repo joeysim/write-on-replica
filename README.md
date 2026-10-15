@@ -379,6 +379,7 @@ autocorrection and smart punctuation are off by default.
 npm test                     # unit tests for the document logic (Node's own runner, no packages)
 scripts/build-app.sh         # build build/Write_On.app with SwiftPM
 scripts/package.sh           # make the copy a release carries: build/release/Write_On-<version>.zip
+scripts/release.sh patch     # make a release: see Versions
 scripts/check.sh             # everything: unit tests, a look for keys, a build, every UI scenario
 scripts/ui-test.sh files     # one scenario from tests/ui, in the app's own web view
 scripts/ui-test.sh smoke --zoom 2
@@ -532,6 +533,21 @@ again to see that the signature holds, that both halves are there, and that noth
 Mac that built it is in it: a release build has the entries a debugger would use taken
 out, because they name every source file by its full path, home folder and all. It will
 not package a working copy with changes that are not committed.
+
+What each release changed is in [CHANGELOG.md](CHANGELOG.md). A change a person using the
+app would notice gets a line there, under "Unreleased", in the commit that makes it. Once
+it is tested and on GitHub, `scripts/release.sh patch` (or `minor`, or `major`) makes the
+release: it gives what is under "Unreleased" the new version's number, raises both
+numbers in `packaging/Info.plist`, commits, tags, and pushes the commit and the tag. It
+will not release a working copy with changes, or a `main` that is not the same as on
+GitHub.
+
+Pushing the tag is what publishes the release. On GitHub's own Mac, the
+[release workflow](.github/workflows/release.yml) builds the app from the tagged commit,
+runs the unit tests, packages it with `scripts/package.sh`, opens the zip and runs the app
+from it through two scenarios, and publishes it with what CHANGELOG.md says of that
+version, its size and its checksum. A release that went wrong can be published again from
+the Actions tab, once what went wrong is mended.
 
 ## Contributing
 

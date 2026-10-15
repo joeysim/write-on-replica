@@ -891,6 +891,10 @@ signature holds, that both halves are there and that nothing of the Mac that bui
 in it. The app's version
 is `CFBundleShortVersionString` in that Info.plist and nowhere else: three numbers, read
 as Semantic Versioning reads them. The README's "Versions" says what each promises.
+`scripts/release.sh` makes a release of what is on GitHub's `main`: it raises the version,
+gives what CHANGELOG.md has under "Unreleased" the new number, and pushes a commit and a
+tag. The tag sets off a workflow on GitHub's own Mac that builds, tests and packages the
+app, runs it from the zip, and publishes it.
 
 ### 7.1 The AI service
 

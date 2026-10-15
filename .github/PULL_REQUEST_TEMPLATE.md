@@ -5,6 +5,7 @@
 - [ ] `scripts/check.sh` ends with `check: all green`
 - [ ] A test that failed before the change and passes after it
 - [ ] The spec and the README still describe the app as it is
+- [ ] CHANGELOG.md says, under Unreleased, what a person using the app will notice
 - [ ] Tried by hand, if it touches something only a person can check (README, "What a person has to check")
 - [ ] `scripts/check-secrets.sh` finds nothing
 

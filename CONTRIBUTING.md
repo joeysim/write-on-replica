@@ -134,7 +134,8 @@ anything you could not test. Small pull requests are read sooner.
 
 Leave the app's version as it is: it changes when a release is made. If your change would
 call for a new major or minor version by the README's [rules](README.md#versions), say
-so.
+so. If it is something a person using the app would notice, add a line saying what, in
+their terms, under "Unreleased" in [CHANGELOG.md](CHANGELOG.md).
 
 By contributing you agree that your contribution is under the project's
 [MIT license](LICENSE), and that it is yours to give.

@@ -1,0 +1,74 @@
+# A release is published when its tag is pushed (scripts/release.sh pushes it), and can be
+# published again by hand, from the Actions tab, for a tag whose release went wrong. The app
+# is built from the tagged commit on GitHub's own Mac and tested; then it is packaged as
+# scripts/package.sh packages it, run once more as it is in the zip, and published with what
+# CHANGELOG.md says of that version.
+name: Release
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag to publish, as v1.0.1
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 40
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: refs/tags/${{ inputs.tag || github.ref_name }}
+
+      - name: The tag names the version in Info.plist
+        run: |
+          version="$(plutil -extract CFBundleShortVersionString raw -o - packaging/Info.plist)"
+          if [ "$TAG" != "v$version" ]; then
+            echo "::error::$TAG is not v$version, the version in packaging/Info.plist"
+            exit 1
+          fi
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+          sw_vers -productVersion
+          swift --version
+          node --version
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build and package
+        run: scripts/package.sh
+
+      - name: Run the app as it is in the zip
+        run: |
+          opened="$RUNNER_TEMP/opened"
+          ditto -x -k "build/release/Write_On-$VERSION.zip" "$opened"
+          export WRITEON_APP="$opened/Write_On.app" WRITEON_WEB_ROOT="$opened/Write_On.app/Contents/Resources/web"
+          scripts/ui-test.sh smoke --ai mock
+          scripts/ui-test.sh lab-marks --ai mock
+          if arch -x86_64 /usr/bin/true 2>/dev/null; then
+            WRITEON_ARCH=x86_64 scripts/ui-test.sh smoke --ai mock
+          else
+            echo "There is no Rosetta on this Mac: the Intel half is built and checked, but not run."
+          fi
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          zip="build/release/Write_On-$VERSION.zip"
+          notes="$RUNNER_TEMP/notes.md"
+          scripts/release-notes.sh "$VERSION" "$zip" > "$notes"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            gh release upload "$TAG" "$zip" --clobber
+            gh release edit "$TAG" --title "Write_On $VERSION" --notes-file "$notes"
+          else
+            gh release create "$TAG" "$zip" --title "Write_On $VERSION" --notes-file "$notes" --verify-tag
+          fi
