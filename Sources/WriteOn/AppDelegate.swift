@@ -201,13 +201,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         NSApp.orderFrontStandardAboutPanel(options: Self.aboutOptions(Bundle.main.infoDictionary ?? [:]))
     }
 
-    /// What About gives as the version. A release's build gives its own, and the panel is left
-    /// as it is. Any other build gives where it came from, as git named it when it was built
-    /// (scripts/build-app.sh writes that down as WriteOnSource), and says it is a development build.
+    /// What About gives as the version. A release's build gives its own, with the commit it was
+    /// built from in place of the build number (which stays in the bundle, where macOS reads
+    /// it). Any other build gives where it came from, as git named it when it was built, and
+    /// says it is a development build. scripts/build-app.sh writes both down (WriteOnSource,
+    /// WriteOnCommit); a build with neither leaves the panel as it is.
     static func aboutOptions(_ info: [String: Any]) -> [NSApplication.AboutPanelOptionKey: Any] {
-        guard let source = info["WriteOnSource"] as? String,
-              source != "v" + (info["CFBundleShortVersionString"] as? String ?? "")
-        else { return [:] }
+        guard let source = info["WriteOnSource"] as? String else { return [:] }
+        if source == "v" + (info["CFBundleShortVersionString"] as? String ?? "") {
+            guard let commit = info["WriteOnCommit"] as? String else { return [:] }
+            return [.version: commit]
+        }
         return [.applicationVersion: source.hasPrefix("v") ? String(source.dropFirst()) : source, .version: "development"]
     }
 

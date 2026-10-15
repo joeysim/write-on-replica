@@ -243,7 +243,10 @@ final class UITestHarness {
             guard let self else { return nil }
             let window = self.controller.window
             let onADisplay = NSScreen.screens.contains { $0.frame.intersects(window.frame) }
-            let about = AppDelegate.aboutOptions(Bundle.main.infoDictionary ?? [:])
+            let info = Bundle.main.infoDictionary ?? [:]
+            let about = AppDelegate.aboutOptions(info)
+            let shown = about[.applicationVersion] as? String ?? info["CFBundleShortVersionString"] as? String ?? ""
+            let build = about[.version] as? String ?? info["CFBundleVersion"] as? String ?? ""
             return [
                 "active": NSApp.isActive,
                 "activations": self.activations,
@@ -259,10 +262,11 @@ final class UITestHarness {
                 "architectures": Self.builtFor,
                 "runningAs": Self.runningAs,
                 "askedFor": ProcessInfo.processInfo.environment["WRITEON_ARCH"].map { $0 as Any } ?? NSNull(),
-                // Where the build came from, as git named it (scripts/build-app.sh), and the
-                // version line About shows for it: null where the panel is left as it is.
-                "source": Bundle.main.object(forInfoDictionaryKey: "WriteOnSource") as? String ?? NSNull(),
-                "about": about.isEmpty ? NSNull() : "Version \(about[.applicationVersion] ?? "") (\(about[.version] ?? ""))" as Any,
+                // Where the build came from, as git named it, and its commit (scripts/build-app.sh),
+                // and the version line About shows.
+                "source": info["WriteOnSource"] as? String ?? NSNull(),
+                "commit": info["WriteOnCommit"] as? String ?? NSNull(),
+                "about": "Version \(shown) (\(build))",
             ] as [String: Any]
         })
         bridge.on("test.done", sync: { [weak self] params in

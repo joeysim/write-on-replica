@@ -6,6 +6,8 @@ release that brings it.
 
 ## Unreleased
 
+- About shows the commit a release was built from, where it showed the build number.
+
 ## 1.0.2 (2026-10-15)
 
 - On a Mac where nothing says what a Markdown file is, the Open window showed every `.md`

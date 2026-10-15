@@ -5,14 +5,16 @@ t.assert(info && info.inApp === true, 'the bridge answers app.info');
 // The version is the bundle's, written as Semantic Versioning writes one: major, minor and
 // patch, none with a leading zero, and nothing after them (README, "Versions").
 t.assert(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(info.version), `the app gives its version as three numbers: it says ${info.version}`);
-// About says which build this is. Built at a release's tag, it gives the version as it is;
-// built from anything else, it gives where it came from, as git names it (one commit after
-// 1.0.1 is 1.0.1-1-g and the commit; -dirty, with changes not committed), and says it is a
-// development build. The numbers themselves change only when a release is made.
+// About says which build this is. Built at a release's tag, it gives the version and, in
+// place of the build number, the commit it was built from; built from anything else, it
+// gives where it came from, as git names it (one commit after 1.0.1 is 1.0.1-1-g and the
+// commit; -dirty, with changes not committed), and says it is a development build. The
+// numbers themselves change only when a release is made.
 {
-  const { source, about } = await t.call('test.environment');
+  const { source, commit, about } = await t.call('test.environment');
   t.assert(/^v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-\d+-g[0-9a-f]+)?(-dirty)?$/.test(source ?? ''), `the build knows where it came from: ${source}`);
-  if (source === `v${info.version}`) t.equal(about, null, `About gives a release's version as it is (${source})`);
+  t.assert(/^[0-9a-f]{7,}$/.test(commit ?? ''), `and from which commit: ${commit}`);
+  if (source === `v${info.version}`) t.equal(about, `Version ${info.version} (${commit})`, `About gives a release's version, and the commit it was built from (${source})`);
   else t.equal(about, `Version ${source?.slice(1)} (development)`, 'and About says where any other build came from, and that it is a development build');
 }
 
