@@ -895,6 +895,8 @@ signature holds, that both halves are there and that nothing of the Mac that bui
 in it. The app's version
 is `CFBundleShortVersionString` in that Info.plist and nowhere else: three numbers, read
 as Semantic Versioning reads them. The README's "Versions" says what each promises.
+A build also records where it came from, as `git describe` names it, and About shows that,
+marked as a development build, for any build not made at a release's tag.
 `scripts/release.sh` makes a release of what is on GitHub's `main`: it raises the version,
 gives what CHANGELOG.md has under "Unreleased" the new number, and pushes a commit and a
 tag. The tag sets off a workflow on GitHub's own Mac that builds, tests and packages the

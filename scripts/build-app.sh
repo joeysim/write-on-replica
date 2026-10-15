@@ -28,6 +28,13 @@ lipo -create -output "$APP/Contents/MacOS/WriteOn" "${HALVES[@]}"
 # taken out. (The signature this breaks is made again below.)
 [ "$CONFIG" != release ] || strip -S -no_code_signature_warning "$APP/Contents/MacOS/WriteOn"
 cp "$ROOT/packaging/Info.plist" "$APP/Contents/Info.plist"
+# Where the build came from, as git names it: v1.0.1 at a release's tag, v1.0.1-1-g0ce718c a
+# commit after it, and -dirty on the end with changes not committed. About shows it for any
+# build that is not a release's (README, "Versions"). A copy with no history has nothing to say.
+if [ "$(git -C "$ROOT" rev-parse --show-toplevel 2>/dev/null)" = "$(cd "$ROOT" && pwd -P)" ]; then
+  SOURCE="$(git -C "$ROOT" describe --tags --match 'v[0-9]*' --dirty 2>/dev/null || true)"
+  [ -z "$SOURCE" ] || plutil -insert WriteOnSource -string "$SOURCE" "$APP/Contents/Info.plist"
+fi
 cp -R "$ROOT/web" "$APP/Contents/Resources/web"
 # The icon is drawn by a script and kept in the repository; it is drawn again only if missing.
 [ -f "$ROOT/packaging/AppIcon.icns" ] || swift "$ROOT/scripts/make-icon.swift" >/dev/null

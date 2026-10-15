@@ -196,6 +196,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
 
     // MARK: Menu actions
 
+    /// The standard About panel, with the version line `aboutOptions` gives.
+    @objc func showAbout(_ sender: Any?) {
+        NSApp.orderFrontStandardAboutPanel(options: Self.aboutOptions(Bundle.main.infoDictionary ?? [:]))
+    }
+
+    /// What About gives as the version. A release's build gives its own, and the panel is left
+    /// as it is. Any other build gives where it came from, as git named it when it was built
+    /// (scripts/build-app.sh writes that down as WriteOnSource), and says it is a development build.
+    static func aboutOptions(_ info: [String: Any]) -> [NSApplication.AboutPanelOptionKey: Any] {
+        guard let source = info["WriteOnSource"] as? String,
+              source != "v" + (info["CFBundleShortVersionString"] as? String ?? "")
+        else { return [:] }
+        return [.applicationVersion: source.hasPrefix("v") ? String(source.dropFirst()) : source, .version: "development"]
+    }
+
     @objc func newDocument(_ sender: Any?) {
         openWindow(.blank)
     }

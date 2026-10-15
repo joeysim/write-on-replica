@@ -544,6 +544,14 @@ release. The version changes when a release is made, not with each commit, and a
 is the commit tagged with it, as `v1.0.0`, with a built copy of the app attached to it on
 GitHub.
 
+Between releases the numbers stay as the last release left them, so a build says where it
+came from instead. `scripts/build-app.sh` writes down what git calls the commit it builds
+(`git describe`), and About shows that for any build that is not a release's: "Version
+1.0.1-3-g0ce718c (development)" is three commits after 1.0.1, at commit `0ce718c`, and
+`-dirty` on the end means the working copy had changes not yet committed. A build made at a
+release's tag, as the release workflow makes them, shows the version as it is: "Version
+1.0.1 (2)".
+
 `scripts/package.sh` makes that copy. It builds the app afresh, zips it, and opens the zip
 again to see that the signature holds, that both halves are there, and that nothing of the
 Mac that built it is in it: a release build has the entries a debugger would use taken
