@@ -3,11 +3,9 @@
 ## Reporting a problem
 
 Please do not open a public issue for something that could put a person's key, files or
-Mac at risk. Report it privately, one of two ways:
-
-- **Report a vulnerability**, on the repository's Security tab on GitHub, if the button
-  is there;
-- or write to [address removed].
+Mac at risk. Report it privately, on GitHub: on the repository's
+[Security tab](https://github.com/joeysim/write-on-replica/security), press **Report a
+vulnerability**. Only the maintainer can read the report, and you can talk it over there.
 
 Say what you found, how to make it happen, and which commit you built or which release
 you downloaded. A small file or a few steps that show it are worth more than a long
