@@ -1,15 +1,16 @@
 #!/bin/bash
-# Make the copy of the app that goes on a release: build/release/Write_On-<version>.zip.
+# Make the copy of the app that goes on a release: build/releases/<version>/Write_On-<version>.zip.
 #   scripts/package.sh
-# The app is built afresh in build/release, so the one in build/ can stay open. A release is
+# The app is built afresh in that folder, so the one in build/ can stay open; other versions'
+# folders are left as they are. A release is
 # of a commit, so nothing is packaged while the working copy has changes that are not
 # committed. The zip is then opened again and looked at, since it is what strangers will
 # run: the signature has to hold, both halves have to be there, and nothing of this Mac (its
 # name, the path of your home folder) may be in it.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-OUT="$ROOT/build/release"
 VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "$ROOT/packaging/Info.plist")"
+OUT="$ROOT/build/releases/$VERSION"
 ZIP="$OUT/Write_On-$VERSION.zip"
 
 # Where this folder is a repository of its own. (A copy downloaded as an archive has no

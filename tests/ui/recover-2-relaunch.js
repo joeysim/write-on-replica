@@ -1,4 +1,4 @@
-// launch: --state build/ui/recover-1-crash/state
+// launch: --state build/results/ui/recover-1-crash/state
 // Recovery, part two (design spec 6.11 and 8): the launch after a crash. It starts from what
 // recover-1-crash.js left behind, so that scenario runs first (scripts/check.sh runs them in
 // order). The unsaved work comes back as an unsaved document.

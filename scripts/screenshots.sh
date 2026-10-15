@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 BIN="${WRITEON_APP:-$ROOT/build/Write_On.app}/Contents/MacOS/WriteOn"
 [ -x "$BIN" ] || { echo "screenshots: build the app first (scripts/build-app.sh)" >&2; exit 2; }
-OUT="$ROOT/build/screenshots"
+OUT="$ROOT/build/results/screenshots"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 cp "$ROOT/scripts/screenshots.js" "$OUT/screenshots.js"

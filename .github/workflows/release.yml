@@ -49,7 +49,7 @@ jobs:
       - name: Run the app as it is in the zip
         run: |
           opened="$RUNNER_TEMP/opened"
-          ditto -x -k "build/release/Write_On-$VERSION.zip" "$opened"
+          ditto -x -k "build/releases/$VERSION/Write_On-$VERSION.zip" "$opened"
           export WRITEON_APP="$opened/Write_On.app" WRITEON_WEB_ROOT="$opened/Write_On.app/Contents/Resources/web"
           scripts/ui-test.sh smoke --ai mock
           scripts/ui-test.sh lab-marks --ai mock
@@ -63,7 +63,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          zip="build/release/Write_On-$VERSION.zip"
+          zip="build/releases/$VERSION/Write_On-$VERSION.zip"
           notes="$RUNNER_TEMP/notes.md"
           scripts/release-notes.sh "$VERSION" "$zip" > "$notes"
           if gh release view "$TAG" > /dev/null 2>&1; then

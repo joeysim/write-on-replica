@@ -378,7 +378,7 @@ autocorrection and smart punctuation are off by default.
 ```sh
 npm test                     # unit tests for the document logic (Node's own runner, no packages)
 scripts/build-app.sh         # build build/Write_On.app with SwiftPM
-scripts/package.sh           # make the copy a release carries: build/release/Write_On-<version>.zip
+scripts/package.sh           # make the copy a release carries: build/releases/<version>/
 scripts/release.sh patch     # make a release: see Versions
 scripts/check.sh             # everything: unit tests, a look for keys, a build, every UI scenario
 scripts/ui-test.sh files     # one scenario from tests/ui, in the app's own web view
@@ -394,6 +394,20 @@ swift scripts/make-icon.swift  # draw packaging/AppIcon.icns again
 The scripts that run scenarios use `python3` to print their results; it comes with the
 Command Line Tools.
 
+Everything built or left behind goes in `build/`, which git ignores:
+
+```
+build/
+├── Write_On.app        the app as the working copy builds it: the one to open
+├── dev/Write_On.app    a second copy, for runs while the first is open (below)
+├── releases/<version>/ Write_On-<version>.zip and the app in it, one folder a version
+└── results/            what runs leave: ui/<scenario>/, bench/<name>/, screenshots/
+```
+
+A version's folder is made by `scripts/package.sh` and is left alone by the next version's.
+Once a release is published, the zip there is the one downloaded from its page. SwiftPM's
+own build folders are in `.build/`, beside it.
+
 The app is two parts. `Sources/WriteOn` is a small AppKit shell: windows, the menu bar,
 files, the key, the network. `web/` is the editor, a page of plain ES modules with no build
 step and no third-party code, shown in a `WKWebView`: `src/doc` and `src/ai` are pure
@@ -405,7 +419,7 @@ talk over a small request-and-reply bridge.
 
 `scripts/ui-test.sh <name>` launches the built app with `--ui-test`, runs
 `tests/ui/<name>.js` inside the page and writes snapshots and `result.json` to
-`build/ui/<name>/`. The page is read from `web/` in the working copy, so page-only changes
+`build/results/ui/<name>/`. The page is read from `web/` in the working copy, so page-only changes
 need no rebuild. `--zoom 2` makes the page lay out and paint as it does on a 2x display,
 whatever display the Mac has, which is the scale of the source clips. A scenario can ask
 for launch options of its own on its first line (`// launch: --setting read=false`).

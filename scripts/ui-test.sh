@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run one UI scenario from tests/ui through the built app's harness, in the real web view.
 #   scripts/ui-test.sh <scenario> [--zoom 2] [--size 1548x976] [--ai mock] [--timeout 60]
-# Snapshots and result.json land in build/ui/<scenario>/. Exit status is the scenario's.
+# Snapshots and result.json land in build/results/ui/<scenario>/. Exit status is the scenario's.
 # WRITEON_APP names the bundle to run, if not build/Write_On.app.
 # WRITEON_ARCH names the half of the universal app to run, if not the Mac's own: x86_64 runs
 # the Intel half on an Apple silicon Mac, under Rosetta.
@@ -16,7 +16,7 @@ BIN="${WRITEON_APP:-$ROOT/build/Write_On.app}/Contents/MacOS/WriteOn"
 SCENARIO="$ROOT/tests/ui/$NAME.js"
 [ -x "$BIN" ] || { echo "ui-test: build the app first (scripts/build-app.sh)" >&2; exit 2; }
 [ -f "$SCENARIO" ] || { echo "ui-test: no scenario $SCENARIO" >&2; exit 2; }
-OUT="$ROOT/build/ui/$NAME"
+OUT="$ROOT/build/results/ui/$NAME"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 status=0

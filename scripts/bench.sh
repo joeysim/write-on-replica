@@ -1,7 +1,7 @@
 #!/bin/bash
 # Run one measurement from tests/perf in the built app, out of sight, and print what it found.
 #   scripts/bench.sh <name> [options for the app, as for ui-test.sh]
-# Results land in build/bench/<name>/. WRITEON_APP names the bundle, if not build/Write_On.app.
+# Results land in build/results/bench/<name>/. WRITEON_APP names the bundle, if not build/Write_On.app.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -10,7 +10,7 @@ shift
 BIN="${WRITEON_APP:-$ROOT/build/Write_On.app}/Contents/MacOS/WriteOn"
 [ -x "$BIN" ] || { echo "bench: build the app first (scripts/build-app.sh)" >&2; exit 2; }
 [ -f "$ROOT/tests/perf/$NAME.js" ] || { echo "bench: no measurement tests/perf/$NAME.js" >&2; exit 2; }
-OUT="$ROOT/build/bench/$NAME"
+OUT="$ROOT/build/results/bench/$NAME"
 rm -rf "$OUT"
 mkdir -p "$OUT"
 # The scenario is run with the documents it measures on in scope.
