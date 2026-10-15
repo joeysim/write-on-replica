@@ -6,6 +6,9 @@ release that brings it.
 
 ## Unreleased
 
+- On a Mac where nothing says what a Markdown file is, the Open window showed every `.md`
+  file grayed out. It takes `.md`, `.markdown` and `.txt` files on any Mac.
+
 ## 1.0.1 (2026-10-14)
 
 - The Lab's typo pass keeps its marks through an edit. Mending a slip by hand takes away

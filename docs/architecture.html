@@ -273,7 +273,7 @@ img { max-width: 100%; }
     <h1>How Write_On is <span class="alt">built<svg viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true"><path d="M0 3.2 C 16 1.4, 34 4.6, 52 3 S 84 1.8, 100 3.4" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg><span class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></span></span></h1>
     <p class="lede">This is an unofficial replica of Write_On, the writing tool Jason Fried shows in <a href="https://x.com/jasonfried/status/2105403067793584590">his post on X</a>, and not his own. The app is a small native Mac program wrapped around a web page. The Swift part owns the windows, the files, the key and the network. The page is the editor. This report walks through both, how they talk, where each behavior lives, and how the whole thing is tested.</p>
     <dl class="facts">
-      <div><dt>The shell</dt><dd>3,838 lines of Swift in 13 files</dd></div>
+      <div><dt>The shell</dt><dd>3,861 lines of Swift in 13 files</dd></div>
       <div><dt>The page</dt><dd>7,694 lines of JavaScript in 43 modules, 1,205 of CSS</dd></div>
       <div><dt>Tests</dt><dd>364 unit tests, 34 scripted scenarios, 5 measurements</dd></div>
       <div><dt>Third-party code</dt><dd>None</dd></div>
@@ -892,7 +892,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <div>
             <dt>Tests run inside the real app</dt>
             <dd><b>Buys</b>Scenarios exercise the same WebKit, the same bridge and the same shell code you run.</dd>
-            <dd><b>Costs</b>The harness is 1,027 of the shell's 3,838 lines and is compiled into the app. It does nothing unless the app is started with <code>--ui-test</code>.</dd>
+            <dd><b>Costs</b>The harness is 1,039 of the shell's 3,861 lines and is compiled into the app. It does nothing unless the app is started with <code>--ui-test</code>.</dd>
           </div>
           <div>
             <dt>The app counts a trim, not the model</dt>
@@ -937,14 +937,14 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>DocumentWindowController.swift</code></td><td class="num">599</td><td>One window, one document: the web view, the bridge handlers, the file, save and close.</td></tr>
               <tr><td class="name"><code>Bridge.swift</code></td><td class="num">87</td><td>Messages between page and shell: handlers, <code>emit</code>, <code>ask</code>.</td></tr>
               <tr><td class="name"><code>AssetSchemeHandler.swift</code></td><td class="num">73</td><td>Serves the page at <code>writeon://app/</code>. Nothing outside the web root is readable.</td></tr>
-              <tr><td class="name"><code>FileStore.swift</code></td><td class="num">227</td><td>Reading and writing documents, recent documents, drafts, and the panels and alerts.</td></tr>
+              <tr><td class="name"><code>FileStore.swift</code></td><td class="num">238</td><td>Reading and writing documents, recent documents, drafts, and the panels and alerts.</td></tr>
               <tr><td class="name"><code>AIClient.swift</code></td><td class="num">470</td><td>Asks the AI service: streaming, cancellation, asking again. Turns every failure into one readable line.</td></tr>
               <tr><td class="name"><code>AIWire.swift</code></td><td class="num">321</td><td>The two ways a service is spoken to, OpenAI's and Anthropic's: what is sent, and how the answer is read.</td></tr>
               <tr><td class="name"><code>Credentials.swift</code></td><td class="num">212</td><td>Finds the key: Keychain, environment, login shell.</td></tr>
               <tr><td class="name"><code>AppSettings.swift</code></td><td class="num">92</td><td>What the app remembers, in UserDefaults or, for a scripted run, in memory.</td></tr>
               <tr><td class="name"><code>SettingsWindowController.swift</code></td><td class="num">250</td><td>The Settings window: key, address, format, model, Test connection, sound.</td></tr>
               <tr><td class="name"><code>MainMenu.swift</code></td><td class="num">177</td><td>The menu bar.</td></tr>
-              <tr><td class="name"><code>UITestHarness.swift</code></td><td class="num">1,027</td><td>Scripted runs: options, native input, snapshots, the guards, scripted answers.</td></tr>
+              <tr><td class="name"><code>UITestHarness.swift</code></td><td class="num">1,039</td><td>Scripted runs: options, native input, snapshots, the guards, scripted answers.</td></tr>
 
               <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/ and web/src</td></tr>
               <tr><td class="name"><code>index.html</code></td><td class="num">144</td><td>The page's fixed elements: the editor, the panels, the icons, the canvas.</td></tr>
@@ -1007,8 +1007,8 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>scripts/</code></td><td class="num">775</td><td>Thirteen things to run: build the app, make the copy a release carries, make a release, write what its page says, run everything, look for keys, run one scenario, run a measurement, check a real launch, serve the page to a browser, take the README's pictures, draw the icon, fetch the fonts.</td></tr>
               <tr><td class="name"><code>.github/workflows/</code></td><td class="num">74</td><td>What GitHub’s own Mac does with a release’s tag: builds and tests the app, packages it, runs it from the zip, and publishes it.</td></tr>
               <tr><td class="name"><code>tests/unit/</code></td><td class="num">3,455</td><td>16 test files for the pure modules.</td></tr>
-              <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,626</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
-              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,226</td><td>The design spec: measurements, behavior, and the 54 decisions the clips did not settle.</td></tr>
+              <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,641</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
+              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,230</td><td>The design spec: measurements, behavior, and the 54 decisions the clips did not settle.</td></tr>
               <tr><td class="name"><code>docs/superpowers/plans/</code></td><td class="num">443</td><td>The 23-task plan the app was built from.</td></tr>
             </tbody>
           </table>

@@ -308,7 +308,9 @@ These need someone at the Mac:
     [Build and run](#build-and-run)).
 18. **A downloaded copy.** Download the zip from a release, unzip it and open the app.
     macOS should refuse it once, and open it after the command in
-    [Build and run](#build-and-run). Nobody has yet.
+    [Build and run](#build-and-run). Then open a `.md` file with File ▸ Open: it should
+    not be grayed out. On the first other Mac it was tried on, every one was, until
+    that was mended.
 
 ## Decisions the clips do not settle
 

@@ -270,3 +270,18 @@ await told((s) => !s.dirty && s.drafts.length === 0, 'the document to be saved')
   t.equal(real.mode, '600', 'which is still private to its owner');
   t.equal(['com.apple.metadata:_kMDItemUserTags', 'org.example.note'].filter((name) => !real.attributes.includes(name)), [], 'and still has what was attached to it');
 }
+
+// --- what the Open panel lets be chosen -----------------------------------------------------------
+
+// Markdown and plain text, whatever this Mac calls a Markdown file. That differs between
+// Macs: where something says Markdown is plain text (Notes does, from macOS 26) a .md file
+// is plain text; where nothing says what it is, a .md file has a type of no name, which is
+// not plain text, and the panel showed every one of them grayed out. (Found on a laptop: the
+// same app opened .md files on the Mac it was built on.) An ending nothing on this Mac
+// claims stands in for .md on such a Mac.
+{
+  for (const name of ['open.md', 'open.markdown', 'open.txt', 'open.png', 'open.xmdz']) await t.writeFile(name, base64('# Open me\n'));
+  const takes = (names, markdown) => t.call('test.openable', markdown ? { names, markdown } : { names });
+  t.equal(await takes(['open.md', 'open.markdown', 'open.txt', 'open.png']), [true, true, true, false], 'the Open panel takes .md, .markdown and .txt files, and not a picture');
+  t.equal(await takes(['open.xmdz', 'open.png'], ['xmdz']), [true, false], 'and a Markdown file on a Mac where nothing says what Markdown is');
+}

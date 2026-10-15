@@ -15,6 +15,17 @@ struct Draft {
 final class FileStore {
     static let fileExtension = "md"
     static let markdown = UTType(filenameExtension: fileExtension, conformingTo: .plainText) ?? .plainText
+    /// The endings a Markdown file may have.
+    static let markdownExtensions = ["md", "markdown"]
+
+    /// What the Open panel lets be chosen: Markdown and plain text. What a Markdown file is
+    /// depends on the Mac: plain text where something on it says so (Notes does, from
+    /// macOS 26), a type of its own where an app says otherwise, and a type of no name where
+    /// nothing says anything. So the panel takes whatever this Mac calls a file with each of
+    /// Markdown's endings, as well as plain text.
+    static func openableTypes(markdown extensions: [String] = markdownExtensions) -> [UTType] {
+        extensions.compactMap { UTType(filenameExtension: $0) } + [.plainText]
+    }
 
     private let draftsDirectory: URL
     /// Whether recent documents are the system's list (the Apple menu, the Dock) or one
@@ -163,7 +174,7 @@ final class Panels: Asking {
 
     func whatToOpen(for window: NSWindow?, then reply: @escaping ([URL]) -> Void) {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [FileStore.markdown, .plainText]
+        panel.allowedContentTypes = FileStore.openableTypes()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
         // Not a sheet: what is chosen may well open in a window of its own.

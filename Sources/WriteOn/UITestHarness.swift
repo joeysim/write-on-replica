@@ -468,6 +468,18 @@ final class UITestHarness {
             if let next = params["answers"] as? [[String: Any]] { self.answers.answers = next }
             return ["asked": self.answers.asked] as [String: Any]
         })
+        // test.openable { names, markdown? } -> [Bool]: for each of the run's files, whether the
+        // Open panel would let it be chosen, by the type this Mac gives it. `markdown` names the
+        // endings to treat as Markdown's in place of the app's own, so that a run can stand in
+        // for a Mac where nothing says what a Markdown file is.
+        bridge.on("test.openable", sync: { params in
+            guard let names = params["names"] as? [String] else { throw Bridge.Failure("test.openable needs names") }
+            let types = FileStore.openableTypes(markdown: params["markdown"] as? [String] ?? FileStore.markdownExtensions)
+            return names.map { name -> Bool in
+                let found = (try? folder.appendingPathComponent(name).resourceValues(forKeys: [.contentTypeKey]))?.contentType
+                return found.map { type in types.contains { type.conforms(to: $0) } } ?? false
+            }
+        })
         // test.shell -> what the shell knows of the document and keeps about it.
         bridge.on("test.shell", sync: { [weak self] _ in
             guard let self else { return nil }

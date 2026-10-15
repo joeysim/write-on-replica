@@ -684,6 +684,10 @@ Overflow text, as plain paragraphs.
   of its own. Files from Finder, the Dock and Open Recent go the same way. The app
   declares itself an editor of Markdown files without claiming to be the one that opens
   them all.
+- The Open panel offers Markdown files (`.md`, `.markdown`) and plain text, whatever the
+  Mac calls them. Where something says Markdown is plain text (Notes does, from macOS 26)
+  a `.md` file is plain text; where nothing says what it is, it has a type of no name,
+  which is not. Taking only plain text grayed out every `.md` file on such a Mac.
 - What a file could not give (a damaged record, text changed elsewhere, §8) is said in
   one line by the Open icon, the way a control's note is (see Post to X below). A file
   that is not UTF-8 is read all the same, UTF-16 by its mark and anything else as
