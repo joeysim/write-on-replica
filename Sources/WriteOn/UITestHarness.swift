@@ -98,6 +98,8 @@ final class UITestHarness {
     private var aiScript: [String: Any] = [:]
     private var aiRequests: [[String: Any]] = []
     private var aiCanceled: Set<String> = []
+    /// Answers that wait for `test.ai { release: true }`.
+    private var aiHeld: [() -> Void] = []
 
     init(options: UITestOptions, controller: DocumentWindowController, app: AppDelegate, answers: ScriptedAsking) {
         self.options = options
@@ -598,13 +600,20 @@ final class UITestHarness {
     /// Stands in for the AI provider. A scenario says what the next requests get with
     /// `test.ai { set: { chunks, firstMs, everyMs } }` or `{ set: { error, firstMs } }`;
     /// `ai.start` then plays that back as the real client would, as `ai.delta` events and
-    /// an `ai.done`, or an `ai.error`. `test.ai` answers with every request received and
-    /// the ids of those called off.
+    /// an `ai.done`, or an `ai.error`. With `hold: true` in the set, an answer does not start
+    /// until `test.ai { release: true }`: a scenario can then look at the page while it waits,
+    /// however slow the Mac is. `test.ai` answers with every request received and the ids
+    /// of those called off.
     private func registerScriptedAI() {
         let bridge = controller.bridge
         bridge.on("test.ai", sync: { [weak self] params in
             guard let self else { return nil }
             if let script = params["set"] as? [String: Any] { self.aiScript = script }
+            if params["release"] as? Bool == true {
+                let held = self.aiHeld
+                self.aiHeld = []
+                held.forEach { $0() }
+            }
             return ["requests": self.aiRequests, "canceled": Array(self.aiCanceled)] as [String: Any]
         })
         bridge.on("ai.start", sync: { [weak self] params in
@@ -619,15 +628,18 @@ final class UITestHarness {
                     self.controller.bridge.emit(event, payload)
                 }
             }
-            if let message = script["error"] as? String {
-                send(first, "ai.error", ["id": id, "message": message])
-                return nil
+            let answer = {
+                if let message = script["error"] as? String {
+                    send(first, "ai.error", ["id": id, "message": message])
+                    return
+                }
+                let chunks = script["chunks"] as? [String] ?? []
+                for (index, chunk) in chunks.enumerated() {
+                    send(first + every * Double(index), "ai.delta", ["id": id, "text": chunk])
+                }
+                send(first + every * Double(chunks.count), "ai.done", ["id": id])
             }
-            let chunks = script["chunks"] as? [String] ?? []
-            for (index, chunk) in chunks.enumerated() {
-                send(first + every * Double(index), "ai.delta", ["id": id, "text": chunk])
-            }
-            send(first + every * Double(chunks.count), "ai.done", ["id": id])
+            if script["hold"] as? Bool == true { self.aiHeld.append(answer) } else { answer() }
             return nil
         })
         bridge.on("ai.cancel", sync: { [weak self] params in

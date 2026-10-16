@@ -41,8 +41,10 @@ const pick = async (label) => {
   await t.click(...t.center(row(label)));
 };
 /** What the model is made to answer, and how soon. */
-const answer = (payload, { firstMs = 60, error = null } = {}) =>
-  t.call('test.ai', { set: error ? { error, firstMs } : { chunks: [JSON.stringify(payload)], firstMs, everyMs: 20 } });
+const answer = (payload, { firstMs = 60, error = null, hold = false } = {}) =>
+  t.call('test.ai', { set: error ? { error, firstMs, hold } : { chunks: [JSON.stringify(payload)], firstMs, everyMs: 20, hold } });
+/** Lets a held answer come. */
+const release = () => t.call('test.ai', { release: true });
 const lastAsked = async () => {
   const { requests } = await t.call('test.ai');
   return requests[requests.length - 1].messages.map((m) => m.content).join('\n');
@@ -75,7 +77,9 @@ const MARKS = {
   ],
 };
 const WHY = 'Hover a mark to see why. Click one to dismiss it.';
-await answer(MARKS, { firstMs: 900 });
+// The answer waits until the test releases it, so the test sees the reading state on a slow
+// Mac too. A delay of 0.9 s was used before, and on a slow Mac at GitHub the answer came first.
+await answer(MARKS, { firstMs: 0, hold: true });
 await pick('Mark hedges and filler');
 t.assert(!ui.get('lab'), 'choosing an idea closes the popover');
 t.equal(title(), 'Mark hedges and filler Reading…', 'a card names the pass and says it is reading');
@@ -88,6 +92,7 @@ t.assert(getComputedStyle(scan).visibility === 'visible' && scan.getAnimations()
   t.assert(!said.includes('this aside') && !said.includes('A page with slips'), 'without ghosted text or the heading');
   t.assert(/hedges and filler/.test(said), 'with what to look for');
 }
+await release();
 await t.until(() => marked().length > 0, 4000, 'the marks to arrive');
 t.equal(marked(), ['really quite', 'plain'], 'what the model quoted is marked; a quote that is not in the text is dropped');
 t.same(html(), before, 'the text itself is untouched');
@@ -210,10 +215,11 @@ const FIXES = {
   ],
 };
 const FIX_HINT = 'Hover a mark to see the fix. Click one to keep the original.';
-await answer(FIXES, { firstMs: 400 });
+await answer(FIXES, { firstMs: 0, hold: true });
 await pick('Fix punctuation and typos');
 t.equal([title(), hint(), actions().join(' | ')], ['Fix punctuation and typos Reading…', FIX_HINT, 'Done'], 'the typo pass reads like the others');
 t.assert(/spelling and punctuation/.test(await lastAsked()), 'and asks about spelling and punctuation');
+await release();
 await t.until(() => marked().length > 0, 4000, 'the fixes to arrive');
 t.equal(marked(), ['Teh', 'has has', 'realy', ' ,and'], 'each slip is marked; a “fix” that changes nothing is dropped');
 t.equal([title(), actions().join(' | ')], ['Fix punctuation and typos 4 found', 'Fix all | Walk through | Done'], 'the card counts them and offers to fix them');
