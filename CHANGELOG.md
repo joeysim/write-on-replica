@@ -6,7 +6,7 @@ release that brings it.
 
 ## Unreleased
 
-- About shows the commit a release was built from, where it showed the build number.
+- In a release, About shows the source commit in place of the build number.
 
 ## 1.0.2 (2026-10-15)
 

@@ -31,7 +31,7 @@ SIZE="$(stat -f %z "$ZIP" | awk '{ printf "%.1f MB", $1 / 1000000 }')"
 SUM="$(shasum -a 256 "$ZIP" | cut -d' ' -f1)"
 
 cat <<EOF
-An unofficial Mac replica of Write_On, the writing tool Jason Fried shows in [his post on X](https://x.com/jasonfried/status/2105403067793584590). It is not his, and he had no part in it. When he releases his own, the README will link to it, and that is the one to use.
+This app is an unofficial Mac replica of Write_On. Jason Fried shows his Write_On in [a post on X](https://x.com/jasonfried/status/2105403067793584590). This replica is not his, and he did not help to make it. When he releases his own app, the README will link to it. Use his app then.
 
 ## What changed
 
@@ -39,17 +39,23 @@ $CHANGES
 
 ## The download
 
-\`$(basename "$ZIP")\` is the app as \`scripts/package.sh\` builds it at this tag: universal (Apple silicon and Intel), for macOS 13 or later, $SIZE. It was built on GitHub's own Mac by the [release workflow]($REPO/blob/main/.github/workflows/release.yml), which ran the unit tests first and then the app itself, as it is in the zip, before publishing it.
+\`$(basename "$ZIP")\` contains the app that \`scripts/package.sh\` builds at this tag. The app runs on Apple silicon and Intel Macs with macOS 13 or later. The zip is $SIZE.
 
-**macOS will refuse to open it the first time, and may call it damaged.** It is not: it is signed ad hoc and not notarized. Unzip it, drag Write_On to Applications, then take off the mark the download put on it:
+The [release workflow]($REPO/blob/main/.github/workflows/release.yml) built the app on a Mac at GitHub. Before it published the zip, it ran the unit tests. Then it ran the app from the zip.
 
-\`\`\`sh
-xattr -dr com.apple.quarantine /Applications/Write_On.app
-\`\`\`
+**Caution: macOS refuses to open the app the first time, and can say that the app is damaged.** The app is not damaged. It has an ad hoc signature, and Apple did not notarize it. To open the app:
 
-Or build it yourself, which is the surer way: two commands, in the README's [Build and run]($REPO#build-and-run).
+1. Unzip the zip.
+2. Drag Write_On to Applications.
+3. Remove the quarantine mark that the download added:
+
+   \`\`\`sh
+   xattr -dr com.apple.quarantine /Applications/Write_On.app
+   \`\`\`
+
+You can also build the app yourself. This is the safer way. The README's [Build and run]($REPO#build-and-run) section gives the two commands.
 
 SHA-256 of the zip: \`$SUM\`
 
-Versions follow Semantic Versioning. The README's [Versions]($REPO#versions) says what each number promises, and [CHANGELOG.md]($REPO/blob/main/CHANGELOG.md) what each release changed.
+The version numbers follow Semantic Versioning. The README's [Versions]($REPO#versions) section tells what each number means. [CHANGELOG.md]($REPO/blob/main/CHANGELOG.md) tells what each release changed.
 EOF
