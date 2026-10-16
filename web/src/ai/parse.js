@@ -222,6 +222,66 @@ function slipOf(entries, units) {
   return most >= 2 && most > here * 2 ? slip : 0;
 }
 
+/**
+ * Joins two trim answers about the same piece. The result has each sentence that one of the
+ * answers speaks of. Where both speak of a sentence, the second answer wins. (The Lab asks
+ * again when an answer leaves out most of the piece.)
+ */
+export function mergeTrimAnswers(first, second) {
+  const heard = new Set(second.items.map((item) => item.s));
+  const items = [...second.items, ...first.items.filter((item) => !heard.has(item.s))].sort((a, b) => a.s - b.s);
+  return { items, rejected: first.rejected + second.rejected, sentences: second.sentences };
+}
+
+/** A paragraph number in front of a passage, written in one of the usual ways: [2], (2), 2. or 2), or alone on its line. */
+const numberedAs = (n) => new RegExp(`^(?:\\[${n}\\]|\\(${n}\\)|${n}[.)]|${n}(?=\\n))\\s*`);
+/** A passage without line breaks at its ends: a paragraph has none. */
+const unbroken = (text) => (typeof text === 'string' ? text.replace(/^[\r\n]+|[\r\n]+$/g, '') : text);
+
+/**
+ * Where a quoted passage is: `{ n, quote, replace }`, or null if no one paragraph has it.
+ * Some models put the paragraph number in front of the passage, as the draft shows it, and
+ * in front of the replacement too. Then the Lab takes the number off. Some models give the
+ * wrong paragraph number. Then the Lab uses the one paragraph that has the passage.
+ */
+function place(byNumber, n, given, replacement) {
+  const quote = unbroken(given);
+  const replace = unbroken(replacement);
+  const tries = [{ quote, replace }];
+  const number = Number.isInteger(n) ? numberedAs(n) : null;
+  if (number?.test(quote)) tries.push({ quote: quote.replace(number, ''), replace: typeof replace === 'string' ? replace.replace(number, '') : replace });
+  const usable = tries.filter((one) => one.quote.trim() !== '');
+  for (const one of usable) {
+    const text = byNumber.get(n);
+    if (text !== undefined && locate(text, one.quote, 0) >= 0) return { n, ...one };
+  }
+  // The Lab looks in other paragraphs only for a passage with a word in it: a number or a
+  // mark could be anywhere.
+  for (const one of usable.filter((other) => /\p{L}{2}/u.test(other.quote))) {
+    const holders = [...byNumber].filter(([, text]) => locate(text, one.quote, 0) >= 0);
+    if (holders.length === 1) return { n: holders[0][0], ...one };
+  }
+  return null;
+}
+
+// A typo fix changes a word or two. More than this, and it is a rewrite.
+const MOST_CHANGED = 4;
+
+/** How many words a fix takes out and puts in, with what the two share left alone. */
+function wordsChanged(before, after) {
+  const a = before.split(/\s+/).filter(Boolean);
+  const b = after.split(/\s+/).filter(Boolean);
+  // The most words that the two have in common, in the same order.
+  let row = new Array(b.length + 1).fill(0);
+  for (const word of a) {
+    const next = [0];
+    for (let j = 1; j <= b.length; j++) next[j] = word === b[j - 1] ? row[j - 1] + 1 : Math.max(row[j], next[j - 1]);
+    row = next;
+  }
+  const shared = row[b.length];
+  return a.length - shared + (b.length - shared);
+}
+
 /** How much the piece needs a sentence: 1 to 5, and 5 where the model does not say. */
 const needOf = (value) => (Number.isInteger(value) ? Math.min(5, Math.max(1, value)) : 5);
 
@@ -276,14 +336,16 @@ export function parseLabResponse(kind, rawText, paragraphs) {
   const typos = kind === 'typos';
   const taken = new Map(); // paragraph number -> [start, end] ranges already used
   for (const entry of list(data, typos ? 'fixes' : 'marks')) {
-    const text = byNumber.get(entry.n);
-    const quote = typos ? entry.find : entry.text;
-    const usable = text !== undefined && typeof quote === 'string' && quote.trim() !== '' && (!typos || (typeof entry.replace === 'string' && entry.replace !== quote));
+    const quoted = typos ? entry.find : entry.text;
+    const found = typeof quoted === 'string' ? place(byNumber, entry.n, quoted, entry.replace) : null;
+    const usable = found !== null && (!typos || (typeof found.replace === 'string' && found.replace !== found.quote && !/[\r\n]/.test(found.replace) && wordsChanged(found.quote, found.replace) <= MOST_CHANGED));
     if (!usable) {
       rejected += 1;
       continue;
     }
-    const ranges = taken.get(entry.n) ?? [];
+    const { n, quote, replace } = found;
+    const text = byNumber.get(n);
+    const ranges = taken.get(n) ?? [];
     // A quote that repeats ("really … really") marks the next occurrence each time.
     let start = locate(text, quote, 0);
     while (start >= 0 && ranges.some(([s, e]) => start === s && start + quote.length === e)) start = locate(text, quote, start + 1);
@@ -294,9 +356,9 @@ export function parseLabResponse(kind, rawText, paragraphs) {
     const end = start + quote.length;
     if (ranges.some(([s, e]) => start < e && end > s)) continue; // overlaps an earlier one
     ranges.push([start, end]);
-    taken.set(entry.n, ranges);
+    taken.set(n, ranges);
     const reason = typeof entry.reason === 'string' ? entry.reason.trim() : '';
-    items.push(typos ? { n: entry.n, start, end, replace: entry.replace, reason } : { n: entry.n, start, end, reason });
+    items.push(typos ? { n, start, end, replace, reason } : { n, start, end, reason });
   }
   return { items, rejected };
 }

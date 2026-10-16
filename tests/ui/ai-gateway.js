@@ -90,6 +90,12 @@ for (const [name, message] of [
   const { outcome } = ask(name);
   t.equal(await outcome, message, `case ${name}`);
 }
+// The page is told which failure is an answer that ran out of room: the Lab uses what came.
+{
+  const room = await ask('length').request.done.catch((error) => error);
+  const lost = await ask('cut').request.done.catch((error) => error);
+  t.equal([room.cutShort, lost.cutShort], [true, false], 'the page is told when an answer ran out of room, and only then');
+}
 // (In "quoted" and in 401 the gateway's own words had the key in them. It is never passed on.)
 {
   const { pieces, outcome, took } = ask('stall');
@@ -419,6 +425,10 @@ for (const [shell, started] of [['/bin/zsh', ['-f', '-o', 'nounset']], ['/bin/ba
   t.equal((await seen()).model, 'Zeta-1', 'and is the one asked for');
   await settings({ model: '' });
   t.equal((await settings({ address: `${home}/plain/v1` })).models, ['Alpha', 'beta'], 'a service that says only the names of its models has all of them listed');
+  // LunaRoute, asked Anthropic's way, lists its models in Anthropic's shape. That shape says
+  // which models speak Anthropic's way, and nothing of a schema.
+  t.equal((await settings({ format: 'anthropic', address: `${home}/luna/v1` })).models, ['anthropic-only', 'glm-5.3-flash', 'muse-spark-open', 'Zeta-1'], 'a list in Anthropic’s shape: the models that speak Anthropic’s way');
+  await settings({ format: 'auto', address: '' });
   t.equal((await settings({ address: 'http://127.0.0.1:9/v1' })).models, [], 'nothing answering at the address: no list');
   await settings({ address: '' });
   t.equal((await settings({ environment: { WRITEON_BASE_URL: `${home}/v1` } })).models, [], 'and none without a key');

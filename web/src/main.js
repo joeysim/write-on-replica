@@ -55,12 +55,14 @@ const ai = createAIClient(native);
 initAIAlternatives({ editor, panel, alternatives, ai, commands });
 initGhost({ editor, commands });
 const overflow = createOverflow({ editor, ui, commands });
-const source = createSourceView({ editor, ui, commands, native });
+// While a trim is out, the Markdown tab and Post to X use the piece with the trim's cuts made.
+const trimmed = () => lab.trimmed();
+const source = createSourceView({ editor, ui, commands, native, trimmed });
 const lab = createLab({ editor, ui, ai, commands, cards });
 initReadMode({ editor, ui, commands });
 const tooltips = initTooltips();
 initReach({ editor });
-initSharing({ editor, ui, commands, native, tooltips, sound, explosions });
+initSharing({ editor, ui, commands, native, tooltips, sound, explosions, trimmed });
 const files = createFiles({ editor, ui, commands, native, tooltips });
 const shortcuts = initShortcuts({ ui, commands });
 // The menu bar's items run the same commands as the keys.

@@ -38,13 +38,15 @@ const anthropic = await (async () => {
 const MOST = anthropic ? { word: 15, sentence: 20, mark: 120, trim: 120, draft: 240 } : { word: 15, sentence: 20, mark: 60, trim: 60, draft: 120 }; // seconds
 t.log(`asked ${anthropic ? 'Anthropic' : 'OpenAI'}’s way`);
 
-// How many requests this scenario has made of the service.
+// How many requests this scenario has made of the service, and the last of them.
 let asked = 0;
+let lastAsked = null;
 {
   const client = window.writeOn.ai;
   const start = client.start;
   client.start = (request, onText) => {
     asked += 1;
+    lastAsked = request;
     return start.call(client, request, onText);
   };
 }
@@ -269,6 +271,7 @@ const DRAFT = [
 {
   // [as it was, as it is put in, the slip]
   const PUT_IN = [
+    ['Why we stopped', 'Why we stoped', 'stoped'],
     ['we basically had', 'we basicly had', 'basicly'],
     ['The format was', 'Teh format was', 'Teh'],
     ['because the meeting', 'because the the meeting', 'the the'],
@@ -280,7 +283,8 @@ const DRAFT = [
   const before = editor.getState().html;
   const pass = await mark('Fix punctuation and typos', /^Fix punctuation and typos \d+ found$/);
   const caught = PUT_IN.map(([, , slip]) => slip).filter((slip) => pass.marked.some((text) => text.includes(slip)));
-  t.log(`of the four slips put in, ${caught.length} found: ${JSON.stringify(caught)}`);
+  t.log(`of the ${PUT_IN.length} slips put in, ${caught.length} found: ${JSON.stringify(caught)}`);
+  t.assert(lastAsked.messages.at(-1).content.includes('[1] Why we stoped doing'), 'the heading goes to the model too, first');
   t.assert(pass.found && pass.marked.some((text) => text.includes('Teh')) && pass.marked.length >= 2, `the slips are found, "Teh" among them: ${JSON.stringify(pass.marked)} ${pass.said}`);
   t.equal(editor.getState().html, before, 'and nothing is changed until the writer says so');
 

@@ -1,7 +1,7 @@
 // The Lab's marking passes, its typo pass and its guide (design spec 6.10 and section 9,
 // items 2, 4 and 5). The clips name these but never run them, so this is the replica's own
 // reading of them: the model points, and only the typo pass may change a letter, by asking.
-const { editor, ui } = window.writeOn;
+const { editor, ui, lab } = window.writeOn;
 ui.set({ read: false });
 await document.fonts.ready;
 
@@ -175,11 +175,15 @@ for (const [label, asks] of [
 }
 
 // Nothing to mark, and a request that fails.
-await answer({ marks: [] });
-await pick('Mark convoluted sentences');
-await t.until(() => /nothing/.test(hint()), 3000, 'the card to say there is nothing');
-t.equal([title(), hint(), actions().join(' | ')], ['Mark convoluted sentences', 'The AI marked nothing.', 'Done'], 'an answer with no marks says so');
-await act('Done');
+{
+  const asks = await count();
+  await answer({ marks: [] });
+  await pick('Mark convoluted sentences');
+  await t.until(() => /nothing/.test(hint()), 3000, 'the card to say there is nothing');
+  t.equal([title(), hint(), actions().join(' | ')], ['Mark convoluted sentences', 'The AI marked nothing.', 'Done'], 'an answer with no marks says so');
+  t.equal(await count(), asks + 1, 'from one request: nothing to mark is an answer');
+  await act('Done');
+}
 await answer(null, { error: 'No AI key is set. Add one in Settings.' });
 await pick('Mark convoluted sentences');
 await t.until(() => /key/.test(hint()), 3000, 'the reason to show');
@@ -205,13 +209,14 @@ await act('Done');
 
 // --- the typo pass --------------------------------------------------------------------------------
 
+// The typo pass reads the heading too, so the heading is [1] and the paragraphs follow it.
 const FIXES = {
   fixes: [
-    { n: 1, find: 'Teh', replace: 'The', reason: 'Misspelled.' },
-    { n: 1, find: 'has has', replace: 'has', reason: 'Said twice.' },
-    { n: 2, find: 'realy', replace: 'really', reason: 'Misspelled.' },
-    { n: 2, find: ' ,and', replace: ', and', reason: 'Space before the comma.' },
-    { n: 3, find: 'fine', replace: 'fine', reason: 'Nothing to change.' },
+    { n: 2, find: 'Teh', replace: 'The', reason: 'Misspelled.' },
+    { n: 2, find: 'has has', replace: 'has', reason: 'Said twice.' },
+    { n: 3, find: 'realy', replace: 'really', reason: 'Misspelled.' },
+    { n: 3, find: ' ,and', replace: ', and', reason: 'Space before the comma.' },
+    { n: 4, find: 'fine', replace: 'fine', reason: 'Nothing to change.' },
   ],
 };
 const FIX_HINT = 'Hover a mark to see the fix. Click one to keep the original.';
@@ -219,6 +224,7 @@ await answer(FIXES, { firstMs: 0, hold: true });
 await pick('Fix punctuation and typos');
 t.equal([title(), hint(), actions().join(' | ')], ['Fix punctuation and typos Reading…', FIX_HINT, 'Done'], 'the typo pass reads like the others');
 t.assert(/spelling and punctuation/.test(await lastAsked()), 'and asks about spelling and punctuation');
+t.assert((await lastAsked()).includes('[1] A page with slips\n[2] Teh first'), 'of the heading as well as the paragraphs');
 await release();
 await t.until(() => marked().length > 0, 4000, 'the fixes to arrive');
 t.equal(marked(), ['Teh', 'has has', 'realy', ' ,and'], 'each slip is marked; a “fix” that changes nothing is dropped');
@@ -306,12 +312,60 @@ await t.key('z', { meta: true });
 t.same(html(), before, 'and three undos take the three fixes back');
 await load();
 
-// No slips at all.
-await answer({ fixes: [] });
+// The typo pass finds and fixes a slip in a heading. The heading stays a heading.
+editor.setState({ html: '<p># A haeding with a slip</p><p><br></p><p>The body has teh slip too.</p>', groups: {}, overflow: '' });
+editor.focus();
+await t.settle();
+await answer({ fixes: [{ n: 1, find: 'haeding', replace: 'heading', reason: 'Misspelled.' }, { n: 2, find: 'teh', replace: 'the', reason: 'Misspelled.' }] });
 await pick('Fix punctuation and typos');
-await t.until(() => /no slips/.test(hint()), 3000, 'the card to say there is nothing');
-t.equal([title(), hint(), actions().join(' | ')], ['Fix punctuation and typos', 'The AI found no slips.', 'Done'], 'a clean page says so');
-await act('Done');
+await t.until(() => marked().length === 2, 4000, 'the fixes');
+t.equal(marked(), ['haeding', 'teh'], 'a slip in a heading is marked');
+await act('Fix all');
+t.equal([editor.blocks[0].kind, textOf(0), textOf(2)], ['h', 'A heading with a slip', 'The body has the slip too.'], 'and fixed, and the heading is still a heading');
+await load();
+
+// No slips at all. The model misses slips now and then and answers with none, so an empty
+// answer is asked for once more.
+{
+  const asks = await count();
+  await answer({ fixes: [] });
+  await pick('Fix punctuation and typos');
+  await t.until(() => /no slips/.test(hint()), 3000, 'the card to say there is nothing');
+  t.equal([title(), hint(), actions().join(' | ')], ['Fix punctuation and typos', 'The AI found no slips.', 'Done'], 'a clean page says so');
+  t.equal(await count(), asks + 2, 'after asking twice');
+  await act('Done');
+}
+
+// --- when the model misbehaves --------------------------------------------------------------------
+// Found with the real models: now and then an answer quotes nothing that is in the text. It
+// gives a number, a word that is not there, or its own notes. The Lab then asks once more.
+for (const [what, first, also = {}] of [
+  ['an answer that quotes nothing in the text', JSON.stringify({ fixes: [{ n: 2, find: 'foo', replace: 'bar', reason: 'Not there.' }, { n: 3, find: '3', replace: 'really', reason: 'A number.' }] })],
+  ['an answer that is not in the expected form', 'I would fix Teh and realy.'],
+  ['an empty answer', JSON.stringify({ fixes: [] })],
+  ['an answer that ran out of room', '{"fixes":[{"n":2,"find":"Teh"', { error: 'The AI ran out of room before it finished its answer. Try again.', cutShort: true }],
+]) {
+  await load();
+  const asks = await count();
+  await t.call('test.ai', { set: { chunks: [first], firstMs: 0, everyMs: 20, hold: true, ...also } });
+  await pick('Fix punctuation and typos');
+  await t.until(async () => (await count()) === asks + 1, 2000, 'the first request');
+  await answer(FIXES);
+  await release();
+  await t.until(() => marked().length === 4 || lab.pass() === 'failed', 4000, `the fixes after ${what}`);
+  t.equal([marked().length, await count()], [4, asks + 2], `${what} is asked for once more`);
+  await act('Done');
+}
+{
+  await load();
+  const asks = await count();
+  await answer({ marks: [{ n: 1, text: 'words that are not there', reason: 'Made up.' }] });
+  await pick('Mark the weakest sentences');
+  await t.until(() => lab.pass() === 'failed', 4000, 'the card to give up');
+  t.equal([title(), hint(), actions().join(' | ')], ['Mark the weakest sentences', 'The AI quoted words that are not in the text. Try again.', 'Done'], 'two answers that quote nothing in the text: the card says so');
+  t.equal(await count(), asks + 2, 'after asking twice');
+  await act('Done');
+}
 
 // --- the guide ------------------------------------------------------------------------------------
 

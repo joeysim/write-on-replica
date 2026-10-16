@@ -40,6 +40,22 @@ test('the model is offered the paragraphs, numbered, without headings, blank lin
   assert.equal(paragraphs[1].map.length, paragraphs[1].text.length);
 });
 
+// The typo pass looks for slips in the headings as well.
+test('the headings can be offered too, numbered in their place, and fixed in place', () => {
+  const blocks = B(DOC);
+  const paragraphs = offered(blocks, { headings: true });
+  assert.deepEqual(
+    paragraphs.map(({ n, block, text }) => ({ n, block, text })),
+    [
+      { n: 1, block: 0, text: 'A title here' },
+      { n: 2, block: 2, text: P1 },
+      { n: 3, block: 4, text: 'Keep short and really plain today.' },
+    ],
+  );
+  const fixed = applyFixes(blocks, makeMarks(paragraphs, [{ n: 1, start: 0, end: 1, replace: 'The', reason: 'For the test.' }]));
+  assert.deepEqual([fixed[0].kind, textOf(fixed[0])], ['h', 'The title here']);
+});
+
 test('where ghosted text is left out, the gap it leaves is closed up', () => {
   // Found with the real model: offered "what could go.  It never rewrites", it reported a doubled space.
   const blocks = B(

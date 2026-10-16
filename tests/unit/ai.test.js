@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { alternativesRequest, labRequest, LAB_KINDS, TRIM_LEVELS } from '../../web/src/ai/prompts.js';
-import { LineStream, cleanSuggestion, suggestionFilter, acceptSuggestions, parseLabResponse, arrivedSoFar } from '../../web/src/ai/parse.js';
+import { LineStream, cleanSuggestion, suggestionFilter, acceptSuggestions, parseLabResponse, arrivedSoFar, mergeTrimAnswers } from '../../web/src/ai/parse.js';
 
 const PARAGRAPH = 'Most of the tension in a first draft comes from wanting every sentence to be final. It never ends.';
 
@@ -13,7 +13,7 @@ test('a word request marks the target in its paragraph and asks for five', () =>
   const user = request.messages.at(-1).content;
   assert.equal(request.count, 5);
   assert.equal(request.effort, 'low');
-  assert.equal(request.maxTokens, 120);
+  assert.ok(request.maxTokens >= 120 + 1000, `room for the answer and for thinking first: ${request.maxTokens}`);
   assert.ok(user.includes('Most of the [[tension]] in a first draft'));
   assert.ok(user.includes('pressure'), 'lists what the writer already has');
   assert.match(user, /\b5\b/);
@@ -24,17 +24,17 @@ test('a sentence request asks for three and marks the whole sentence', () => {
   const start = PARAGRAPH.indexOf('It never ends.');
   const request = alternativesRequest({ scope: 'sentence', paragraph: PARAGRAPH, start, end: PARAGRAPH.length, existing: ['It never ends.'] });
   assert.equal(request.count, 3);
-  assert.equal(request.maxTokens, 400);
+  assert.ok(request.maxTokens >= 400 + 1000, `room for the answer and for thinking first: ${request.maxTokens}`);
   assert.ok(request.messages.at(-1).content.includes('[[It never ends.]]'));
 });
 
 test('a paragraph request asks for three single-line versions and allows room for them', () => {
   const request = alternativesRequest({ scope: 'paragraph', paragraph: PARAGRAPH, start: 0, end: PARAGRAPH.length, existing: [PARAGRAPH] });
   assert.equal(request.count, 3);
-  assert.equal(request.maxTokens, 1500);
+  assert.ok(request.maxTokens >= 1500 + 1000, `room for the answer and for thinking first: ${request.maxTokens}`);
   assert.match(request.messages.at(-1).content, /single line/i);
   const long = 'word '.repeat(1200).trim();
-  assert.ok(alternativesRequest({ scope: 'paragraph', paragraph: long, start: 0, end: long.length, existing: [long] }).maxTokens > 1500);
+  assert.ok(alternativesRequest({ scope: 'paragraph', paragraph: long, start: 0, end: long.length, existing: [long] }).maxTokens > request.maxTokens);
 });
 
 test('brackets already in the text do not confuse the marking', () => {
@@ -196,6 +196,26 @@ test('a sentence that was not offered, or is spoken of twice, is passed over', (
   ]);
   assert.equal(rejected, 4);
   assert.deepEqual(items.map((item) => [item.s, item.need, item.cuts]), [[3, 2, []]]);
+});
+
+// Now and then the model stops after a sentence or two, and the Lab asks again. What the
+// two answers say between them is used, the later one's word on a sentence both speak of.
+test('two thin trim answers are taken together, the later one on a sentence both speak of', () => {
+  const read = (sentences) => parseLabResponse('trim', JSON.stringify({ sentences }), PARAGRAPHS);
+  const first = read([
+    { s: 1, text: 'Writing tools assume you know what to say.', need: 4 },
+    { s: 3, text: 'So I keep options open.', need: 2 },
+    { s: 9, text: 'No such sentence.', need: 1 },
+  ]);
+  const second = read([
+    { s: 1, text: PARAGRAPHS[0].text, need: 3 },
+    { s: 2, text: 'The first draft is a way of finding out what I think.', need: 5 },
+    { s: 8, text: 'Nor this.', need: 1 },
+  ]);
+  const both = mergeTrimAnswers(first, second);
+  assert.deepEqual(both.items.map((item) => [item.s, item.need, item.runs.length]), [[1, 3, 0], [2, 5, 1], [3, 2, 0]]);
+  assert.equal(both.sentences, 3);
+  assert.equal(both.rejected, 2, 'what neither could use is counted');
 });
 
 // Found with the real model on a piece of eighty-five sentences: eighty-one came back, each
@@ -384,6 +404,77 @@ test('typo fixes need the passage verbatim and a different replacement', () => {
     { n: 1, start: 0, end: 3, replace: 'The', reason: 'spelling' },
     { n: 1, start: 16, end: 21, replace: 'fox,', reason: 'space before comma' },
   ]);
+});
+
+// Found with glm-5.3: now and then it quotes a passage with its paragraph number, as the
+// draft shows it ("[2] Teh format"), and gives the replacement the same way.
+test('a passage quoted with its paragraph number is read without the number', () => {
+  const paragraphs = [{ n: 1, text: 'Why we stoped.' }, { n: 2, text: 'Teh format was simple.' }];
+  const typos = parseLabResponse('typos', JSON.stringify({ fixes: [{ n: 2, find: '[2] Teh format', replace: '[2] The format', reason: 'typo' }] }), paragraphs);
+  assert.equal(typos.rejected, 0);
+  assert.deepEqual(typos.items, [{ n: 2, start: 0, end: 10, replace: 'The format', reason: 'typo' }]);
+  const marks = parseLabResponse('weak', JSON.stringify({ marks: [{ n: 1, text: '[1] Why we stoped.', reason: 'x' }] }), paragraphs);
+  assert.deepEqual(marks.items, [{ n: 1, start: 0, end: 14, reason: 'x' }]);
+  // Another paragraph's number is not taken off.
+  assert.equal(parseLabResponse('weak', JSON.stringify({ marks: [{ n: 1, text: '[2] Why we stoped.', reason: 'x' }] }), paragraphs).rejected, 1);
+});
+
+// Found with glm-5.3: a number in front written another way ("1. Why we stoped").
+test('a passage numbered the other usual ways is read without the number too', () => {
+  const paragraphs = [{ n: 1, text: 'Why we stoped.' }, { n: 2, text: 'Teh format was simple.' }];
+  const raw = JSON.stringify({
+    fixes: [
+      { n: 1, find: '1. Why we stoped', replace: '1. Why we stopped', reason: 'a' },
+      { n: 2, find: '(2) Teh', replace: '(2) The', reason: 'b' },
+    ],
+  });
+  assert.deepEqual(
+    parseLabResponse('typos', raw, paragraphs).items.map(({ n, start, end, replace }) => ({ n, start, end, replace })),
+    [
+      { n: 1, start: 0, end: 13, replace: 'Why we stopped' },
+      { n: 2, start: 0, end: 3, replace: 'The' },
+    ],
+  );
+  // Found with muse-spark-open: the number on a line of its own, and a line break after.
+  const lines = JSON.stringify({ fixes: [{ n: 1, find: '1\nWhy we stoped.\n', replace: '1\nWhy we stopped.\n', reason: 'c' }] });
+  assert.deepEqual(parseLabResponse('typos', lines, paragraphs).items.map(({ start, end, replace }) => ({ start, end, replace })), [{ start: 0, end: 14, replace: 'Why we stopped.' }]);
+});
+
+// Found with muse-spark-open: the right passage under the wrong paragraph number (14 for a
+// draft of nine paragraphs, or 0).
+test('a passage under the wrong paragraph number is taken from the one paragraph that has it', () => {
+  const paragraphs = [{ n: 1, text: 'Why we stoped.' }, { n: 2, text: 'We basicly had one. It was basicly fine.' }, { n: 3, text: 'A really good one, really.' }];
+  const raw = JSON.stringify({
+    fixes: [
+      { n: 14, find: 'stoped', replace: 'stopped', reason: 'a' },
+      { n: 0, find: 'basicly', replace: 'basically', reason: 'twice in paragraph 2: the first is taken' },
+      { n: 7, find: 'one', replace: 'won', reason: 'in paragraphs 2 and 3: which is meant is not known' },
+      { n: 1, find: '2', replace: 'stopped', reason: 'a number, not a passage: not looked for elsewhere' },
+    ],
+  });
+  const { items, rejected } = parseLabResponse('typos', raw, [...paragraphs, { n: 4, text: 'In 2026.' }]);
+  assert.deepEqual(items.map(({ n, start, end }) => ({ n, start, end })), [{ n: 1, start: 7, end: 13 }, { n: 2, start: 3, end: 10 }]);
+  assert.equal(rejected, 2);
+  // Marks too.
+  const marks = parseLabResponse('filler', JSON.stringify({ marks: [{ n: 1, text: 'really good', reason: 'x' }, { n: 2, text: 'Why we', reason: 'y' }] }), paragraphs);
+  assert.deepEqual(marks.items.map(({ n, start }) => ({ n, start })), [{ n: 3, start: 2 }, { n: 1, start: 0 }]);
+});
+
+// Found with muse-spark-open: a "fix" that would have taken nine words out of a sentence. The
+// typo pass is the one pass that changes a letter; it does not rewrite.
+test('a typo fix that changes more than a few words is not a fix', () => {
+  const paragraphs = [{ n: 1, text: 'I want to be fair about this, because the the meeting was not useless. It was really really long.' }];
+  const raw = JSON.stringify({
+    fixes: [
+      { n: 1, find: 'I want to be fair about this, because the the meeting', replace: 'The meeting', reason: 'a rewrite' },
+      { n: 1, find: 'the the meeting', replace: 'the meeting', reason: 'doubled' },
+      { n: 1, find: 'really really', replace: 'really', reason: 'doubled' },
+      { n: 1, find: 'was not useless', replace: 'was\nnot useless', reason: 'a line break: a paragraph has none' },
+    ],
+  });
+  const { items, rejected } = parseLabResponse('typos', raw, paragraphs);
+  assert.deepEqual(items.map((item) => item.replace), ['the meeting', 'really']);
+  assert.equal(rejected, 2);
 });
 
 // --- room to think ---------------------------------------------------------------------------------

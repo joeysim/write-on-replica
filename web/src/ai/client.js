@@ -4,7 +4,8 @@
 //   page  -> shell   ai.start  { id, messages, maxTokens, effort, schema? }
 //   shell -> page    ai.delta  { id, text }      as the answer streams
 //                    ai.done   { id }
-//                    ai.error  { id, message }   one line a person can read
+//                    ai.error  { id, message, cutShort }   one line a person can read;
+//                              cutShort if the answer ran out of room after it began
 //   page  -> shell   ai.cancel { id }
 
 export function createAIClient(native) {
@@ -19,13 +20,14 @@ export function createAIClient(native) {
   };
   native.on('ai.delta', ({ id, text }) => live.get(id)?.onText(text));
   native.on('ai.done', ({ id }) => settle(id, (request) => request.resolve()));
-  native.on('ai.error', ({ id, message }) => settle(id, (request) => request.reject(new Error(message))));
+  native.on('ai.error', ({ id, message, cutShort }) => settle(id, (request) => request.reject(Object.assign(new Error(message), { cutShort: Boolean(cutShort) }))));
 
   return {
     /**
      * Starts a request. `onText` is called with each piece of the answer as it comes.
      * @returns {{ done: Promise<void>, cancel: () => void }} `done` rejects with a reason
-     *   to show, or with an error whose `canceled` is true if the request was called off
+     *   to show, or with an error whose `canceled` is true if the request was called off.
+     *   The reason's `cutShort` is true if the answer ran out of room after it began.
      */
     start(request, onText) {
       serial += 1;

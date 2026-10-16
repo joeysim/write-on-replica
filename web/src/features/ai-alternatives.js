@@ -2,6 +2,10 @@
 // ways to say the target, in the context of its paragraph. The marks dance while it
 // thinks, for at least 750 ms; the suggestions then arrive one after another and go into
 // the document together, as one step to undo. If it fails, nothing changes.
+//
+// When all the suggestions asked for are in, the app stops listening: some models go on
+// writing until they run out of room. An answer that breaks off still gives the lines that
+// came whole.
 
 import { textOf, locateGroup } from '../doc/blocks.js';
 import { alternativesRequest } from '../ai/prompts.js';
@@ -42,6 +46,10 @@ export function initAIAlternatives({ editor, panel, alternatives, ai, commands }
         const text = accept(line);
         if (text) waiting.push(text);
       }
+      if (!ended && shown.length + waiting.length >= request.count) {
+        ended = {};
+        mine.stream.cancel(); // all that was asked for is here
+      }
     };
     // One suggestion at a time; when the answer is over and all are shown, the outcome.
     const step = () => {
@@ -75,7 +83,8 @@ export function initAIAlternatives({ editor, panel, alternatives, ai, commands }
       },
       (error) => {
         if (error.canceled) return;
-        ended = { error: error.message };
+        // The line that was still coming is not whole, and is left out.
+        ended = shown.length + waiting.length > 0 ? {} : { error: error.message };
         wake();
       },
     );

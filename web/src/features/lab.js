@@ -10,9 +10,12 @@
 // replica's reading of what the popover promises (spec section 9, items 2 to 5).
 
 import { TRIM_LEVELS, labRequest } from '../ai/prompts.js';
-import { parseLabResponse, arrivedSoFar } from '../ai/parse.js';
+import { parseLabResponse, arrivedSoFar, mergeTrimAnswers } from '../ai/parse.js';
 import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes, followMarks, positionAfterFix, wordsIn } from '../doc/proposal.js';
 import { percentChange, chooseCuts } from '../doc/trim.js';
+import { normalizeBlocks } from '../doc/blocks.js';
+import { cloneGroups } from '../doc/model.js';
+import { blocksToHtml } from '../doc/format.js';
 
 const IDEAS = [
   { kind: 'typos', label: 'Fix punctuation and typos', about: 'Finds misspellings, doubled words and slips of punctuation. Each fix is shown first, and you choose which to take.' },
@@ -38,6 +41,7 @@ const NOTHING = {
   typos: 'The AI found no slips.',
   marks: 'The AI marked nothing.',
   empty: 'There is nothing here to read.',
+  unmatched: 'The AI quoted words that are not in the text. Try again.',
 };
 const SWEEP_MS = 300; // the line takes this long over each block
 const CLOSE_MS = 150;
@@ -47,6 +51,26 @@ const EDGE = 110; // how far inside the window a passage must be to be clear of 
 const cardWidth = (name) => 601.5 + 7 * (name.length - 11);
 /** 'trim', 'typos' or 'marks': the three ways a pass behaves. */
 const family = (kind) => (kind === 'trim' || kind === 'typos' ? kind : 'marks');
+/** Tells if a trim answer speaks of fewer than half of the sentences in the request. */
+const thin = (said) => said.items.length * 2 < said.sentences;
+/** The line that the card shows for a thin answer. */
+const thinLine = ({ items, sentences }) => `The AI read ${items.length ? `only ${items.length} of the ${sentences}` : 'none of the'} sentences. Choose a level to ask again.`;
+
+/** What the Lab reads of a block: its kind, its words, and which words are ghosted. */
+function wordsOf(block) {
+  let key = block.kind;
+  let ghost = null;
+  for (const piece of block.runs) {
+    if (Boolean(piece.ghost) !== ghost) {
+      ghost = Boolean(piece.ghost);
+      key += ghost ? '\u0001' : '\u0002';
+    }
+    key += piece.text;
+  }
+  return key;
+}
+/** Tells if two versions of the document have the same words in the same places. */
+const sameWords = (a, b) => a === b || (a.length === b.length && a.every((block, i) => block === b[i] || wordsOf(block) === wordsOf(b[i])));
 
 const el = (tag, className, text) => {
   const node = document.createElement(tag);
@@ -201,6 +225,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     } else if (mode === 'failed') {
       hint.textContent = pass.reason;
     } else if (sort === 'trim') {
+      if (pass.partial) hint.textContent = pass.partial;
       const { before, after } = counts(editor.blocks, pass.proposal, pass.kept);
       state.textContent = walking ? `${pass.step + 1} of ${pass.proposal.cuts.length}` : `${before} → ${after} words · ${String(percentChange(before, after)).replace('-', '−')}%`;
       buttons = walking ? [['Cut', () => decide(false)], ['Keep', () => decide(true)], ['Stop', summarize]] : [['Make the cuts', makeCuts], ['Walk through', walk], ['Done', dismiss]];
@@ -412,12 +437,16 @@ export function createLab({ editor, ui, ai, commands, cards }) {
    * Starts a pass: the card, the line, and the question to the model. `found` is called
    * with the paragraphs that were offered and the checked answer; it returns what to add
    * to the pass, or a line to show if the answer leaves nothing to do.
+   *
+   * The Lab asks once more if it cannot read the answer, if the answer quotes nothing that is
+   * in the text, or if the answer ran out of room. The typo pass also asks once more after an
+   * empty answer: the models sometimes miss each slip on a page.
    */
   function ask(kind, name, options, found) {
     dismiss();
     if (!kind) return; // Original: nothing proposed
     const { blocks } = editor; // what the answer will be about
-    const paragraphs = offered(blocks);
+    const paragraphs = offered(blocks, { headings: kind === 'typos' });
     pass = { kind, name, mode: 'reading', ...options };
     report();
     if (paragraphs.length === 0) {
@@ -425,34 +454,44 @@ export function createLab({ editor, ui, ai, commands, cards }) {
       return;
     }
     startSweep();
-    // Putting the pass away calls the request off, so an answer that arrives is always wanted.
-    let answer = '';
     const offer = paragraphs.map(({ n, text }) => ({ n, text }));
-    const request = ai.start(labRequest(kind, offer), (text) => {
-      answer += text;
-    });
-    pass.request = request;
-    request.done.then(
-      () => {
-        let outcome;
-        try {
-          outcome = found(paragraphs, parseLabResponse(kind, answer, paragraphs));
-        } catch (error) {
-          outcome = error.message;
-        }
-        if (typeof outcome === 'string') {
-          fail(outcome);
-          return;
-        }
-        pass = { kind, name, mode: 'proposal', ...options, ...outcome, blocks };
-        stopSweep();
-        show(passages(), kind === 'trim' ? 'trim' : 'mark');
-        report();
-      },
-      (error) => {
-        if (!error.canceled) fail(error.message);
-      },
-    );
+    /** Asks the model. `last` is true for the second request. */
+    const once = (last) => {
+      // Putting the pass away calls the request off, so an answer that arrives is always wanted.
+      let answer = '';
+      const request = ai.start(labRequest(kind, offer), (text) => {
+        answer += text;
+      });
+      pass.request = request;
+      request.done.then(
+        () => {
+          let said = null;
+          let outcome;
+          try {
+            said = parseLabResponse(kind, answer, paragraphs);
+            outcome = said.items.length === 0 && said.rejected > 0 ? NOTHING.unmatched : found(paragraphs, said);
+          } catch (error) {
+            outcome = error.message;
+          }
+          if (typeof outcome === 'string') {
+            // Only "nothing to mark" from a marking pass is an answer to take at once.
+            if (!last && (said === null || said.rejected > 0 || kind === 'typos')) once(true);
+            else fail(outcome);
+            return;
+          }
+          pass = { kind, name, mode: 'proposal', ...options, ...outcome, blocks };
+          stopSweep();
+          show(passages(), kind === 'trim' ? 'trim' : 'mark');
+          report();
+        },
+        (error) => {
+          if (error.canceled) return;
+          if (error.cutShort && !last) once(true); // ran out of room: asked once more
+          else fail(error.message);
+        },
+      );
+    };
+    once(false);
   }
 
   // --- trims ------------------------------------------------------------------------------------
@@ -479,12 +518,16 @@ export function createLab({ editor, ui, ai, commands, cards }) {
 
   /**
    * What the model says of the piece, asked once. Resolves to the checked answer, or to a
-   * line to show when it cannot be read; rejects if the asking fails. Only an answer that
-   * could be read is kept: after anything else, asking again asks again.
+   * line to show when it cannot be read; rejects if the asking fails.
    *
    * An answer that speaks of fewer than half the sentences is asked for once more. (The
    * model the app was built against does it now and then: a sentence or two, and it stops.
-   * Kept, that would be all there was to cut at every level.) A second such is taken as it is.
+   * Kept, that would be all there was to cut at every level.) The Lab then joins the two
+   * answers. If the second request fails, the Lab uses the first answer alone. An answer
+   * that ran out of room counts as far as it went.
+   *
+   * The Lab keeps an answer only if it can read it and it speaks of half of the sentences
+   * or more. Otherwise, the next trim asks again.
    */
   function readTrims(paragraphs) {
     if (trims.reading) return trims.reading.settled;
@@ -494,25 +537,37 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     const drop = () => {
       if (trims.reading === entry) trims.reading = null;
     };
-    const ask = (again) => {
+    /** Asks the model. `first` is the thin answer to the first request, if this is the second request. */
+    const ask = (first = null) => {
       entry.answer = '';
       entry.request = ai.start(labRequest('trim', offer), (text) => {
         entry.answer += text;
         entry.heard?.();
       });
-      return entry.request.done.then(() => {
-        let said;
-        try {
-          said = parseLabResponse('trim', entry.answer, paragraphs);
-        } catch (error) {
-          return error.message;
-        }
-        return again || said.items.length * 2 >= said.sentences ? said : ask(true);
-      });
+      return entry.request.done.then(
+        () => {
+          let said;
+          try {
+            said = parseLabResponse('trim', entry.answer, paragraphs);
+          } catch (error) {
+            return first ?? error.message;
+          }
+          if (first) return mergeTrimAnswers(first, said);
+          return thin(said) ? ask(said) : said;
+        },
+        (error) => {
+          // An answer that ran out of room is an answer as far as it went: the sentences that
+          // came whole. It is used as a thin answer is.
+          const said = error.cutShort ? soFar(entry.answer, paragraphs) : null;
+          if (said) return first ? mergeTrimAnswers(first, said) : thin(said) ? ask(said) : said;
+          if (first && !error.canceled) return first;
+          throw error;
+        },
+      );
     };
-    entry.settled = ask(false).then(
+    entry.settled = ask().then(
       (said) => {
-        if (typeof said === 'string') drop();
+        if (typeof said === 'string' || thin(said)) drop();
         else entry.outcome = said;
         return said;
       },
@@ -523,6 +578,17 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     );
     trims.reading = entry;
     return entry.settled;
+  }
+
+  /** The trim answer in the sentences of `answer` that came whole, or null if none did. */
+  function soFar(answer, paragraphs) {
+    const whole = arrivedSoFar(answer);
+    if (whole.length === 0) return null;
+    try {
+      return parseLabResponse('trim', JSON.stringify({ sentences: whole }), paragraphs);
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -560,11 +626,14 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     const settle = (said) => {
       if (pass !== mine) return; // put away, or another level chosen, meanwhile
       const outcome = levelOf(level, paragraphs, said);
+      // For a thin answer, the card shows how much the AI read. But if the AI reworded each
+      // sentence that it gave, the card says that instead.
+      const partial = typeof said !== 'string' && thin(said) && (said.items.length > 0 || !said.rejected) ? thinLine(said) : null;
       if (typeof outcome === 'string') {
-        fail(outcome);
+        fail(partial ?? outcome);
         return;
       }
-      pass = { kind: 'trim', name: level.label, mode: 'proposal', level, proposal: outcome.proposal, kept: new Set() };
+      pass = { kind: 'trim', name: level.label, mode: 'proposal', level, proposal: outcome.proposal, kept: new Set(), partial };
       stopSweep();
       unwrap(); // what was faded as the answer came gives way to what the level comes to
       show(passages(), 'trim');
@@ -598,7 +667,8 @@ export function createLab({ editor, ui, ai, commands, cards }) {
       }
       if (items.length === 0) return;
       unwrap();
-      show(makeProposal(paragraphs, items).cuts, 'trim');
+      pass.faded = makeProposal(paragraphs, items).cuts;
+      show(pass.faded, 'trim');
       if (!pass.arriving) {
         pass.arriving = true;
         report();
@@ -726,14 +796,40 @@ export function createLab({ editor, ui, ai, commands, cards }) {
   // A pass is about the text as it was when it was asked for. Marks are about words, and
   // stay through an edit, undo and redo included: those on words it changed go, and the rest
   // move with their words. Anything else the Lab has out, a trim or a request still on its
-  // way, is put away by any change to the document; what the model said about trimming the
+  // way, is put away by any change to the words; what the model said about trimming the
   // piece as it was goes too. A document opened in place of this one takes everything away.
+  //
+  // A change that keeps each word in its place is not an edit, and the Lab keeps what it has
+  // out. For example, the alternatives panel makes a group of one from the word that it looks
+  // at, and removes the group when it closes. Another alternative shown in the text changes
+  // the words, so that is an edit.
+  let words = editor.blocks; // the document after the last change
   editor.on('change', ({ label }) => {
+    const same = label !== 'load' && sameWords(words, editor.blocks);
+    words = editor.blocks;
+    if (same) {
+      redraw();
+      return;
+    }
     forgetTrims();
     const marking = pass && family(pass.kind) !== 'trim' && (pass.mode === 'proposal' || pass.mode === 'walking');
     if (marking && label !== 'load') follow();
     else dismiss();
   });
+
+  /**
+   * Puts what the pass shows into the text again. The editor draws again each block that a
+   * change touches, and the Lab's spans in those blocks go.
+   */
+  function redraw() {
+    if (!pass) return;
+    if (pass.blocks) pass.blocks = editor.blocks;
+    const drawn = pass.mode === 'reading' ? pass.faded : passages();
+    if (!drawn) return;
+    unwrap();
+    show(drawn, family(pass.kind) === 'trim' ? 'trim' : 'mark');
+    paint();
+  }
 
   /** Brings the marks up to date with an edit. */
   function follow() {
@@ -763,6 +859,16 @@ export function createLab({ editor, ui, ai, commands, cards }) {
 
   commands.register('lab', () => (ui.get('lab') ? closeMenu() : openMenu()));
 
+  /**
+   * The document with the cuts of the trim that is out, except the cuts that the writer
+   * keeps. Null when no trim is out. The Markdown tab and Post to X use it.
+   */
+  function trimmed() {
+    if (pass?.kind !== 'trim' || (pass.mode !== 'proposal' && pass.mode !== 'walking')) return null;
+    const tidy = normalizeBlocks(applyProposal(editor.blocks, pass.proposal, pass.kept), cloneGroups(editor.groups));
+    return { html: blocksToHtml(tidy.blocks), groups: tidy.groups, overflow: editor.overflow };
+  }
+
   return {
     open: openMenu,
     close: closeMenu,
@@ -772,5 +878,6 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     forget: forgetTrims,
     /** Whether what the model said about trimming this piece is kept. */
     read: () => trims.reading?.outcome !== undefined,
+    trimmed,
   };
 }

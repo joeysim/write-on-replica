@@ -607,7 +607,8 @@ final class UITestHarness {
     /// Stands in for the AI provider. A scenario says what the next requests get with
     /// `test.ai { set: { chunks, firstMs, everyMs } }` or `{ set: { error, firstMs } }`;
     /// `ai.start` then plays that back as the real client would, as `ai.delta` events and
-    /// an `ai.done`, or an `ai.error`. With `hold: true` in the set, an answer does not start
+    /// an `ai.done`, or an `ai.error`. With both `chunks` and `error`, the answer breaks off
+    /// with the error after the chunks; `cutShort: true` says it ran out of room. With `hold: true` in the set, an answer does not start
     /// until `test.ai { release: true }`: a scenario can then look at the page while it waits,
     /// however slow the Mac is. `test.ai` answers with every request received and the ids
     /// of those called off.
@@ -636,15 +637,16 @@ final class UITestHarness {
                 }
             }
             let answer = {
-                if let message = script["error"] as? String {
-                    send(first, "ai.error", ["id": id, "message": message])
-                    return
-                }
                 let chunks = script["chunks"] as? [String] ?? []
                 for (index, chunk) in chunks.enumerated() {
                     send(first + every * Double(index), "ai.delta", ["id": id, "text": chunk])
                 }
-                send(first + every * Double(chunks.count), "ai.done", ["id": id])
+                let end = first + every * Double(chunks.count)
+                if let message = script["error"] as? String {
+                    send(end, "ai.error", ["id": id, "message": message, "cutShort": script["cutShort"] as? Bool ?? false])
+                } else {
+                    send(end, "ai.done", ["id": id])
+                }
             }
             if script["hold"] as? Bool == true { self.aiHeld.append(answer) } else { answer() }
             return nil

@@ -14,12 +14,17 @@ const ESCAPES = 6; // the approach after these is its last
 const MARGIN = 18; // how near the edge of the window its middle may land
 const HOP = { duration: 280, easing: 'cubic-bezier(0.35, 1.2, 0.2, 1.02)' }; // fitted to the clip
 
-export function initSharing({ editor, ui, commands, native, tooltips, sound, explosions }) {
+/**
+ * @param trimmed gives the document with the cuts of the trim that is out, or null when no
+ *   trim is out
+ */
+export function initSharing({ editor, ui, commands, native, tooltips, sound, explosions, trimmed = () => null }) {
   // --- Post to X ----------------------------------------------------------------------------
 
   const x = document.getElementById('post-x');
-  // The piece as it reads: no heading mark, nothing ghosted, nothing from the overflow.
-  const piece = () => plainText(editor.getState(), { withoutGhost: true, headingMarker: false });
+  // The piece as it reads: no heading mark, nothing ghosted, nothing from the overflow. While
+  // a trim is out, the piece does not have the trim's cuts either.
+  const piece = () => plainText(trimmed() ?? editor.getState(), { withoutGhost: true, headingMarker: false });
 
   async function post() {
     const text = piece();

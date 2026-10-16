@@ -9,7 +9,8 @@ import Foundation
 ///     page  -> shell   ai.start  { id, messages, maxTokens, effort, schema? }
 ///     shell -> page    ai.delta  { id, text }      as the answer streams
 ///                      ai.done   { id }
-///                      ai.error  { id, message }   one line a person can read
+///                      ai.error  { id, message, cutShort }   one line a person can read;
+///                                  cutShort if the answer ran out of room after it began
 ///     page  -> shell   ai.cancel { id }
 final class AIClient {
     static let defaultAddress = "https://gw.lunaroute.com/v1"
@@ -61,16 +62,18 @@ final class AIClient {
         running[name] = Task { @MainActor [weak self] in
             guard let self else { return }
             var reason: String?
+            var cutShort = false
             do {
                 try await self.ask(asked, chosen) { text in emit("ai.delta", ["id": id, "text": text]) }
             } catch {
                 reason = Self.reason(for: error)
+                if case Failure.cutShort = error { cutShort = true }
             }
             // A request that was called off says nothing more, however it ended.
             guard !Task.isCancelled else { return }
             self.running[name] = nil
             if let reason {
-                emit("ai.error", ["id": id, "message": reason])
+                emit("ai.error", ["id": id, "message": reason, "cutShort": cutShort])
             } else {
                 emit("ai.done", ["id": id])
             }
@@ -139,6 +142,10 @@ final class AIClient {
     /// says what its models can do, as LunaRoute's does, only those that chat the way in
     /// use and keep to a schema (the Lab asks for one): a model it says nothing of may not
     /// chat at all. Where it says that of none of them, all of them.
+    ///
+    /// A list asked for Anthropic's way may come in Anthropic's shape, as LunaRoute's does:
+    /// `"messages": { "supported": true }` for a model that speaks that way, and nothing of a
+    /// schema. Then a model that speaks Anthropic's way can answer.
     static func usable(_ data: Data, for wire: AIWire) -> [String] {
         guard let listing = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let models = listing["data"] as? [[String: Any]]
@@ -149,7 +156,9 @@ final class AIClient {
             guard let id = model["id"] as? String, !id.isEmpty else { return nil }
             guard tells else { return id }
             let can = model["capabilities"] as? [String: Any] ?? [:]
-            return can[chats] as? Bool == true && can["json_schema"] as? Bool == true ? id : nil
+            if can[chats] as? Bool == true, can["json_schema"] as? Bool == true { return id }
+            let messages = can["messages"] as? [String: Any]
+            return wire == .anthropic && messages?["supported"] as? Bool == true ? id : nil
         }
         return Set(names).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }

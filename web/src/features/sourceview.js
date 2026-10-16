@@ -1,7 +1,8 @@
 // The source view (design spec 6.11): the piece and its file, in a card over the page.
 // "Markdown" is the piece as it reads now, to take elsewhere: the version of each thing
 // that is showing, with nothing ghosted, nothing from Overflow and none of what the file
-// keeps for this app. "As saved" is exactly what Save writes; "Readable" lays the recorded
+// keeps for this app. While a trim is out, the tab also leaves out the words that the trim
+// fades, and says so. "As saved" is exactly what Save writes; "Readable" lays the recorded
 // state out for a person and jumps to it. It is for reading: nothing in it changes the
 // document. (The clip's card has the last two tabs. The first is this replica's own.)
 
@@ -9,8 +10,13 @@ import { serialize, readable, sourceLines, plainText } from '../doc/format.js';
 
 const ABOVE = 7.7; // how far below the top of the view the jump to the recorded state leaves it
 const COPIED_MS = 1500;
+const TRIMMED = ' · with the trim’s cuts made';
 
-export function createSourceView({ editor, ui, commands, native }) {
+/**
+ * @param trimmed gives the document with the cuts of the trim that is out, or null when no
+ *   trim is out
+ */
+export function createSourceView({ editor, ui, commands, native, trimmed = () => null }) {
   const card = document.getElementById('source');
   const body = card.querySelector('.body');
   const tabs = [...card.querySelectorAll('.tab')];
@@ -27,7 +33,7 @@ export function createSourceView({ editor, ui, commands, native }) {
   /** What the tab that is showing shows, and what Copy copies. */
   const text = () => {
     const state = editor.getState();
-    if (view === 'markdown') return markdown(state);
+    if (view === 'markdown') return markdown(trimmed() ?? state);
     return view === 'readable' ? readable(state) : serialize(state);
   };
 
@@ -49,13 +55,14 @@ export function createSourceView({ editor, ui, commands, native }) {
     view = next;
     for (const tab of tabs) tab.classList.toggle('active', tab.dataset.view === view);
     const state = editor.getState();
-    const piece = view === 'markdown' ? markdown(state) : null;
+    const cut = view === 'markdown' ? trimmed() : null;
+    const piece = view === 'markdown' ? markdown(cut ?? state) : null;
     const shown = piece === null ? sourceLines(state, { readable: view === 'readable' }) : piece.split('\n').map((content) => ({ kind: 'text', text: content }));
     body.replaceChildren(...shown.map(line));
     // The size is the file's, as in the clip, whichever way the file is laid out; on
     // Markdown, which is not the file, it is the size of what is there to copy.
     const size = new TextEncoder().encode(piece ?? serialize(state)).length;
-    bytes.textContent = `${size.toLocaleString('en-US')} bytes`;
+    bytes.textContent = `${size.toLocaleString('en-US')} bytes${cut ? TRIMMED : ''}`;
     fit();
     body.style.paddingTop = at?.pad ?? '';
     body.scrollTop = at?.top ?? 0;

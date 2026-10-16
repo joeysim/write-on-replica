@@ -12,16 +12,17 @@ import { closeGap } from './overflow.js';
 import { applyCuts } from './trim.js';
 
 /**
- * The paragraphs as the model is offered them: numbered from 1, without headings, blank
- * lines or ghosted text. Where ghosted text is left out the gap is closed, so the model
- * is not shown two spaces, or a space before a comma, that the page does not have.
+ * The paragraphs that the model gets, numbered from 1. The list has no blank lines and no
+ * ghosted text. It has headings only when `headings` is true: the typo pass reads them.
+ * Where this function removes ghosted text, it also closes the gap. Thus the model does not
+ * see two spaces, or a space before a comma, that the page does not have.
  * @returns {Array<{n: number, block: number, text: string, map: number[]}>} `map[i]` is
  *   where character `i` of `text` stands in the block's own text
  */
-export function offered(blocks) {
+export function offered(blocks, { headings = false } = {}) {
   const paragraphs = [];
   blocks.forEach((block, index) => {
-    if (block.kind !== 'p') return;
+    if (block.kind !== 'p' && !(headings && block.kind === 'h')) return;
     let text = '';
     let map = [];
     let at = 0;

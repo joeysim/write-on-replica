@@ -154,6 +154,32 @@ t.equal(editor.groups.t1tle01.variants.slice(3), ['Say it several ways', 'More t
 await t.key('z', { meta: true });
 await t.key('Escape');
 
+// --- a model that goes on, or breaks off ----------------------------------------------------------
+// Found with muse-spark-open: the five words come at once, and the model then goes on writing
+// until it runs out of room. The app needs only the five, so it stops listening and puts them in.
+{
+  await answer({ chunks: ['nook\nedge\nangle\nbend\nspot\n', 'Here is why I chose these.\n', 'And more besides.\n'], firstMs: 40, everyMs: 5000 });
+  editor.select({ block: 5, offset: docText(5).indexOf('corner') + 2 });
+  commands.run('ai-alternatives');
+  await until(() => !asking() && rows().length === 6, 'the five, while the model is still writing', 3000);
+  t.equal(editor.groups[panel.target()]?.variants, ['corner', 'nook', 'edge', 'angle', 'bend', 'spot'], 'the five go in as soon as they are there');
+  const { requests, canceled } = await provider();
+  t.assert(canceled.includes(requests.at(-1).id), 'and the rest of the answer is called off');
+  await t.key('z', { meta: true });
+  await t.key('Escape');
+}
+// An answer that breaks off still gives the lines that came whole. A line cut off is not one.
+{
+  await answer({ chunks: ['nook\nedge\nang'], firstMs: 40, everyMs: 20, error: 'The AI ran out of room before it finished its answer. Try again.' });
+  editor.select({ block: 5, offset: docText(5).indexOf('corner') + 2 });
+  commands.run('ai-alternatives');
+  await until(() => !asking(), 'the answer that breaks off');
+  t.equal(editor.groups[panel.target()]?.variants, ['corner', 'nook', 'edge'], 'the whole lines go in, and the one cut off does not');
+  t.equal(hint(), 'return adds · esc closes', 'with no failure shown');
+  await t.key('z', { meta: true });
+  await t.key('Escape');
+}
+
 // --- when it fails --------------------------------------------------------------------------------
 
 const before = JSON.stringify(editor.getState());
@@ -200,9 +226,10 @@ t.equal(hint(), 'return adds · esc closes', 'the reason goes away by itself');
 
 // Closing the panel while it asks calls the request off.
 await answer({ chunks: ['late\n'], firstMs: 900, everyMs: 10 });
+const sent = (await provider()).requests.length;
 for (let i = 0; i < 2; i++) await t.key('Backspace');
 await t.type('??');
-await until(async () => (await provider()).requests.length >= 6, 'the slow request to start');
+await until(async () => (await provider()).requests.length > sent, 'the slow request to start');
 const slow = (await provider()).requests.at(-1).id;
 await t.key('Escape');
 t.assert(!ui.get('panel'), 'Esc closes the panel while it is asking');

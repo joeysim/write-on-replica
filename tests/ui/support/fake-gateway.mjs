@@ -103,6 +103,8 @@ const refuse = (response, status, message, say = VOICES.openai) => {
 // The models the service has. As LunaRoute lists them, each says what it can do: to chat each
 // way, to keep to a schema, and other things. Under /plain the stand-in is a service that says
 // only their names. Each way of speaking sends its key its own way; Anthropic's needs a version.
+// Under /luna it does as LunaRoute does: asked Anthropic's way, it gives the list in
+// Anthropic's shape, where what a model can do is { messages: { supported: true }, … }.
 const LISTED = [
   { id: 'muse-spark-open', capabilities: { openai_chat: true, anthropic_messages: true, json_schema: true, reasoning: true } },
   { id: 'whisper-large-v3', capabilities: { transcription: true } },
@@ -120,7 +122,10 @@ const models = (request, response, pathname) => {
   const known = Object.values(KEYS).some((key) => bearer === `Bearer ${key}` || own === key);
   if (!known) return refuse(response, 401, 'A key the service knows is needed.');
   if (own !== undefined && !request.headers['anthropic-version']) return refuse(response, 400, 'anthropic-version: header is required', VOICES.anthropic);
-  const listed = pathname.startsWith('/plain/') ? PLAIN : LISTED;
+  const theirs = pathname.startsWith('/luna/') && request.headers['anthropic-version'] !== undefined;
+  const shaped = (capabilities) =>
+    Object.fromEntries(Object.entries(capabilities).filter(([name]) => name !== 'json_schema' && name !== 'openai_chat').map(([name, can]) => [name === 'anthropic_messages' ? 'messages' : name, { supported: can }]));
+  const listed = pathname.startsWith('/plain/') ? PLAIN : theirs ? LISTED.map((model) => (model.capabilities ? { ...model, capabilities: shaped(model.capabilities) } : model)) : LISTED;
   response.writeHead(200, { 'Content-Type': 'application/json' });
   response.end(JSON.stringify({ object: 'list', data: listed.map((model) => ({ object: 'model', owned_by: 'stand-in', ...model })) }));
 };

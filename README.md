@@ -104,6 +104,7 @@ and Stash.
   shorter. It fades and underlines; it never rewrites. Nothing is cut until you say so.
   A trim is read once, and all four levels are then there at once: the AI says what each
   sentence could lose and how much the piece needs it, and the app does the counting.
+  While the Lab shows a trim, the Markdown tab and Post to X use the trimmed piece.
 - **Edit ▸ Spelling and Grammar, Substitutions.** Spell checking, autocorrection and smart
   quotes are all off until you turn them on there, whatever the system's settings say.
 
@@ -118,8 +119,9 @@ words are still there.
 
 To take the piece somewhere else, press Ctrl+U or click the M↓ icon. The card opens on
 **Markdown**: the piece as it reads now, with the version of each thing that is showing,
-nothing ghosted, nothing from Overflow and no comment, and a Copy button. The other two
-tabs, As saved and Readable, show the file itself.
+nothing ghosted, nothing from Overflow and no comment, and a Copy button. While the Lab
+shows a trim, the tab has the trim's cuts made, and says so. The other two tabs, As saved
+and Readable, show the file itself.
 
 The format follows what the third clip shows of the original's, down to the `write_on`
 comment. That is 52 seconds of one file: whether his tool would open a file saved here,
@@ -217,20 +219,26 @@ Either way:
   every word of the piece, by the length of its words and sentences, and 2,400 besides,
   up to 32,000. That is more than 8,192 from somewhere between 500 and 750 words and more
   than 16,384 from between 1,200 and 1,700, and a model that may not write so much will
-  refuse a longer piece. If a model's thinking uses its room up
-  before it has said a word, the app asks again with twice as much, twice at most, for
-  that request only.
+  refuse a longer piece. Alternatives ask for room to think too: 1,000 tokens and 4 for
+  every word of the paragraph, beside the room for the answer. If a model's thinking uses
+  its room up before it has said a word, the app asks again with twice as much, twice at
+  most, for that request only.
 - An answer that begins within a minute and never falls silent for longer. The app gives
   up on one that does. A model that thinks in silence for longer than that, or a server
   still loading its model, may be given up on.
 
 **How far this has been tried.** For real, with LunaRoute only: with `glm-5.3-flash` in
-both ways (LunaRoute speaks both), and with `muse-spark-open` OpenAI's way. With
-`muse-spark-open`, every feature works, but a trim of a long draft is less sure. For the
-500-word draft, its first answer covered less than half of the sentences in each of three
-tries, so the app asked again. One try then cut 4% at every level. Another cut whole
-sentences only. `glm-5.3-flash` did the same draft in one request, with cuts inside
-sentences. **Anthropic's own service has not been asked.** The
+both ways (LunaRoute speaks both), and with `muse-spark-open` both ways. With
+`muse-spark-open`, every feature works, but its answers are less sure. On 16 October
+2026, its first answer for a trim of the 500-word draft covered less than half of the
+sentences in two of three tries, and once it was about another text altogether. The app
+asks again and joins the two answers, and each try then cut 9 to 10% at "Slight trim". In
+6 typo passes over that draft with five slips, 4 found all five. Some of its answers held
+its own notes, or words that are not in the draft, and the app discards those. `glm-5.3`
+found all five slips in 5 of 6 passes. Spoken to Anthropic's way through LunaRoute,
+`muse-spark-open` took 90 to 115 s for a trim, against 4 to 9 s OpenAI's way.
+`glm-5.3-flash` did the 500-word draft in one request, with cuts inside sentences.
+**Anthropic's own service has not been asked.** The
 Anthropic way was written to Anthropic's documentation and is tested against a stand-in
 on this Mac (`tests/ui/ai-anthropic.js`) that sends what the documentation says the
 service sends, and refuses a request with no version, no `max_tokens` or a system message

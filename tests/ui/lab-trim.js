@@ -1,6 +1,6 @@
 // The Lab's trims (design spec 6.10): the model says what could go, by fading it where it
 // stands; nothing is cut until the writer says so.
-const { editor, ui, lab } = window.writeOn;
+const { editor, ui, lab, commands, alternatives } = window.writeOn;
 ui.set({ read: false });
 await document.fonts.ready;
 
@@ -515,7 +515,9 @@ await choose('Even sharper');
 await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
 t.equal(faded(), ['really ', ', then stop'], 'a sentence that came back reworded is not touched');
 // Both are sentences the piece is said not to work without: only a trim to half takes such.
+// (The Lab does not keep an answer about two sentences in ten, so it asks the model again.)
 await choose('Cut in half');
+await t.until(() => lab.pass() === 'proposal' && !/Reading/.test(title()), 4000, 'the deeper level');
 t.equal(faded(), [S1, P2], 'to halve a piece, something it needs may have to go');
 await act('Done');
 // Nothing usable at all.
@@ -542,13 +544,63 @@ await act('Done');
   t.equal([title(), faded()], [summary('Slight trim'), CUTS], 'the fuller answer is the one that counts');
   t.equal((await asked()).length, asks + 2, 'the model having been asked a second time');
   await act('Done');
-  // If the second leaves as much out, it is taken for what it is.
-  await answer([SAID[2]], { firstMs: 100 });
+  // If the second answer is thin too, the Lab joins the two answers, and the card tells how
+  // much the AI read. The Lab does not keep the answer, so the next level asks again.
+  lab.forget();
+  await t.call('test.ai', { set: { chunks: [JSON.stringify({ sentences: [SAID[0]] })], firstMs: 0, everyMs: 20, hold: true } });
   const again = (await asked()).length;
   await choose('Slight trim');
+  await t.until(async () => (await asked()).length === again + 1, 2000, 'the first asking');
+  await answerQuietly([SAID[2]], { firstMs: 0 }); // for the second asking
+  await t.call('test.ai', { release: true });
   await t.until(() => lab.pass() === 'proposal', 4000, 'a proposal');
-  t.equal([title(), faded()], [summary('Slight trim', 3), ['really ', ', then stop']], 'what it does say is used');
+  t.equal([title(), faded()], [summary('Slight trim', 8), ['Much of ', ', in my view,', 'really ', ', then stop']], 'what the two answers say between them is used');
   t.equal((await asked()).length, again + 2, 'after two askings, and no third');
+  const THIN = 'The AI read only 2 of the 10 sentences. Choose a level to ask again.';
+  t.equal(card.querySelector('.hint').textContent, THIN, 'the card says how much of the piece the AI read');
+  t.equal(lab.read(), false, 'and so thin an answer is not kept');
+  await choose('Tighten more');
+  t.equal(title(), 'Tighten more Reading…', 'another level asks again');
+  await t.until(() => lab.pass() === 'proposal', 4000, 'a proposal');
+  t.equal((await asked()).length, again + 4, 'twice, as the answers are as thin as before');
+  await act('Done');
+  // If the second request fails, the Lab uses the first answer.
+  lab.forget();
+  await t.call('test.ai', { set: { chunks: [JSON.stringify({ sentences: [SAID[0]] })], firstMs: 0, everyMs: 20, hold: true } });
+  const third = (await asked()).length;
+  await choose('Slight trim');
+  await t.until(async () => (await asked()).length === third + 1, 2000, 'the first asking');
+  await t.call('test.ai', { set: { error: 'The AI service is busy. Try again in a moment.', firstMs: 0 } });
+  await t.call('test.ai', { release: true });
+  await t.until(() => lab.pass() === 'proposal' || lab.pass() === 'failed', 4000, 'the trim');
+  t.equal([lab.pass(), faded()], ['proposal', ['Much of ', ', in my view,']], 'a second asking that fails leaves what the first said');
+  t.equal(card.querySelector('.hint').textContent, 'The AI read only 1 of the 10 sentences. Choose a level to ask again.', 'and the card says how little that is');
+  await act('Done');
+}
+// An answer that runs out of room is an answer as far as it went. (Found with muse-spark-open
+// on a 500-word draft.) The Lab uses the sentences that came whole. If they are fewer than
+// half, it asks again and joins the two answers.
+{
+  const RAN_OUT = 'The AI ran out of room before it finished its answer. Try again.';
+  const whole = JSON.stringify({ sentences: SAID });
+  lab.forget();
+  await t.call('test.ai', { set: { chunks: [whole.slice(0, whole.indexOf('{"s":3') + 10)], firstMs: 0, everyMs: 20, error: RAN_OUT, cutShort: true, hold: true } });
+  const asks = (await asked()).length;
+  await choose('Slight trim');
+  await t.until(async () => (await asked()).length === asks + 1, 2000, 'the first request');
+  await answerQuietly(SAID, { firstMs: 0 });
+  await t.call('test.ai', { release: true });
+  await t.until(() => lab.pass() === 'proposal' || lab.pass() === 'failed', 4000, 'the trim');
+  t.equal([lab.pass(), title(), faded()], ['proposal', summary('Slight trim'), CUTS], 'an answer that ran out of room early is asked for again, and the two are joined');
+  t.equal((await asked()).length, asks + 2, 'after two requests');
+  await act('Done');
+  lab.forget();
+  await t.call('test.ai', { set: { chunks: [whole.slice(0, whole.indexOf('{"s":9'))], firstMs: 0, everyMs: 20, error: RAN_OUT, cutShort: true } });
+  const again = (await asked()).length;
+  await choose('Slight trim');
+  await t.until(() => lab.pass() === 'proposal' || lab.pass() === 'failed', 4000, 'the trim');
+  t.equal([lab.pass(), faded(), (await asked()).length], ['proposal', CUTS, again + 1], 'one that ran out of room after most of the piece is used as it is');
+  t.equal(lab.read(), true, 'and kept');
   await act('Done');
 }
 // Done while the second asking is out calls that off too, and keeps nothing.
@@ -658,4 +710,70 @@ await act('Done');
   t.equal(editor.blocks.length, blocks - 2, 'a blank line having gone with it');
   await t.key('z', { meta: true });
   t.equal([editor.blocks.length, textOf(2)], [blocks, line(1)], 'undo brings both back');
+}
+
+// --- a trim and the rest of the app ---------------------------------------------------------------
+// Faded words go when the cuts are made, as ghosted words have gone. So the Markdown tab and
+// Post to X use the piece with the cuts made, and the tab says so. "As saved" and Save use the
+// file, which has no cuts until the writer makes them.
+await load();
+{
+  const source = $('#source');
+  const shownSource = () => [...source.querySelectorAll('.body .line')].map((line) => line.textContent).join('\n');
+  const size = () => source.querySelector('.bytes').textContent;
+  const tab = async (view) => t.click(...t.center(source.querySelector(`.tab[data-view="${view}"]`)));
+  const sizeOf = (text) => `${new TextEncoder().encode(text).length.toLocaleString('en-US')} bytes`;
+  const TRIMMED = ['The trouble comes from wanting every line to stay.', 'Keep what earns its place and really nothing else.', P3.join(' ')];
+  await answer(SAID);
+  await choose('Slight trim');
+  await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
+  await t.click(...t.center(spanOf('really')));
+  commands.run('source');
+  await t.until(() => ui.get('source'), 1500, 'the source view');
+  const markdown = ['# The short version', ...TRIMMED].join('\n\n');
+  t.equal(shownSource(), markdown, 'the Markdown tab is the piece with the cuts made, but for the one kept');
+  t.equal(size(), `${sizeOf(markdown)} · with the trim’s cuts made`, 'and says so beside its size');
+  await tab('saved');
+  t.assert(shownSource().includes(S1) && !/cuts/.test(size()), 'As saved is the file, untrimmed');
+  await tab('markdown');
+  commands.run('source');
+  await t.until(() => !ui.get('source'), 1500, 'the source view to close');
+  t.equal([lab.pass(), faded().length], ['proposal', 4], 'looking at the source leaves the trim out');
+  const opened = (await t.call('test.opened')).urls.length;
+  commands.run('post');
+  await t.until(async () => (await t.call('test.opened')).urls.length > opened, 2000, 'Post to X');
+  const url = new URL((await t.call('test.opened')).urls.at(-1));
+  t.equal(url.searchParams.get('text'), ['The short version', ...TRIMMED].join('\n\n'), 'Post to X takes the piece with the cuts made');
+  t.equal(lab.pass(), 'proposal', 'and leaves the trim out');
+  await act('Done');
+  commands.run('source');
+  await t.until(() => ui.get('source'), 1500, 'the source view');
+  t.equal([shownSource().includes(S1), size()], [true, sizeOf(shownSource())], 'with the trim put away, the Markdown tab is the piece as it is again');
+  commands.run('source');
+  await t.until(() => !ui.get('source'), 1500, 'the source view to close');
+}
+
+// The alternatives panel makes a group of one from the word that it looks at. This is not an
+// edit: each word stays in its place, so the trim stays out. Another alternative shown in the
+// text changes the words, so the trim goes.
+{
+  await answer(SAID);
+  await choose('Slight trim');
+  await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
+  await t.click(...t.center(spanOf('in my view')));
+  const left = CUTS.filter((cut) => cut !== ', in my view,');
+  editor.focus();
+  editor.select({ block: 7, offset: 3 }); // in "last"
+  commands.run('alternatives');
+  await t.until(() => ui.get('panel'), 1500, 'the panel');
+  t.equal([lab.pass(), faded(), title()], ['proposal', left, summary('Slight trim', 11)], 'the panel opened on a word leaves the trim as it was');
+  t.equal(getComputedStyle(spanOf('in my view')).opacity, '1', 'the passage kept is still kept');
+  await t.key('Escape');
+  await t.until(() => !ui.get('panel'), 1500, 'the panel to close');
+  t.equal([lab.pass(), faded()], ['proposal', left], 'and so does closing it');
+  t.equal(lab.read(), true, 'what the model said is still kept');
+  alternatives.activate('r3ally1', 1, { focus: false });
+  await t.settle();
+  t.equal([lab.pass(), faded().length, shown(card)], [null, 0, false], 'showing another alternative changes the words: the trim goes');
+  await load();
 }

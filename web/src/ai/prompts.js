@@ -7,6 +7,10 @@ import { trimUnits } from '../doc/trim.js';
 
 export const SUGGESTION_COUNTS = { word: 5, sentence: 3, paragraph: 3 };
 const TOKEN_FLOORS = { word: 120, sentence: 400, paragraph: 1500 };
+// A model that reasons thinks before it answers, and its thinking counts against the same
+// limit. `muse-spark-open` thought past 480 tokens before it gave five words for one word.
+// So a request for alternatives has room to think as well.
+const ALTERNATIVES_THINKING = (words) => 1000 + 4 * words;
 
 export const TRIM_LEVELS = [
   { id: 'slight', label: 'Slight trim', percent: 10 },
@@ -89,7 +93,7 @@ export function alternativesRequest({ scope, paragraph, start, end, existing = [
       { role: 'system', content: ALTERNATIVES_SYSTEM },
       { role: 'user', content: content.trimEnd() },
     ],
-    maxTokens: Math.max(TOKEN_FLOORS[scope], needed),
+    maxTokens: Math.max(TOKEN_FLOORS[scope], needed) + ALTERNATIVES_THINKING(countWords(paragraph)),
     effort: 'low',
     count,
   };

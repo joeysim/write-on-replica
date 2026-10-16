@@ -413,6 +413,10 @@ icons stay in view over it. Going into Read mode closes it.
   is an I-beam over a row's words and an arrow beside them.
 - Failure (no key, network, bad response): the `??` row stops dancing and shakes once,
   the footer shows a one-line reason for a few seconds, and nothing else changes.
+- **Enough is enough** (§9 item 59). When all the suggestions asked for are in, the app
+  stops listening, and the batch goes in. Some models go on writing until they run out of
+  room. An answer that breaks off still gives the lines that came whole; a line cut off is
+  not one. Only an answer with no whole line in it is a failure.
 
 ### 6.7 Ghost
 
@@ -537,8 +541,12 @@ at twice ghost's strength and lives beside the document, not in it. Text the use
 already ghosted is treated as already out: it is not offered for cutting and is left out
 of both word counts on the card. Headings are not offered either, though their words are
 counted. A cut inside an alternative group edits that group's active variant; a cut that
-removes all of it removes the group. Any change to the document while a trim is out
-(an edit, an undo, a redo) puts the trim away, since it was about the text as it was.
+removes all of it removes the group. Any change to the words while a trim is out (an
+edit, an undo, a redo) puts the trim away, since it was about the text as it was. Another
+alternative shown in the text is a change to the words. A change that keeps each word in
+its place is not an edit, and the trim stays. For example, the alternatives panel makes a
+group of one from the word that it looks at (§9 item 55). While a trim is out, the
+Markdown tab and Post to X use the piece with the trim's cuts made (§6.11).
 
 After "Make the cuts" the app does only mechanical tidying: collapse doubled spaces,
 remove a space left before punctuation, and capitalize a sentence whose first words were
@@ -606,7 +614,8 @@ trim: only one is out at a time, and a new one puts the last away. Unlike a trim
 through an edit, an undo or a redo. A mark goes when the edit changes its words, or runs
 them into letters they stood apart from; the others move with their words. With none
 left, the card goes. A mark that went does not come back on an undo. Opening another
-document puts them away.
+document puts them away. The typo pass reads the headings too; the marking passes and
+the trims read only the paragraphs (§9 item 57).
 
 **AI contract.** Each pass sends the document as numbered paragraphs and gets back a
 fixed JSON shape. What the app accepts is narrow by construction:
@@ -623,12 +632,26 @@ fixed JSON shape. What the app accepts is narrow by construction:
   sentences with words deleted, and reading every number as so many too high or too low
   (up to six) explains at least two of them and more than twice as many, they are read
   that way. One sentence that could pass for its neighbor moves nothing. An answer
-  that speaks of fewer than half the sentences is asked for once more; a second such is
-  used as it is.
-- **Marks:** the AI returns verbatim passages with a short reason. Any passage that does
-  not occur in its paragraph is discarded.
+  that speaks of fewer than half the sentences is asked for once more. An answer that
+  ran out of room counts as far as it went: the sentences that came whole. The app then
+  joins the two answers. Where both speak of a sentence, the second answer wins. If the
+  second request fails, the app uses the first answer. If the joined answer is still
+  thin, the app uses it but does not keep it. The card then says "The AI read only 6 of
+  the 27 sentences. Choose a level to ask again.", and the next level asks again (§9
+  item 56).
+- **Marks:** the AI returns verbatim passages with a short reason. A passage that does
+  not occur in its paragraph is discarded, with two exceptions. If the passage has its
+  paragraph number in front ("[2] Teh format", "2. Teh format"), the app takes the
+  number off. If the passage is in one other paragraph only, the app uses that
+  paragraph. The app asks once more if it cannot read the answer, if the answer quotes
+  nothing in the text, or if the answer ran out of room. After a second such answer the
+  card says "The AI quoted words that are not in the text. Try again.", or that the AI
+  ran out of room (§9 item 58).
 - **Typos:** as marks, plus a replacement for each passage. A replacement is applied
-  only when the user accepts it.
+  only when the user accepts it. The headings go to the model too, numbered in their
+  place among the paragraphs. A replacement that changes more than four words, or that
+  has a line break, is not a fix, and the app discards it. The typo pass also asks once
+  more after an empty answer, because the models sometimes miss every slip.
 
 So for trims and marks the AI can only point at text. Only the typo pass can change a
 word, and only with consent.
@@ -736,7 +759,9 @@ hairline edge, 7 px corners and a soft shadow that falls mostly below it.
   and there is never more than one blank line together. It is the text Post to X sends, with the
   heading marks. Nothing in it is dimmed. With this tab showing the byte count is the
   size of what it shows, and "Copy" copies exactly that, with no line break added at the
-  end. It is the tab the card opens on.
+  end. It is the tab the card opens on. While a trim is out (§6.10), the tab shows the
+  piece with the trim's cuts made, except the cuts that the writer keeps. The byte count
+  then says so: "653 bytes · with the trim's cuts made" (§9 item 55).
 - Comment and metadata lines are dimmed; text, the overflow included, is full strength.
   Read-only. Esc closes.
 - It comes back as it was left: on the same tab, at the same place in the file (the clip
@@ -748,12 +773,13 @@ hairline edge, 7 px corners and a soft shadow that falls mostly below it.
 
 **Post to X** (X icon, Ctrl+Shift+P): opens X's compose window in the default browser
 (`https://x.com/intent/post?text=…`) with the document text filled in, heading marker and
-ghosted text removed. If the text is longer than 4,000 characters it is copied to the
-clipboard instead and the compose window opens empty, with a note by the X icon saying
-so: "Too long to fill in: it is on the clipboard, ready to paste." The same happens when
-the link itself would run past 8,000 characters, which text outside the Latin alphabet
-does much sooner: X's servers refuse a request much past 14,000 bytes (measured), and the
-browser's own headers count toward that.
+ghosted text removed. While a trim is out, the text has the trim's cuts made. If the text
+is longer than 4,000 characters it is copied to the clipboard instead and the compose
+window opens empty, with a note by the X icon saying so: "Too long to fill in: it is on
+the clipboard, ready to paste." The same happens when the link itself would run past 8,000
+characters, which text outside the Latin alphabet does much sooner: X's servers refuse a
+request much past 14,000 bytes (measured), and the browser's own headers count toward
+that.
 
 The note is the control's label put to another use (§4.3): in the color of a lit
 control, shown in Read mode too, for four seconds counted from when the window is next in
@@ -922,7 +948,10 @@ live gateway on 2026-10-11:
   the answer, and it may think a good deal even at `low`: a marking pass over 164 words
   for up to 400 tokens; alternatives for 1. So a Lab pass asks for its answer and room
   to think besides (a trim 2,000 tokens and 6 a word; the other passes 1,000 and 4 a
-  word), up to 32,000 in all.
+  word), up to 32,000 in all. Alternatives ask for room to think too: 1,000 tokens and 4
+  a word of the paragraph, beside the room for the answer. Before 16 October they had
+  room for the answer only, 120 tokens for a word, and `muse-spark-open` often thought
+  past that and gave no words (§9 item 59).
 - Lab passes stay at `low`. **A trim is asked so that the model has nothing to count**
   (§6.10). The first way of asking gave it a number of words to cut to, a request for
   each level, and it reasoned its way there: to cut 570 words by a tenth it thought for
@@ -1096,8 +1125,10 @@ key, the address or the format changes, the app asks the service for its models
 (`models`, beside the chat address, with the same key). The list shows only the models
 that can answer this app. When the service tells what each model can do, as LunaRoute
 does, these are the models that chat in the format in use and keep to a schema. When it
-does not tell, the list shows all of them. Without a key or an answer, the list is
-empty, and you type the name. Test connection asks a one-word question and answers in a line:
+does not tell, the list shows all of them. A list asked for Anthropic's way may come in
+Anthropic's shape, as LunaRoute's does. There a model that speaks Anthropic's way has
+`"messages": { "supported": true }`, and the list says nothing of a schema (§9 item
+60). Without a key or an answer, the list is empty, and you type the name. Test connection asks a one-word question and answers in a line:
 "Connected: muse-spark-open answered in 4.4 s, with the key from your login shell." (or
 "with no key"), or the reason it failed; an answer with nothing in it is a failure
 ("The service answered, but said nothing. Check the model in Settings (⌘,)."). The
@@ -1109,7 +1140,7 @@ sound toggle reaches every open window at once.
 | --- | --- |
 | No API key, and the service is the usual one | AI commands show one line in place: "No API key — add one in Settings (⌘,)". Nothing is sent and nothing else is blocked. (Another service is asked without a key, §7.1.) |
 | Network or gateway error, timeout (60 s of silence) | The pending animation stops, a one-line reason shows for a few seconds, the document is untouched. The lines: "The key was not accepted (401). Check it in Settings (⌘,)."; "This service wants a key (401). Add one in Settings (⌘,)." when none was sent; "Only an address on this Mac or its own network may be plain http. Use https."; "The address in Settings (⌘,) sends requests on elsewhere (307), and they are not followed."; "Too many requests, or out of quota (429). Try again in a moment."; "The AI service had a problem (503). Try again in a moment."; "The request was refused (400): …" with the service's own first line; "Could not reach the AI service. Check the network, and the address in Settings (⌘,)."; "The connection was lost before the answer was complete."; "The AI took too long to answer."; "The AI ran out of room before it finished its answer. Try again." A key the service quotes back is taken out before the line is shown. |
-| AI returns text it was not asked for | Lines that are empty, duplicate an existing variant, or (for Lab) do not occur verbatim in the document are discarded. If nothing usable remains it is treated as an error. |
+| AI returns text it was not asked for | Lines that are empty, duplicate an existing variant, or (for Lab) do not occur verbatim in the document are discarded. If nothing usable remains it is treated as an error. The Lab first asks once more (§6.10). After that, a marking pass or the typo pass shows "The AI quoted words that are not in the text. Try again." |
 | File cannot be read or written | A standard alert with the system's reason. The document stays open and unsaved. |
 | File has a damaged metadata comment | Opens as plain Markdown; a one-line note says the alternatives could not be read. The file is not modified until the user saves. |
 | Crash or forced quit | On next launch the snapshot is offered as an unsaved document. |
@@ -1167,14 +1198,20 @@ go another way.
 | 45 | Ghost at the edges | A run of ghosted text is what runs on unbroken within one paragraph; where the edge of a group splits it, it is still one. A caret on a ghosted word revives even at the very edge of the run, and a caret inside ghosted spaces or punctuation revives too. A selection with no words in it, a blank line and a caret among plain spaces give the command nothing to do, and the menu item is dimmed. A word beside ghosted text is ghosted in its own right. |
 | 46 | Stash and use, in detail | Stashed text is trimmed, and marks do not travel: a group or ghosted words go as the words that were showing. Where a stash empties a paragraph, the paragraph goes and a blank line with it, so the page stays one blank line between paragraphs. Taking whole lines out of Overflow closes it up the same way. Used text goes in as a paste would, the caret goes to the page and stands after it, and the page scrolls to show it; where the page has had no caret yet it is added at the end as a paragraph of its own. A blank line, or a selection with no words, gives either command nothing to do. |
 | 47 | Trims, in detail | A click on a faded passage keeps it and a second click lets it go again. Choosing another level, or "Original", puts a pending proposal away first. If the request fails the card keeps the trim's name, gives the reason in one line and offers only "Done"; the same if the answer holds nothing that is the text with words deleted ("The AI found nothing it could cut without rewording."), or nothing at all ("The AI found nothing to cut."). A sentence that came back reworded is left as it is while the others are proposed. An answer that could not be read is not kept: the next trim asks again. Going into Read mode puts the popover and any pass away. Arrow keys are not needed in the popover; Esc and a click elsewhere close it. |
-| 48 | Post to X, in detail | The clip only hovers the X icon, so everything past "opens X's compose window" is a choice: the address (`x.com/intent/post`), the text sent (the page as it reads: no heading mark, nothing ghosted, nothing from Overflow, nothing of the other versions), the two limits and the clipboard fallback, the wording and behavior of the note, and doing nothing for an empty page. |
+| 48 | Post to X, in detail | The clip only hovers the X icon, so everything past "opens X's compose window" is a choice: the address (`x.com/intent/post`), the text sent (the page as it reads: no heading mark, nothing ghosted, nothing from Overflow, nothing of the other versions), the two limits and the clipboard fallback, the wording and behavior of the note, and doing nothing for an empty page. While a trim is out, the text has the trim's cuts made (item 55). |
 | 49 | Documents and windows | Where a file opens (the window that has it, else one nobody has written in, else its own); a new window being blank and the welcome piece shown once; unsaved work coming back after a crash as an unsaved document rather than being offered in a dialog; one question at a time; Undo and Redo in the menu being the document's; which commands the menus hold and what they are called. |
 | 50 | A shortcut with the caret on no word | With the caret on no word, or no caret in the text, Alternatives and AI alternatives act on what the pointer is resting on: the group, or the word. The clip only shows the case with the caret in a word, which wins over the pointer. |
 | 51 | Where the caret is | A window opens with the caret at the start of the piece; a press on the bare page beside or below the text lands in the text; and the page never scrolls the caret into its faded edges (§4.3, §5.2). None of it is shown in the clips. |
 | 52 | Dots on a 1x display | The clips are of a 2x display. On a display with one pixel to the px the dots are seated on whole pixels and a ring's line is one pixel (§6.2). |
 | 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
-| 54 | How a trim is asked for, and how much it takes | Everything under "How much a trim takes" in §6.10: that the model is asked once about every sentence and not once a level for an amount; the scale of 1 to 5 and the four stages; that a level's share is reckoned on the words the card counts, headings included; that a stage is taken part-way evenly through the piece; that a level can fall short and says so; that no sentence goes while one needed less stands, and that a level is never empty where something could go; that a sentence the piece "does not work without" goes only in "Cut in half", last, and never past the amount; that each level holds what the lighter ones take; that a paragraph may go whole, with a blank line; what fades while the answer is arriving; that a thin answer is asked for once more; and that the numbers are checked against the words. The clip shows only that a trim fades words and whole sentences, that the card counts them, and that a second level is there at once. |
+| 54 | How a trim is asked for, and how much it takes | Everything under "How much a trim takes" in §6.10: that the model is asked once about every sentence and not once a level for an amount; the scale of 1 to 5 and the four stages; that a level's share is reckoned on the words the card counts, headings included; that a stage is taken part-way evenly through the piece; that a level can fall short and says so; that no sentence goes while one needed less stands, and that a level is never empty where something could go; that a sentence the piece "does not work without" goes only in "Cut in half", last, and never past the amount; that each level holds what the lighter ones take; that a paragraph may go whole, with a blank line; what fades while the answer is arriving; that a thin answer is asked for once more, and what is done with a second thin answer (item 56); and that the numbers are checked against the words. The clip shows only that a trim fades words and whole sentences, that the card counts them, and that a second level is there at once. |
 | 53 | A Markdown tab in the source view | Not in the clip, and not inferred from it: asked for by the replica's owner, who opened the card to copy the piece and found the file's record in the way. The source view has a third tab, "Markdown", ahead of the clip's two and the one it opens on, showing the piece as it reads now (§6.11). The clip's card opens on "As saved". |
+| 55 | A trim and the rest of the app | Not in the clip. While a trim is out, the Markdown tab and Post to X use the piece with the trim's cuts made, except the cuts that the writer keeps. The reason: faded words go when the cuts are made, as ghosted words have gone. The tab says so beside the byte count. "As saved", "Readable" and Save use the file, which has no cuts until the writer makes them. A change that keeps each word in its place does not put a trim away. The alternatives panel makes such changes when it opens on a word and when it closes. Another alternative shown in the text changes the words, and puts the trim away. Found in use: the Markdown tab ignored the faded words, and the panel put the trim away. |
+| 56 | A thin trim answer, asked for again | The app joins the two answers. Where both speak of a sentence, the second answer wins. If the second request fails, the app uses the first answer. If the joined answer still speaks of fewer than half the sentences, the app uses it, and the card says how much the AI read: "The AI read only 6 of the 27 sentences. Choose a level to ask again." The app does not keep that answer, so the next level asks again. Found in use: the app used the second thin answer alone, and a trim of a 500-word draft cut 4% at every level. |
+| 57 | Slips in headings | The typo pass reads the headings as well as the paragraphs. The trims and the marking passes read only the paragraphs, as before. A fix in a heading leaves it a heading. |
+| 58 | Asking again, and reading what the model meant | Found with the real models on 16 October 2026. In 18 typo passes over a 500-word draft with five slips, 8 gave nothing to mark. The passages came back with the paragraph number in front, as bare numbers, as the model's own notes, or not at all. Later runs also gave wrong paragraph numbers, and one "fix" would have taken nine words out of a sentence. So the Lab takes a number off a passage, uses the one paragraph that has the passage, and discards a fix that changes more than four words. It asks once more when it cannot read an answer, when an answer quotes nothing in the text, or when the typo pass gets an empty answer. "Nothing to mark" from a marking pass is an answer, and the Lab takes it at once. Afterward, in 12 typo passes, 9 found all five slips and 1 gave nothing to mark: 4 of 6 found all five with `muse-spark-open`, and 5 of 6 with `glm-5.3`. |
+| 59 | Alternatives from a model that thinks first | Found with `muse-spark-open` on 16 October 2026, the day it became the default. A request for five words had room for the answer only, 120 tokens. The model thought before it answered, and in three tries each way it gave five words once; it ran out of room before a word in four, and after four words in one. The app threw those four away. Now a request for alternatives has room to think as well (§7.1). When all the suggestions asked for are in, the app stops listening, since some models go on writing to the end of their room. An answer that breaks off still gives the lines that came whole. |
+| 60 | The model list on LunaRoute, spoken to Anthropic's way | Found on 16 October 2026. Asked Anthropic's way (with `anthropic-version`), LunaRoute gives its list in Anthropic's shape: `"capabilities": { "messages": { "supported": true }, … }`, with no word of a schema. Settings read only the shape LunaRoute gives OpenAI's way (`"anthropic_messages": true, "json_schema": true`), and its list came up empty. Settings now reads both shapes. In Anthropic's shape, a model that speaks Anthropic's way is listed: 13 of LunaRoute's models, where OpenAI's way lists 14. |
 
 ## 10. Verification
 

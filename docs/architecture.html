@@ -273,9 +273,9 @@ img { max-width: 100%; }
     <h1>How Write_On is <span class="alt">built<svg viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true"><path d="M0 3.2 C 16 1.4, 34 4.6, 52 3 S 84 1.8, 100 3.4" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg><span class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></span></span></h1>
     <p class="lede">This is an unofficial replica of Write_On, the writing tool Jason Fried shows in <a href="https://x.com/jasonfried/status/2105403067793584590">his post on X</a>, and not his own. The app is a small native Mac program wrapped around a web page. The Swift part owns the windows, the files, the key and the network. The page is the editor. This report walks through both, how they talk, where each behavior lives, and how the whole thing is tested.</p>
     <dl class="facts">
-      <div><dt>The shell</dt><dd>4,007 lines of Swift in 13 files</dd></div>
-      <div><dt>The page</dt><dd>7,694 lines of JavaScript in 43 modules, 1,205 of CSS</dd></div>
-      <div><dt>Tests</dt><dd>364 unit tests, 34 scripted scenarios, 5 measurements</dd></div>
+      <div><dt>The shell</dt><dd>4,018 lines of Swift in 13 files</dd></div>
+      <div><dt>The page</dt><dd>7,893 lines of JavaScript in 43 modules, 1,205 of CSS</dd></div>
+      <div><dt>Tests</dt><dd>370 unit tests, 34 scripted scenarios, 5 measurements</dd></div>
       <div><dt>Third-party code</dt><dd>None</dd></div>
     </dl>
   </header>
@@ -374,7 +374,7 @@ img { max-width: 100%; }
         <p>Three ideas run through the code:</p>
         <ul>
           <li><strong>The document is data, and the screen is a rendering of it.</strong> Blocks and groups in memory are the truth. The paragraphs you see are drawn from them.</li>
-          <li><strong>Whatever decides what the document is lives in pure functions.</strong> They need no browser, so 364 tests run against them in Node.</li>
+          <li><strong>Whatever decides what the document is lives in pure functions.</strong> They need no browser, so 370 tests run against them in Node.</li>
           <li><strong>Nothing from outside is trusted.</strong> The page never holds the key. An answer from the model is checked against your own text before the app will act on it.</li>
         </ul>
       </section>
@@ -502,17 +502,17 @@ const files        = createFiles({ editor, ui, commands, native, tooltips });</p
             <div class="stack is-page">
               <div class="tier">
                 <div class="bands">
-                  <div class="band"><b>features/</b><span class="meta">15 modules · 2,809 lines</span><span class="bar" style="width:100%"></span><span class="mods"><span>alternatives</span><span>panel</span><span>ai-alternatives</span><span>lab</span><span>overflow</span><span>ghost</span><span>contextmenu</span><span>shortcuts</span><span>cards</span><span>sourceview</span><span>readmode</span><span>tooltips</span><span>share</span><span>files</span><span>reach</span></span></div>
-                  <div class="band"><b>fx/</b><span class="meta">3 modules · 498 lines</span><span class="bar" style="width:17.7%"></span><span class="mods"><span>sound</span><span>explosion</span><span>flee</span></span></div>
-                  <div class="band"><b>editor/</b><span class="meta">5 modules · 1,066 lines</span><span class="bar" style="width:37.9%"></span><span class="mods"><span>editor</span><span>dom</span><span>selection</span><span>decor</span><span>wobble</span></span></div>
+                  <div class="band"><b>features/</b><span class="meta">15 modules · 2,937 lines</span><span class="bar" style="width:100%"></span><span class="mods"><span>alternatives</span><span>panel</span><span>ai-alternatives</span><span>lab</span><span>overflow</span><span>ghost</span><span>contextmenu</span><span>shortcuts</span><span>cards</span><span>sourceview</span><span>readmode</span><span>tooltips</span><span>share</span><span>files</span><span>reach</span></span></div>
+                  <div class="band"><b>fx/</b><span class="meta">3 modules · 498 lines</span><span class="bar" style="width:17.0%"></span><span class="mods"><span>sound</span><span>explosion</span><span>flee</span></span></div>
+                  <div class="band"><b>editor/</b><span class="meta">5 modules · 1,066 lines</span><span class="bar" style="width:36.3%"></span><span class="mods"><span>editor</span><span>dom</span><span>selection</span><span>decor</span><span>wobble</span></span></div>
                 </div>
                 <p class="tier-note">These touch the DOM, the canvas or Web Audio. They are tested inside the app, by the UI scenarios.</p>
               </div>
               <p class="down">↓ imports point down only</p>
               <div class="tier">
                 <div class="bands">
-                  <div class="band"><b>doc/</b><span class="meta">12 modules · 2,423 lines</span><span class="bar" style="width:86.3%"></span><span class="mods"><span>blocks</span><span>format</span><span>model</span><span>ids</span><span>history</span><span>text</span><span>target</span><span>ghost</span><span>overflow</span><span>proposal</span><span>trim</span><span>tone</span></span></div>
-                  <div class="band"><b>ai/</b><span class="meta">3 modules · 590 lines</span><span class="bar" style="width:21.0%"></span><span class="mods"><span>prompts</span><span>parse</span><span>client</span></span></div>
+                  <div class="band"><b>doc/</b><span class="meta">12 modules · 2,424 lines</span><span class="bar" style="width:82.5%"></span><span class="mods"><span>blocks</span><span>format</span><span>model</span><span>ids</span><span>history</span><span>text</span><span>target</span><span>ghost</span><span>overflow</span><span>proposal</span><span>trim</span><span>tone</span></span></div>
+                  <div class="band"><b>ai/</b><span class="meta">3 modules · 658 lines</span><span class="bar" style="width:22.4%"></span><span class="mods"><span>prompts</span><span>parse</span><span>client</span></span></div>
                 </div>
                 <p class="tier-note">No DOM below this line. <code>npm test</code> runs these in Node, with no browser.</p>
               </div>
@@ -769,7 +769,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <table>
             <thead><tr><th>Kind</th><th>What it covers</th><th>Size</th><th>Runs in</th><th>Command</th></tr></thead>
             <tbody>
-              <tr><td class="name">Unit tests</td><td>The pure modules: file-format round trips, files edited elsewhere, normalizing, word and sentence boundaries, a and an, the tone rule, history, prompts, hostile answers from the model</td><td class="name">364 tests in 16 files</td><td>Node's own test runner</td><td class="name"><code>npm test</code></td></tr>
+              <tr><td class="name">Unit tests</td><td>The pure modules: file-format round trips, files edited elsewhere, normalizing, word and sentence boundaries, a and an, the tone rule, history, prompts, hostile answers from the model</td><td class="name">370 tests in 16 files</td><td>Node's own test runner</td><td class="name"><code>npm test</code></td></tr>
               <tr><td class="name">UI scenarios</td><td>Everything that needs the page or the shell: typing, marks, the panel, Overflow, the Lab, menus, files, crash recovery, the AI client</td><td class="name">34 scenarios</td><td>The built app's own web view, hidden</td><td class="name"><code>scripts/ui-test.sh &lt;name&gt;</code></td></tr>
               <tr><td class="name">Launch check</td><td>The real app starts as Finder would start it, opens one window, reports no error and quits</td><td class="name">1 script</td><td>The real app, opened hidden</td><td class="name"><code>scripts/launch-check.sh</code></td></tr>
               <tr><td class="name">Hands-on list</td><td>What only a person can confirm: real hover, real sound, real panels, dragging out of Overflow</td><td class="name">16 checks</td><td>You, at the Mac</td><td>In the README</td></tr>
@@ -892,7 +892,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <div>
             <dt>Tests run inside the real app</dt>
             <dd><b>Buys</b>Scenarios exercise the same WebKit, the same bridge and the same shell code you run.</dd>
-            <dd><b>Costs</b>The harness is 1,067 of the shell's 4,007 lines and is compiled into the app. It does nothing unless the app is started with <code>--ui-test</code>.</dd>
+            <dd><b>Costs</b>The harness is 1,069 of the shell's 4,018 lines and is compiled into the app. It does nothing unless the app is started with <code>--ui-test</code>.</dd>
           </div>
           <div>
             <dt>The app counts a trim, not the model</dt>
@@ -905,7 +905,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
       <section id="gaps">
         <h2>Known gaps</h2>
         <h3>Where it had to guess</h3>
-        <p>The original is not released, so the clips and the author's replies are the whole specification. Section 9 of the spec lists 54 decisions the clips do not settle, each in one row so it can be challenged. The README summarizes them.</p>
+        <p>The original is not released, so the clips and the author's replies are the whole specification. Section 9 of the spec lists 60 decisions the clips do not settle, each in one row so it can be challenged. The README summarizes them.</p>
         <h3>Differences from the original</h3>
         <ul>
           <li>Lines are 36 px apart, not 36.4, and Overflow's are 22, not 22.5.</li>
@@ -938,17 +938,17 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>Bridge.swift</code></td><td class="num">87</td><td>Messages between page and shell: handlers, <code>emit</code>, <code>ask</code>.</td></tr>
               <tr><td class="name"><code>AssetSchemeHandler.swift</code></td><td class="num">73</td><td>Serves the page at <code>writeon://app/</code>. Nothing outside the web root is readable.</td></tr>
               <tr><td class="name"><code>FileStore.swift</code></td><td class="num">238</td><td>Reading and writing documents, recent documents, drafts, and the panels and alerts.</td></tr>
-              <tr><td class="name"><code>AIClient.swift</code></td><td class="num">509</td><td>Asks the AI service: streaming, cancellation, asking again. Turns every failure into one readable line.</td></tr>
+              <tr><td class="name"><code>AIClient.swift</code></td><td class="num">518</td><td>Asks the AI service: streaming, cancellation, asking again. Turns every failure into one readable line.</td></tr>
               <tr><td class="name"><code>AIWire.swift</code></td><td class="num">345</td><td>The two ways a service is spoken to, OpenAI's and Anthropic's: what is sent, and how the answer is read.</td></tr>
               <tr><td class="name"><code>Credentials.swift</code></td><td class="num">212</td><td>Finds the key: Keychain, environment, login shell.</td></tr>
               <tr><td class="name"><code>AppSettings.swift</code></td><td class="num">92</td><td>What the app remembers, in UserDefaults or, for a scripted run, in memory.</td></tr>
               <tr><td class="name"><code>SettingsWindowController.swift</code></td><td class="num">286</td><td>The Settings window: key, address, format, model (typed, or picked from the service’s list), Test connection, sound.</td></tr>
               <tr><td class="name"><code>MainMenu.swift</code></td><td class="num">177</td><td>The menu bar.</td></tr>
-              <tr><td class="name"><code>UITestHarness.swift</code></td><td class="num">1,067</td><td>Scripted runs: options, native input, snapshots, the guards, scripted answers.</td></tr>
+              <tr><td class="name"><code>UITestHarness.swift</code></td><td class="num">1,069</td><td>Scripted runs: options, native input, snapshots, the guards, scripted answers.</td></tr>
 
               <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/ and web/src</td></tr>
               <tr><td class="name"><code>index.html</code></td><td class="num">144</td><td>The page's fixed elements: the editor, the panels, the icons, the canvas.</td></tr>
-              <tr><td class="name"><code>main.js</code></td><td class="num">83</td><td>Creates every part and wires them together.</td></tr>
+              <tr><td class="name"><code>main.js</code></td><td class="num">85</td><td>Creates every part and wires them together.</td></tr>
               <tr><td class="name"><code>native.js</code></td><td class="num">95</td><td>The bridge, and the stand-in used in a plain browser.</td></tr>
               <tr><td class="name"><code>state.js</code></td><td class="num">44</td><td>Interface flags, mirrored as classes on <code>&lt;body&gt;</code>.</td></tr>
               <tr><td class="name"><code>commands.js</code></td><td class="num">29</td><td>The table of named commands.</td></tr>
@@ -964,14 +964,14 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>target.js</code></td><td class="num">96</td><td>What an alternatives command acts on.</td></tr>
               <tr><td class="name"><code>ghost.js</code></td><td class="num">63</td><td>What the ghost command acts on.</td></tr>
               <tr><td class="name"><code>overflow.js</code></td><td class="num">92</td><td>Moving text between the page and Overflow.</td></tr>
-              <tr><td class="name"><code>proposal.js</code></td><td class="num">376</td><td>What a Lab pass proposes, held beside the document until accepted, and where its marks stand after an edit.</td></tr>
+              <tr><td class="name"><code>proposal.js</code></td><td class="num">377</td><td>What a Lab pass proposes, held beside the document until accepted, and where its marks stand after an edit.</td></tr>
               <tr><td class="name"><code>trim.js</code></td><td class="num">339</td><td>Checks that what a sentence would lose is deletion alone, and counts out what each level of trim takes.</td></tr>
               <tr><td class="name"><code>tone.js</code></td><td class="num">54</td><td>Which tick plays.</td></tr>
 
               <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/ai</td></tr>
-              <tr><td class="name"><code>prompts.js</code></td><td class="num">244</td><td>What the model is asked: messages, limits, the JSON shapes for the Lab.</td></tr>
-              <tr><td class="name"><code>parse.js</code></td><td class="num">302</td><td>Reading and checking what comes back.</td></tr>
-              <tr><td class="name"><code>client.js</code></td><td class="num">44</td><td>Starts a request over the bridge and receives the answer as events.</td></tr>
+              <tr><td class="name"><code>prompts.js</code></td><td class="num">248</td><td>What the model is asked: messages, limits, the JSON shapes for the Lab.</td></tr>
+              <tr><td class="name"><code>parse.js</code></td><td class="num">364</td><td>Reading and checking what comes back.</td></tr>
+              <tr><td class="name"><code>client.js</code></td><td class="num">46</td><td>Starts a request over the bridge and receives the answer as events.</td></tr>
 
               <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/editor</td></tr>
               <tr><td class="name"><code>editor.js</code></td><td class="num">461</td><td>The editing surface: the two kinds of edit, history, clipboard, drag and drop.</td></tr>
@@ -983,18 +983,18 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/features</td></tr>
               <tr><td class="name"><code>alternatives.js</code></td><td class="num">471</td><td>Showing another variant, cycling under the pointer, deleting one.</td></tr>
               <tr><td class="name"><code>panel.js</code></td><td class="num">467</td><td>The alternatives panel.</td></tr>
-              <tr><td class="name"><code>ai-alternatives.js</code></td><td class="num">91</td><td><code>??</code> and Ctrl+Shift+G.</td></tr>
-              <tr><td class="name"><code>lab.js</code></td><td class="num">776</td><td>The Lab: trims, marks, typos, the proposal card.</td></tr>
+              <tr><td class="name"><code>ai-alternatives.js</code></td><td class="num">100</td><td><code>??</code> and Ctrl+Shift+G.</td></tr>
+              <tr><td class="name"><code>lab.js</code></td><td class="num">883</td><td>The Lab: trims, marks, typos, the proposal card.</td></tr>
               <tr><td class="name"><code>overflow.js</code></td><td class="num">153</td><td>The Overflow panel, stashing and using.</td></tr>
               <tr><td class="name"><code>ghost.js</code></td><td class="num">21</td><td>The ghost command.</td></tr>
               <tr><td class="name"><code>contextmenu.js</code></td><td class="num">151</td><td>The right-click menu.</td></tr>
               <tr><td class="name"><code>shortcuts.js</code></td><td class="num">70</td><td>The Control shortcuts, taken before the text sees the key.</td></tr>
               <tr><td class="name"><code>cards.js</code></td><td class="num">70</td><td>Cards over the dimmed page, such as the shortcut list.</td></tr>
-              <tr><td class="name"><code>sourceview.js</code></td><td class="num">158</td><td>The piece as Markdown, to copy, and the file as it would be saved now.</td></tr>
+              <tr><td class="name"><code>sourceview.js</code></td><td class="num">165</td><td>The piece as Markdown, to copy, and the file as it would be saved now.</td></tr>
               <tr><td class="name"><code>reach.js</code></td><td class="num">30</td><td>A press beside or below the text lands in the text.</td></tr>
               <tr><td class="name"><code>readmode.js</code></td><td class="num">68</td><td>Read mode, the word count, the alternates toggle.</td></tr>
               <tr><td class="name"><code>tooltips.js</code></td><td class="num">85</td><td>Lit icons, shortcut labels, short notes from a control.</td></tr>
-              <tr><td class="name"><code>share.js</code></td><td class="num">76</td><td>Post to X, and the LinkedIn button that will not be caught.</td></tr>
+              <tr><td class="name"><code>share.js</code></td><td class="num">81</td><td>Post to X, and the LinkedIn button that will not be caught.</td></tr>
               <tr><td class="name"><code>files.js</code></td><td class="num">122</td><td>Unsaved or not, save, open, drafts.</td></tr>
 
               <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/fx and web/styles</td></tr>
@@ -1006,9 +1006,9 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr class="group"><td colspan="3">Scripts, tests and documents</td></tr>
               <tr><td class="name"><code>scripts/</code></td><td class="num">791</td><td>Thirteen things to run: build the app, make the copy a release carries, make a release, write what its page says, run everything, look for keys, run one scenario, run a measurement, check a real launch, serve the page to a browser, take the README's pictures, draw the icon, fetch the fonts.</td></tr>
               <tr><td class="name"><code>.github/workflows/</code></td><td class="num">96</td><td>What GitHub’s own Mac does with a release’s tag: builds and tests the app, packages it, runs it from the zip, and publishes it.</td></tr>
-              <tr><td class="name"><code>tests/unit/</code></td><td class="num">3,455</td><td>16 test files for the pure modules.</td></tr>
-              <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,716</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
-              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,247</td><td>The design spec: measurements, behavior, and the 54 decisions the clips did not settle.</td></tr>
+              <tr><td class="name"><code>tests/unit/</code></td><td class="num">3,562</td><td>16 test files for the pure modules.</td></tr>
+              <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,934</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
+              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,284</td><td>The design spec: measurements, behavior, and the 60 decisions the clips did not settle.</td></tr>
               <tr><td class="name"><code>docs/superpowers/plans/</code></td><td class="num">443</td><td>The 23-task plan the app was built from.</td></tr>
             </tbody>
           </table>
