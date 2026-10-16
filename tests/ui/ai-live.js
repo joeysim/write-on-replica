@@ -6,7 +6,7 @@
 //   scripts/ui-test.sh ai-live --ai live
 //
 // The service is the one your login shell names (WRITEON_BASE_URL, WRITEON_MODEL), or
-// LunaRoute and muse-spark-open if it names none; the times it allows are that model's, and
+// LunaRoute and glm-5.3 if it names none; the times it allows are that model's, and
 // they are long, which is why the run is given twenty minutes (above) where others get one.
 // It is spoken to OpenAI's way unless the shell or the address says Anthropic's, and both
 // ways are worth a run (LunaRoute speaks both):

@@ -6,7 +6,7 @@ release that brings it.
 
 ## Unreleased
 
-- The default model is now `muse-spark-open`. Before, it was `glm-5.3-flash`.
+- The default model is now `glm-5.3`. Before, it was `glm-5.3-flash`.
 - In Settings, you can pick the model from a list. The app gets the list from the AI
   service, with the same key. The list shows only the models that can answer this app.
 - While the Lab shows a trim, the Markdown tab and Post to X use the piece with the trim's

@@ -142,7 +142,7 @@ The app can speak to a service in either of two ways: OpenAI's chat completions
 (`POST …/chat/completions`), which most services and gateways speak, or Anthropic's
 messages (`POST …/v1/messages`). Either way the answer is streamed. So it can ask any
 service, or any server on your own Mac, that speaks one of them. Out of the box it asks
-LunaRoute (`https://gw.lunaroute.com/v1`) for `muse-spark-open`, OpenAI's way.
+LunaRoute (`https://gw.lunaroute.com/v1`) for `glm-5.3`, OpenAI's way.
 **Settings (⌘,) is where you point it somewhere else:**
 
 - **API key.** Paste it and it is saved in your keychain, and nowhere else.
@@ -228,7 +228,8 @@ Either way:
   still loading its model, may be given up on.
 
 **How far this has been tried.** For real, with LunaRoute only: with `glm-5.3-flash` in
-both ways (LunaRoute speaks both), and with `muse-spark-open` both ways. With
+both ways (LunaRoute speaks both), and with `muse-spark-open` and `glm-5.3` both ways.
+With `glm-5.3`, the default, every feature works both ways. With
 `muse-spark-open`, every feature works, but its answers are less sure. On 16 October
 2026, its first answer for a trim of the 500-word draft covered less than half of the
 sentences in two of three tries, and once it was about another text altogether. The app
@@ -272,8 +273,12 @@ of what it says: 10, 20, 30 and 50% of that draft. (The lighter levels never tak
 sentence the model says the piece does not work without, so where it says that of most of
 them one can fall short; the card says what it came to.) The measurements, and the first
 way trims were asked, which took minutes and missed, are in the spec, §6.10 and §7.1.
-With `muse-spark-open`, the default now, alternatives took 4 to 5 seconds and a trim of the
-500-word draft 13 to 16 seconds, because the app asked twice.
+With `glm-5.3`, the default now, five words took 1.5 to 4.3 seconds, a trim of the
+500-word draft 5 to 25 seconds (once 53), and the typo pass 2.5 to 8 seconds, on 16
+October 2026. The service's speed varies by the hour: that evening a one-word test once
+took 27 seconds.
+With `muse-spark-open`, alternatives took 4 to 5 seconds and a trim of the 500-word draft
+13 to 16 seconds, because the app asked twice.
 
 ## What a person has to check
 
@@ -501,7 +506,7 @@ WRITEON_API_FORMAT=anthropic scripts/ui-test.sh ai-live --ai live # the same, An
 It asks for five other words, three other sentences, the hedges in the welcome piece, a
 trim of that piece and of a 500-word draft at every level, and the slips in a page that
 has some. It asks what
-your shell names: LunaRoute and `muse-spark-open`, or the service and model in
+your shell names: LunaRoute and `glm-5.3`, or the service and model in
 `WRITEON_BASE_URL` and `WRITEON_MODEL`, in the way `WRITEON_API_FORMAT` or the address
 says. The key has to come from your login shell too (`WRITEON_API_KEY` or
 `LUNAROUTE_API_KEY`), since a scripted run does not read the keychain; without one it

@@ -14,7 +14,7 @@ import Foundation
 ///     page  -> shell   ai.cancel { id }
 final class AIClient {
     static let defaultAddress = "https://gw.lunaroute.com/v1"
-    static let defaultModel = "muse-spark-open"
+    static let defaultModel = "glm-5.3"
     static let noKey = "No API key — add one in Settings (⌘,)"
     static let offLimits = "A scripted run asks only a service on this Mac."
     static let inTheClear = "Only an address on this Mac or its own network may be plain http. Use https."

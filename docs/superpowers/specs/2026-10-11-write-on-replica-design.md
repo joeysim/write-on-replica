@@ -13,8 +13,8 @@ format and behavior.
 **Success looks like this.** Put the app next to the videos and run the same steps. The
 screen looks the same, the ticks and booms sound the same, the same things happen. A file
 saved by the app has the structure shown in his file-format clip. The AI features work
-against LunaRoute with `glm-5.3-flash`. With `muse-spark-open`, the default model since
-2026-10-16, they work too, but a trim of a long draft is less sure (§7.1).
+against LunaRoute with `glm-5.3-flash`, and with `glm-5.3`, the default model since
+2026-10-16. With `muse-spark-open` they work too, but its answers are less sure (§7.1).
 
 **Decisions made at the start**
 
@@ -22,7 +22,7 @@ against LunaRoute with `glm-5.3-flash`. With `muse-spark-open`, the default mode
 | --- | --- |
 | Platform | macOS app |
 | Editor core | WebKit editor (WKWebView) inside a native Swift/AppKit shell |
-| AI backend | LunaRoute API, default model `muse-spark-open` (`glm-5.3-flash` before) |
+| AI backend | LunaRoute API, default model `glm-5.3` (`glm-5.3-flash` before 16 October 2026) |
 | Process | Written spec, then implementation plan, each reviewed before code |
 
 ### Non-goals
@@ -990,7 +990,7 @@ environment and the shell the key is `WRITEON_API_KEY` or `LUNAROUTE_API_KEY`, t
 it had first. A key found there is held in memory only and never written anywhere. The
 address follows the same pattern (Settings, then `WRITEON_BASE_URL` or
 `LUNAROUTE_BASE_URL`, then the default), and so does the model (Settings, then
-`WRITEON_MODEL`, then `muse-spark-open`). The shell is asked for each name in a way that
+`WRITEON_MODEL`, then `glm-5.3`). The shell is asked for each name in a way that
 survives a profile which makes an unset variable an error (`nounset`).
 
 **Plain `http`** is for this Mac and its own network (a `.local` name, a name with no
@@ -1103,15 +1103,20 @@ other than the usual one work in practice.
   longer; give a trim the room it asks for (up to 32,000 tokens); and, for the Lab
   spoken to OpenAI's way, hold an answer to a schema.
 
-Only LunaRoute has been asked for real: with `glm-5.3-flash`, and with `muse-spark-open`.
+Only LunaRoute has been asked for real: with `glm-5.3-flash`, `muse-spark-open` and
+`glm-5.3`.
 
 On 2026-10-16 the default model became `muse-spark-open`, at the person's request. Live,
 it took 4.4 s to answer the connection test, and 4 to 5 s to give alternatives. For a trim
 of the 500-word draft, its first answer covered less than half of the sentences in each of
 three tries, so the app asked again (13 to 16 s in all). One try then cut 4% at every
-level. Another cut whole sentences only. `glm-5.3-flash` did the same draft in one request,
-with cuts inside sentences. The rest is tested against
-a stand-in that answers and refuses as those services are documented to (§10).
+level. Another cut whole sentences only. `glm-5.3-flash` did the same draft in one
+request, with cuts inside sentences. Later that day, after the end-to-end tests (§9 items
+55 to 60), the default became `glm-5.3`, at the person's request. Live both ways it passed
+every check: five words in 1.5 to 4.3 s, a trim of the 500-word draft in 15 to 25 s (once
+53 s; 5 to 9 s that morning), and all five slips in the typo pass. The service's speed
+varied by the hour: a one-word test took from 0.4 s to 27 s. The rest is tested against a
+stand-in that answers and refuses as those services are documented to (§10).
 
 **Settings window** (⌘,): API key, address, format, model, a "Test connection" button,
 and the sound toggle. Nothing else. Format is a choice of three: Automatic, which says
@@ -1129,7 +1134,7 @@ does not tell, the list shows all of them. A list asked for Anthropic's way may 
 Anthropic's shape, as LunaRoute's does. There a model that speaks Anthropic's way has
 `"messages": { "supported": true }`, and the list says nothing of a schema (§9 item
 60). Without a key or an answer, the list is empty, and you type the name. Test connection asks a one-word question and answers in a line:
-"Connected: muse-spark-open answered in 4.4 s, with the key from your login shell." (or
+"Connected: glm-5.3 answered in 0.4 s, with the key from your login shell." (or
 "with no key"), or the reason it failed; an answer with nothing in it is a failure
 ("The service answered, but said nothing. Check the model in Settings (⌘,)."). The
 sound toggle reaches every open window at once.
@@ -1194,7 +1199,7 @@ go another way.
 | 41 | Shortcut card | The keyboard icon opens a centered card listing the shortcuts of §6.13 and the keys that work under the pointer; Esc, a click outside or the icon again closes it. It has the look of the source view's card, the one card the clips show: the same edge, corners and shadow, and the page behind is not dimmed. |
 | 42 | Which shortcuts leave Read mode | The feature shortcuts (alternatives, AI alternatives, ghost, stash, Overflow, source view) and any context-menu item. Save, Open, Post to X, undo and redo do not. |
 | 43 | Undo keys | ⌘Z and Ctrl+Z (with Shift to redo) undo the document wherever the focus is, except in a plain text field, which keeps its own history. |
-| 44 | While the AI is asked | The row of `??` cannot be typed in while it dances. Closing the panel or moving it to another target calls the request off, and nothing arrives. Suggestions show as they come but become variants together, when the answer is complete; a request that fails part-way leaves none of them. After a failure the row keeps its `??`, still, with the caret in it: deleting a mark and typing it again asks again. The reason replaces the footer hint for four seconds. |
+| 44 | While the AI is asked | The row of `??` cannot be typed in while it dances. Closing the panel or moving it to another target calls the request off, and nothing arrives. Suggestions show as they come but become variants together, when all of them have come or the answer ends. A request that fails part-way keeps the lines that came whole, and fails only if none did (item 59). After a failure the row keeps its `??`, still, with the caret in it: deleting a mark and typing it again asks again. The reason replaces the footer hint for four seconds. |
 | 45 | Ghost at the edges | A run of ghosted text is what runs on unbroken within one paragraph; where the edge of a group splits it, it is still one. A caret on a ghosted word revives even at the very edge of the run, and a caret inside ghosted spaces or punctuation revives too. A selection with no words in it, a blank line and a caret among plain spaces give the command nothing to do, and the menu item is dimmed. A word beside ghosted text is ghosted in its own right. |
 | 46 | Stash and use, in detail | Stashed text is trimmed, and marks do not travel: a group or ghosted words go as the words that were showing. Where a stash empties a paragraph, the paragraph goes and a blank line with it, so the page stays one blank line between paragraphs. Taking whole lines out of Overflow closes it up the same way. Used text goes in as a paste would, the caret goes to the page and stands after it, and the page scrolls to show it; where the page has had no caret yet it is added at the end as a paragraph of its own. A blank line, or a selection with no words, gives either command nothing to do. |
 | 47 | Trims, in detail | A click on a faded passage keeps it and a second click lets it go again. Choosing another level, or "Original", puts a pending proposal away first. If the request fails the card keeps the trim's name, gives the reason in one line and offers only "Done"; the same if the answer holds nothing that is the text with words deleted ("The AI found nothing it could cut without rewording."), or nothing at all ("The AI found nothing to cut."). A sentence that came back reworded is left as it is while the others are proposed. An answer that could not be read is not kept: the next trim asks again. Going into Read mode puts the popover and any pass away. Arrow keys are not needed in the popover; Esc and a click elsewhere close it. |
