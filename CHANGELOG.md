@@ -6,6 +6,8 @@ release that brings it.
 
 ## Unreleased
 
+## 1.0.3 (2026-10-15)
+
 - In a release, About shows the source commit in place of the build number.
 
 ## 1.0.2 (2026-10-15)
