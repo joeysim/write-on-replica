@@ -4,6 +4,9 @@
 # scripts/package.sh packages it, run once more as it is in the zip, and published with what
 # CHANGELOG.md says of that version.
 name: Release
+# Each run names its tag. A run by hand starts from main, so without this its title is only
+# "Release", and the list shows main where the tag should be.
+run-name: ${{ github.event_name == 'workflow_dispatch' && format('Release {0}, run by hand', inputs.tag) || format('Release {0}', github.ref_name) }}
 
 on:
   push:
