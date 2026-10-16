@@ -98,6 +98,31 @@ enum AIWire: String, CaseIterable {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+        sign(&request, key: key)
+        return request
+    }
+
+    /// Where the service lists its models: beside where its requests go. Both ways have it.
+    func models(beside endpoint: URL) -> URL? {
+        guard var parts = URLComponents(url: endpoint, resolvingAgainstBaseURL: false) else { return nil }
+        var path = parts.percentEncodedPath
+        let mine = self == .openAI ? "/chat/completions" : "/messages"
+        if path.lowercased().hasSuffix(mine) { path.removeLast(mine.count) }
+        parts.percentEncodedPath = path + "/models"
+        return parts.url
+    }
+
+    /// The request for the list of models, with the key where this way of speaking carries it.
+    func listing(at url: URL, key: String?) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        sign(&request, key: key)
+        return request
+    }
+
+    /// The key, and what goes with it, where this way of speaking carries them.
+    private func sign(_ request: inout URLRequest, key: String?) {
         switch self {
         case .openAI:
             if let key { request.setValue("Bearer \(key)", forHTTPHeaderField: "Authorization") }
@@ -105,7 +130,6 @@ enum AIWire: String, CaseIterable {
             request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
             if let key { request.setValue(key, forHTTPHeaderField: "x-api-key") }
         }
-        return request
     }
 
     /// What was asked, worded this way.

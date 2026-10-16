@@ -282,7 +282,7 @@ final class UITestHarness {
 
     // MARK: Settings
 
-    /// test.settings { key?, forget?, address?, format?, model?, sound?, test?, environment?, picture? } -> what the
+    /// test.settings { key?, forget?, address?, format?, model?, pick?, sound?, test?, environment?, picture? } -> what the
     /// Settings window shows afterward. Each change is made the way a person makes it: the
     /// control is given its value and sends its action. The window itself is never put up.
     private func registerSettings() {
@@ -295,6 +295,7 @@ final class UITestHarness {
             if let environment = params["environment"] as? [String: String] {
                 self.app.credentials.environment = environment
                 panel.refresh()
+                panel.showModels()
             }
             if let key = params["key"] as? String {
                 panel.keyField.stringValue = key
@@ -316,11 +317,16 @@ final class UITestHarness {
                 panel.modelField.stringValue = model
                 send(panel.modelField)
             }
+            // A model chosen from the list, as a person chooses one.
+            if let pick = params["pick"] as? String { panel.modelField.selectItem(withObjectValue: pick) }
             if let sound = params["sound"] as? Bool {
                 panel.soundBox.state = sound ? .on : .off
                 send(panel.soundBox)
             }
-            if params.isEmpty { panel.refresh() }
+            if params.isEmpty {
+                panel.refresh()
+                panel.showModels()
+            }
             if params["test"] as? Bool == true { send(panel.testButton) }
             // The notes are filled in when the lookups and the test have come back.
             func answer() {
@@ -340,6 +346,7 @@ final class UITestHarness {
                     "formatHint": panel.formatPopup.item(at: 0)?.title ?? "",
                     "model": panel.modelField.stringValue,
                     "modelHint": panel.modelField.placeholderString ?? "",
+                    "models": panel.modelField.objectValues.compactMap { $0 as? String },
                     "sound": panel.soundBox.state == .on,
                     "testNote": panel.testNote.stringValue,
                     "shown": panel.isShown,

@@ -140,7 +140,7 @@ The app can speak to a service in either of two ways: OpenAI's chat completions
 (`POST …/chat/completions`), which most services and gateways speak, or Anthropic's
 messages (`POST …/v1/messages`). Either way the answer is streamed. So it can ask any
 service, or any server on your own Mac, that speaks one of them. Out of the box it asks
-LunaRoute (`https://gw.lunaroute.com/v1`) for `glm-5.3-flash`, OpenAI's way.
+LunaRoute (`https://gw.lunaroute.com/v1`) for `muse-spark-open`, OpenAI's way.
 **Settings (⌘,) is where you point it somewhere else:**
 
 - **API key.** Paste it and it is saved in your keychain, and nowhere else.
@@ -153,7 +153,8 @@ LunaRoute (`https://gw.lunaroute.com/v1`) for `glm-5.3-flash`, OpenAI's way.
   Anthropic's way for Anthropic's own service and for an address that ends `/messages`,
   OpenAI's for anything else. A gateway that speaks both, as LunaRoute does, is spoken to
   OpenAI's way unless you choose the other here.
-- **Model.** The name the service knows the model by.
+- **Model.** The name the service knows the model by. Type it, or pick it from the list.
+  The list shows the models that the service has and that can answer this app.
 - **Test connection** tries them together and says how it went: that the model
   answered, how long it took, and which key went with the question.
 
@@ -223,8 +224,13 @@ Either way:
   up on one that does. A model that thinks in silence for longer than that, or a server
   still loading its model, may be given up on.
 
-**How far this has been tried.** For real, with LunaRoute and `glm-5.3-flash` only, in
-both ways: LunaRoute speaks both. **Anthropic's own service has not been asked.** The
+**How far this has been tried.** For real, with LunaRoute only: with `glm-5.3-flash` in
+both ways (LunaRoute speaks both), and with `muse-spark-open` OpenAI's way. With
+`muse-spark-open`, every feature works, but a trim of a long draft is less sure. For the
+500-word draft, its first answer covered less than half of the sentences in each of three
+tries, so the app asked again. One try then cut 4% at every level. Another cut whole
+sentences only. `glm-5.3-flash` did the same draft in one request, with cuts inside
+sentences. **Anthropic's own service has not been asked.** The
 Anthropic way was written to Anthropic's documentation and is tested against a stand-in
 on this Mac (`tests/ui/ai-anthropic.js`) that sends what the documentation says the
 service sends, and refuses a request with no version, no `max_tokens` or a system message
@@ -258,6 +264,8 @@ of what it says: 10, 20, 30 and 50% of that draft. (The lighter levels never tak
 sentence the model says the piece does not work without, so where it says that of most of
 them one can fall short; the card says what it came to.) The measurements, and the first
 way trims were asked, which took minutes and missed, are in the spec, §6.10 and §7.1.
+With `muse-spark-open`, the default now, alternatives took 4 to 5 seconds and a trim of the
+500-word draft 13 to 16 seconds, because the app asked twice.
 
 ## What a person has to check
 
@@ -485,7 +493,7 @@ WRITEON_API_FORMAT=anthropic scripts/ui-test.sh ai-live --ai live # the same, An
 It asks for five other words, three other sentences, the hedges in the welcome piece, a
 trim of that piece and of a 500-word draft at every level, and the slips in a page that
 has some. It asks what
-your shell names: LunaRoute and `glm-5.3-flash`, or the service and model in
+your shell names: LunaRoute and `muse-spark-open`, or the service and model in
 `WRITEON_BASE_URL` and `WRITEON_MODEL`, in the way `WRITEON_API_FORMAT` or the address
 says. The key has to come from your login shell too (`WRITEON_API_KEY` or
 `LUNAROUTE_API_KEY`), since a scripted run does not read the keychain; without one it

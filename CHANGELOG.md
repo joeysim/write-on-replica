@@ -6,6 +6,10 @@ release that brings it.
 
 ## Unreleased
 
+- The default model is now `muse-spark-open`. Before, it was `glm-5.3-flash`.
+- In Settings, you can pick the model from a list. The app gets the list from the AI
+  service, with the same key. The list shows only the models that can answer this app.
+
 ## 1.0.3 (2026-10-15)
 
 - In a release, About shows the source commit in place of the build number.

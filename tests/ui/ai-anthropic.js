@@ -80,7 +80,7 @@ const usual = { WRITEON_BASE_URL: `${home}/v1`, WRITEON_API_KEY: 'fake-key-from-
   const sent = await seen();
   t.equal(
     [sent.key, sent.otherKey, sent.version, sent.path, sent.model, sent.stream, sent.max_tokens, sent.effort, sent.format, sent.system, sent.messages],
-    ['environment', false, '2023-06-01', '/v1/messages', 'glm-5.3-flash', true, 64, 'low', null, 'A test.', ['user']],
+    ['environment', false, '2023-06-01', '/v1/messages', 'muse-spark-open', true, 64, 'low', null, 'A test.', ['user']],
     'the request is a streamed message: the key in its own header and no other, the version, the system prompt apart from the messages',
   );
   t.equal([sent.reasoning_effort, sent.response_format, sent.max_completion_tokens], [null, null, null], 'with nothing of the other way’s wording in it');

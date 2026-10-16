@@ -13,7 +13,7 @@ import Foundation
 ///     page  -> shell   ai.cancel { id }
 final class AIClient {
     static let defaultAddress = "https://gw.lunaroute.com/v1"
-    static let defaultModel = "glm-5.3-flash"
+    static let defaultModel = "muse-spark-open"
     static let noKey = "No API key — add one in Settings (⌘,)"
     static let offLimits = "A scripted run asks only a service on this Mac."
     static let inTheClear = "Only an address on this Mac or its own network may be plain http. Use https."
@@ -113,6 +113,45 @@ final class AIClient {
                 report(Self.reason(for: error))
             }
         }
+    }
+
+    /// The models the service in force has that can answer this app, by name. Empty when
+    /// there is no key, no answer, or nothing to list. Reports on the main thread.
+    func models(then report: @escaping ([String]) -> Void) {
+        let chosen = chosen()
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            report((try? await self.listModels(chosen)) ?? [])
+        }
+    }
+
+    private func listModels(_ chosen: Chosen) async throws -> [String] {
+        let access = try await access(chosen)
+        guard let url = access.wire.models(beside: access.endpoint) else { return [] }
+        var request = access.wire.listing(at: url, key: access.key?.value)
+        request.timeoutInterval = 15
+        let (data, response) = try await session.data(for: request, delegate: stays)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { return [] }
+        return Self.usable(data, for: access.wire)
+    }
+
+    /// What a service's list of models says can answer this app, by name. Where the list
+    /// says what its models can do, as LunaRoute's does, only those that chat the way in
+    /// use and keep to a schema (the Lab asks for one): a model it says nothing of may not
+    /// chat at all. Where it says that of none of them, all of them.
+    static func usable(_ data: Data, for wire: AIWire) -> [String] {
+        guard let listing = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let models = listing["data"] as? [[String: Any]]
+        else { return [] }
+        let chats = wire == .openAI ? "openai_chat" : "anthropic_messages"
+        let tells = models.contains { $0["capabilities"] is [String: Any] }
+        let names = models.compactMap { model -> String? in
+            guard let id = model["id"] as? String, !id.isEmpty else { return nil }
+            guard tells else { return id }
+            let can = model["capabilities"] as? [String: Any] ?? [:]
+            return can[chats] as? Bool == true && can["json_schema"] as? Bool == true ? id : nil
+        }
+        return Set(names).sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
     }
 
     static func describe(_ source: Credentials.Source) -> String {

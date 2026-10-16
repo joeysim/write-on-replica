@@ -100,6 +100,31 @@ const refuse = (response, status, message, say = VOICES.openai) => {
   response.end(JSON.stringify(say.refusal(message)));
 };
 
+// The models the service has. As LunaRoute lists them, each says what it can do: to chat each
+// way, to keep to a schema, and other things. Under /plain the stand-in is a service that says
+// only their names. Each way of speaking sends its key its own way; Anthropic's needs a version.
+const LISTED = [
+  { id: 'muse-spark-open', capabilities: { openai_chat: true, anthropic_messages: true, json_schema: true, reasoning: true } },
+  { id: 'whisper-large-v3', capabilities: { transcription: true } },
+  { id: 'glm-5.3-flash', capabilities: { openai_chat: true, anthropic_messages: true, json_schema: true } },
+  { id: 'chat-only', capabilities: { openai_chat: true } },
+  { id: 'anthropic-only', capabilities: { anthropic_messages: true, json_schema: true } },
+  { id: 'Zeta-1', capabilities: { openai_chat: true, anthropic_messages: true, json_schema: true } },
+  { id: 'says-nothing', capabilities: {} },
+  { id: 'no-word-of-it' }, // LunaRoute lists some models with no capabilities at all
+];
+const PLAIN = [{ id: 'beta' }, { id: 'Alpha' }];
+const models = (request, response, pathname) => {
+  const bearer = request.headers.authorization;
+  const own = request.headers['x-api-key'];
+  const known = Object.values(KEYS).some((key) => bearer === `Bearer ${key}` || own === key);
+  if (!known) return refuse(response, 401, 'A key the service knows is needed.');
+  if (own !== undefined && !request.headers['anthropic-version']) return refuse(response, 400, 'anthropic-version: header is required', VOICES.anthropic);
+  const listed = pathname.startsWith('/plain/') ? PLAIN : LISTED;
+  response.writeHead(200, { 'Content-Type': 'application/json' });
+  response.end(JSON.stringify({ object: 'list', data: listed.map((model) => ({ object: 'model', owned_by: 'stand-in', ...model })) }));
+};
+
 const CASES = {
   // An answer in pieces, the pieces arriving split in awkward places.
   async stream(response, body, request, say) {
@@ -310,6 +335,7 @@ const answer = async (request, response) => {
   for await (const chunk of request) raw += chunk;
   const { pathname, searchParams } = new URL(request.url, 'http://stand-in');
   const say = pathname.endsWith('/messages') ? VOICES.anthropic : VOICES.openai;
+  if (request.method === 'GET' && pathname.endsWith('/models')) return models(request, response, pathname);
   if (request.method !== 'POST' || !(pathname.endsWith('/chat/completions') || pathname.endsWith('/messages'))) return refuse(response, 404, 'No such route.');
   let body;
   try {

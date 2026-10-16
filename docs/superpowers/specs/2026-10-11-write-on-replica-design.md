@@ -13,7 +13,8 @@ format and behavior.
 **Success looks like this.** Put the app next to the videos and run the same steps. The
 screen looks the same, the ticks and booms sound the same, the same things happen. A file
 saved by the app has the structure shown in his file-format clip. The AI features work
-against LunaRoute with `glm-5.3-flash`.
+against LunaRoute with `glm-5.3-flash`. With `muse-spark-open`, the default model since
+2026-10-16, they work too, but a trim of a long draft is less sure (§7.1).
 
 **Decisions made at the start**
 
@@ -21,7 +22,7 @@ against LunaRoute with `glm-5.3-flash`.
 | --- | --- |
 | Platform | macOS app |
 | Editor core | WebKit editor (WKWebView) inside a native Swift/AppKit shell |
-| AI backend | LunaRoute API, model `glm-5.3-flash` |
+| AI backend | LunaRoute API, default model `muse-spark-open` (`glm-5.3-flash` before) |
 | Process | Written spec, then implementation plan, each reviewed before code |
 
 ### Non-goals
@@ -960,7 +961,7 @@ environment and the shell the key is `WRITEON_API_KEY` or `LUNAROUTE_API_KEY`, t
 it had first. A key found there is held in memory only and never written anywhere. The
 address follows the same pattern (Settings, then `WRITEON_BASE_URL` or
 `LUNAROUTE_BASE_URL`, then the default), and so does the model (Settings, then
-`WRITEON_MODEL`, then `glm-5.3-flash`). The shell is asked for each name in a way that
+`WRITEON_MODEL`, then `muse-spark-open`). The shell is asked for each name in a way that
 survives a profile which makes an unset variable an error (`nounset`).
 
 **Plain `http`** is for this Mac and its own network (a `.local` name, a name with no
@@ -1073,7 +1074,14 @@ other than the usual one work in practice.
   longer; give a trim the room it asks for (up to 32,000 tokens); and, for the Lab
   spoken to OpenAI's way, hold an answer to a schema.
 
-Only LunaRoute and `glm-5.3-flash` have been asked for real. The rest is tested against
+Only LunaRoute has been asked for real: with `glm-5.3-flash`, and with `muse-spark-open`.
+
+On 2026-10-16 the default model became `muse-spark-open`, at the person's request. Live,
+it took 4.4 s to answer the connection test, and 4 to 5 s to give alternatives. For a trim
+of the 500-word draft, its first answer covered less than half of the sentences in each of
+three tries, so the app asked again (13 to 16 s in all). One try then cut 4% at every
+level. Another cut whole sentences only. `glm-5.3-flash` did the same draft in one request,
+with cuts inside sentences. The rest is tested against
 a stand-in that answers and refuses as those services are documented to (§10).
 
 **Settings window** (⌘,): API key, address, format, model, a "Test connection" button,
@@ -1083,8 +1091,14 @@ key typed in is saved to the Keychain and the field emptied; a line under it say
 the key in use comes from ("saved here", "from the app's environment", "from your login
 shell") and offers to remove a saved one. While
 they are empty the address and model fields show the ones in force: the environment's,
-or the usual ones. Test connection asks a one-word question and answers in a line:
-"Connected: glm-5.3-flash answered in 0.6 s, with the key from your login shell." (or
+or the usual ones. The model field is also a list. When Settings opens, and when the
+key, the address or the format changes, the app asks the service for its models
+(`models`, beside the chat address, with the same key). The list shows only the models
+that can answer this app. When the service tells what each model can do, as LunaRoute
+does, these are the models that chat in the format in use and keep to a schema. When it
+does not tell, the list shows all of them. Without a key or an answer, the list is
+empty, and you type the name. Test connection asks a one-word question and answers in a line:
+"Connected: muse-spark-open answered in 4.4 s, with the key from your login shell." (or
 "with no key"), or the reason it failed; an answer with nothing in it is a failure
 ("The service answered, but said nothing. Check the model in Settings (⌘,)."). The
 sound toggle reaches every open window at once.

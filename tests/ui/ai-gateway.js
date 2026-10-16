@@ -43,7 +43,7 @@ const sorted = (value) =>
   const sent = await seen();
   t.equal(
     [sent.key, sent.path, sent.model, sent.stream, sent.max_tokens, sent.reasoning_effort, sent.response_format, sent.messages],
-    ['environment', '/v1/chat/completions', 'glm-5.3-flash', true, 64, 'low', null, ['system', 'user']],
+    ['environment', '/v1/chat/completions', 'muse-spark-open', true, 64, 'low', null, ['system', 'user']],
     'the request is a streamed chat completion, with the key from the environment and the default model',
   );
   t.equal([sent.style, sent.otherKey, sent.version, sent.system], ['openai', false, null, null], 'with nothing of the other way of speaking in it: no second key, no version, the system prompt among the messages');
@@ -124,7 +124,7 @@ const usual = { WRITEON_BASE_URL: `${home}/v1`, WRITEON_API_KEY: 'fake-key-from-
 {
   const s = await settings();
   t.equal(s.keyNote, 'Using the key from the app’s environment.', 'Settings says where the key comes from');
-  t.equal([s.addressHint, s.modelHint], [`${home}/v1`, 'glm-5.3-flash'], 'and, in its empty fields, which address and model are in force');
+  t.equal([s.addressHint, s.modelHint], [`${home}/v1`, 'muse-spark-open'], 'and, in its empty fields, which address and model are in force');
 }
 {
   const s = await settings({ key: 'fake-key-saved-in-settings' });
@@ -138,7 +138,7 @@ const usual = { WRITEON_BASE_URL: `${home}/v1`, WRITEON_API_KEY: 'fake-key-from-
   t.equal(s.model, 'another-model', 'a model named in Settings');
   t.equal((await seen()).model, 'another-model', 'is the one asked for');
   await settings({ model: '' });
-  t.equal((await seen()).model, 'glm-5.3-flash', 'and the usual one when the field is emptied');
+  t.equal((await seen()).model, 'muse-spark-open', 'and the usual one when the field is emptied');
 }
 {
   await settings({ address: 'http://127.0.0.1:9/v1' });
@@ -153,7 +153,7 @@ const usual = { WRITEON_BASE_URL: `${home}/v1`, WRITEON_API_KEY: 'fake-key-from-
 // Test connection asks a real, very short question, and says how it went.
 {
   const s = await settings({ test: true });
-  t.assert(/^Connected: glm-5\.3-flash answered in \d+(\.\d)? s, with the key from the app’s environment\.$/.test(s.testNote), `a connection that works: ${s.testNote}`);
+  t.assert(/^Connected: muse-spark-open answered in \d+(\.\d)? s, with the key from the app’s environment\.$/.test(s.testNote), `a connection that works: ${s.testNote}`);
   await settings({ address: 'http://127.0.0.1:9/v1' });
   t.equal((await settings({ test: true })).testNote, 'Could not reach the AI service. Check the network, and the address in Settings (⌘,).', 'and one that does not');
   await settings({ address: '' });
@@ -193,7 +193,7 @@ const usual = { WRITEON_BASE_URL: `${home}/v1`, WRITEON_API_KEY: 'fake-key-from-
   const older = { LUNAROUTE_BASE_URL: `${elsewhere}/v1`, LUNAROUTE_API_KEY: 'fake-key-under-the-older-name' };
   await settings({ environment: older });
   let sent = await seen();
-  t.equal([sent.port, sent.key, sent.model], [second, 'older', 'glm-5.3-flash'], 'the older names for the address and the key are still read');
+  t.equal([sent.port, sent.key, sent.model], [second, 'older', 'muse-spark-open'], 'the older names for the address and the key are still read');
   await settings({ environment: { ...older, ...usual } });
   sent = await seen();
   t.equal([sent.host, sent.key], [host, 'environment'], 'and the app’s own names come before them');
@@ -222,7 +222,7 @@ for (const [shell, started] of [['/bin/zsh', ['-f', '-o', 'nounset']], ['/bin/ba
   t.equal(s.keyNote, 'No key yet. Paste one here, or set WRITEON_API_KEY.', 'with an address and no key, Settings says there is none');
   t.equal((await seen()).key, 'none', 'and a service named in place of the usual one is asked without one');
   const note = (await settings({ test: true })).testNote;
-  t.assert(/^Connected: glm-5\.3-flash answered in \d+(\.\d)? s, with no key\.$/.test(note), `which the test says: ${note}`);
+  t.assert(/^Connected: muse-spark-open answered in \d+(\.\d)? s, with no key\.$/.test(note), `which the test says: ${note}`);
   const { outcome } = ask('401');
   t.equal(await outcome, 'This service wants a key (401). Add one in Settings (⌘,).', 'if it wants one after all, the line says so');
   await settings({ environment: usual });
@@ -396,10 +396,33 @@ for (const [shell, started] of [['/bin/zsh', ['-f', '-o', 'nounset']], ['/bin/ba
 {
   const s = await settings({ environment: {} });
   t.equal(s.keyNote, 'No key yet. Paste one here, or set WRITEON_API_KEY.', 'Settings says there is no key');
-  t.equal([s.addressHint, s.modelHint], ['https://gw.lunaroute.com/v1', 'glm-5.3-flash'], 'and shows the usual service and model');
+  t.equal([s.addressHint, s.modelHint], ['https://gw.lunaroute.com/v1', 'muse-spark-open'], 'and shows the usual service and model');
   const { outcome } = ask('stream');
   t.equal(await outcome, 'No API key — add one in Settings (⌘,)', 'and so does the request');
   t.equal((await settings({ test: true })).testNote, 'No API key — add one in Settings (⌘,)', 'and the test');
+}
+
+// --- the list of models ---------------------------------------------------------------------------
+
+// The model field is a list as well: what the service in force says it has, asked for with the
+// same key and way of speaking as a request. Only a model that can answer this app is listed:
+// one that chats the way in use and keeps to a schema. Where a service says what its models
+// can do, a model it says nothing of is left out: it may not chat at all. Where it says that
+// of none, all of them are listed. With no key, or no answer, there is no list.
+{
+  const s = await settings({ environment: usual });
+  t.equal(s.models, ['glm-5.3-flash', 'muse-spark-open', 'Zeta-1'], 'Settings lists the models that can answer the app, by name');
+  t.equal((await settings({ format: 'anthropic' })).models, ['anthropic-only', 'glm-5.3-flash', 'muse-spark-open', 'Zeta-1'], 'and, spoken to Anthropic’s way, those that speak it');
+  await settings({ format: 'auto' });
+  const picked = await settings({ pick: 'Zeta-1' });
+  t.equal(picked.model, 'Zeta-1', 'a model picked from the list goes in the field');
+  t.equal((await seen()).model, 'Zeta-1', 'and is the one asked for');
+  await settings({ model: '' });
+  t.equal((await settings({ address: `${home}/plain/v1` })).models, ['Alpha', 'beta'], 'a service that says only the names of its models has all of them listed');
+  t.equal((await settings({ address: 'http://127.0.0.1:9/v1' })).models, [], 'nothing answering at the address: no list');
+  await settings({ address: '' });
+  t.equal((await settings({ environment: { WRITEON_BASE_URL: `${home}/v1` } })).models, [], 'and none without a key');
+  await settings({ environment: usual });
 }
 
 // --- sound ----------------------------------------------------------------------------------------

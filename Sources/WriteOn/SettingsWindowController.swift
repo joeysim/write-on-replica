@@ -3,7 +3,7 @@ import AppKit
 /// The Settings window (design spec 7.1): the key for the AI service, its address, the way
 /// it is spoken to and the model to ask, a button that tries them together, and whether the
 /// app makes sounds. Nothing else. What is changed here is used from the next request on.
-final class SettingsWindowController: NSObject, NSTextFieldDelegate {
+final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
     private let settings: AppSettings
     private let credentials: Credentials
     private let client: AIClient
@@ -18,7 +18,8 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
     /// The way the service is spoken to. The first choice leaves it to the address (or the
     /// environment), and says which way that comes to.
     let formatPopup = NSPopUpButton()
-    let modelField = NSTextField()
+    /// A model can be typed, or picked from what the service says it has (`showModels`).
+    let modelField = NSComboBox()
     let testButton = NSButton(title: "Test connection", target: nil, action: nil)
     let testNote = NSTextField(wrappingLabelWithString: "")
     let soundBox = NSButton(checkboxWithTitle: "Play sounds", target: nil, action: nil)
@@ -29,6 +30,8 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
     private(set) var pending = 0
     /// How many lookups have been started: only the last one's answer is shown.
     private var lookups = 0
+    /// The same, for the list of models.
+    private var listings = 0
 
     init(settings: AppSettings, credentials: Credentials, client: AIClient, onSound: @escaping (Bool) -> Void) {
         self.settings = settings
@@ -39,6 +42,9 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
         keyField.placeholderString = "Paste a key to save it in your keychain"
         addressField.placeholderString = AIClient.defaultAddress
         modelField.placeholderString = AIClient.defaultModel
+        modelField.usesDataSource = false
+        modelField.numberOfVisibleItems = 15
+        modelField.hasVerticalScroller = true
         formatPopup.addItem(withTitle: "Automatic")
         for wire in AIWire.allCases {
             formatPopup.addItem(withTitle: wire.title)
@@ -62,6 +68,7 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
 
     func show() {
         refresh()
+        showModels()
         let window = window ?? makeWindow()
         if self.window == nil { window.center() }
         self.window = window
@@ -135,6 +142,22 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
         }
     }
 
+    /// Fills the model list with what the service in force has that can answer the app.
+    /// Asked when Settings opens and when the key, the address or the way of speaking
+    /// changes; with no key or no answer, the list is empty and the field is typed in.
+    func showModels() {
+        pending += 1
+        listings += 1
+        let mine = listings
+        client.models { [weak self] names in
+            guard let self else { return }
+            self.pending -= 1
+            guard mine == self.listings else { return }
+            self.modelField.removeAllItems()
+            self.modelField.addItems(withObjectValues: names)
+        }
+    }
+
     // MARK: Actions
 
     @objc func saveKey(_ sender: Any?) {
@@ -144,22 +167,28 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
         // Saved, and not left on show.
         keyField.stringValue = ""
         showKey()
+        showModels()
     }
 
     @objc func forgetKey(_ sender: Any?) {
         credentials.save(nil)
         showKey()
+        showModels()
     }
 
     @objc func saveAddress(_ sender: Any?) {
+        let before = settings.aiAddress
         settings.aiAddress = addressField.stringValue
         addressField.stringValue = settings.aiAddress ?? ""
         // Which key goes with it may have changed.
         showKey()
+        if settings.aiAddress != before { showModels() }
     }
 
     @objc func saveFormat(_ sender: Any?) {
+        let before = settings.aiFormat
         settings.aiFormat = formatPopup.selectedItem?.representedObject as? String
+        if settings.aiFormat != before { showModels() }
     }
 
     @objc func saveModel(_ sender: Any?) {
@@ -189,6 +218,13 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate {
             self.testButton.isEnabled = true
             self.showKey()
         }
+    }
+
+    /// A model picked from the list is kept at once, as one typed and entered is.
+    func comboBoxSelectionDidChange(_ notification: Notification) {
+        guard let picked = modelField.objectValueOfSelectedItem as? String else { return }
+        modelField.stringValue = picked
+        saveModel(nil)
     }
 
     /// Leaving a field keeps what was typed in it, as Return does.

@@ -6,7 +6,7 @@
 //   scripts/ui-test.sh ai-live --ai live
 //
 // The service is the one your login shell names (WRITEON_BASE_URL, WRITEON_MODEL), or
-// LunaRoute and glm-5.3-flash if it names none; the times it allows are that model's, and
+// LunaRoute and muse-spark-open if it names none; the times it allows are that model's, and
 // they are long, which is why the run is given twenty minutes (above) where others get one.
 // It is spoken to OpenAI's way unless the shell or the address says Anthropic's, and both
 // ways are worth a run (LunaRoute speaks both):
@@ -74,6 +74,14 @@ const groupAt = (block, offset) => {
   const shell = await t.call('test.loginShell');
   t.equal(shell.hasKey, true, 'the login shell has a key too, for when the app is started from Finder');
   t.log(`the login shell answered in ${seconds(shell.ms)}`);
+}
+
+// What Settings lists to pick from: what the service says it has that can answer the app.
+{
+  const { models, modelHint } = await t.call('test.settings');
+  t.log(`Settings lists ${models.length} models: ${models.join(', ')}`);
+  t.assert(models.includes(modelHint), `among them the model in force (${modelHint})`);
+  t.assert(!models.some((name) => /whisper|transcribe|image/.test(name)), 'and none that only transcribes or draws');
 }
 
 // --- five other words -------------------------------------------------------------------------------
