@@ -51,13 +51,32 @@ jobs:
           opened="$RUNNER_TEMP/opened"
           ditto -x -k "build/releases/$VERSION/Write_On-$VERSION.zip" "$opened"
           export WRITEON_APP="$opened/Write_On.app" WRITEON_WEB_ROOT="$opened/Write_On.app/Contents/Resources/web"
-          scripts/ui-test.sh smoke --ai mock
-          scripts/ui-test.sh lab-marks --ai mock
+          # Each scenario runs, even after one fails. A failure becomes an annotation, because
+          # anyone can read an annotation, but only a signed-in person can read the log.
+          failed=0
+          scenario() {
+            local half="${WRITEON_ARCH:-native}"
+            if ! scripts/ui-test.sh "$1" --ai mock; then
+              failed=1
+              python3 -I - "build/results/ui/$1/result.json" "$1 ($half)" <<'PY' || echo "::error title=$1 ($half)::The scenario left no result."
+          import json, sys
+          result = json.load(open(sys.argv[1]))
+          said = " | ".join(result["failures"]) or "It failed, with no message."
+          print(f"::error title={sys.argv[2]}::" + said.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")[:2000])
+          PY
+            fi
+          }
+          scenario smoke
+          scenario lab-marks
           if arch -x86_64 /usr/bin/true 2>/dev/null; then
-            WRITEON_ARCH=x86_64 scripts/ui-test.sh smoke --ai mock
+            echo "::notice::This Mac has Rosetta, so the Intel half runs too."
+            export WRITEON_ARCH=x86_64
+            scenario smoke
+            unset WRITEON_ARCH
           else
-            echo "There is no Rosetta on this Mac: the Intel half is built and checked, but not run."
+            echo "::notice::This Mac has no Rosetta. The Intel half is built and checked, but it does not run."
           fi
+          exit $failed
 
       - name: Publish
         env:
