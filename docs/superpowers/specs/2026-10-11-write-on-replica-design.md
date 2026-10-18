@@ -509,6 +509,7 @@ pointed at):
 1. Choosing a trim closes the popover and at once shows a card at the bottom center,
    500 × 88 px, 55 px above the bottom of the window: "**Slight trim** Reading…", then
    "Faded words would go. Click one to keep it.", with buttons "Make the cuts" and "Done".
+   The replica's trim card says "Cancel" where the clip's says "Done" (§9 item 61).
 2. While it reads, a crimson line the width of the text column sweeps down each block of
    text in turn, the heading included, 300 ms to a block whatever its height, at a steady
    speed from its top to its bottom.
@@ -520,7 +521,7 @@ pointed at):
    clip accounts for that width, so the replica takes it as measured, 7 px for each
    further letter in the name.
 4. Clicking a faded passage keeps it. "Make the cuts" ghosts what is still faded, as one
-   undo step: nothing is deleted (§9 item 23). "Done" dismisses the proposal and the text
+   undo step: nothing is deleted (§9 item 23). "Cancel" dismisses the proposal and the text
    returns to normal.
 5. Choosing another level replaces the pending proposal. "Original" is highlighted when
    nothing is pending.
@@ -533,7 +534,7 @@ pointed at):
 7. **One answer, every level.** In the clip "Tighten more", chosen twenty seconds after
    "Slight trim" was read, is there at once: no reading, no line through the text. The
    model is asked once, whichever level is chosen first, and all four are counted out
-   from what it says; the answer is kept until the piece changes. Done, Original or
+   from what it says; the answer is kept until the piece changes. Cancel, Original or
    another pass calls off an answer still on its way, and nothing is kept of one that
    never came.
 
@@ -1179,7 +1180,7 @@ go another way.
 | 23 | What "Make the cuts" does | It ghosts the cuts, as one step to undo, and deletes nothing. The words stay where they were, set aside, and Ghost brings them back (§6.10). Asked for by the replica's owner on 18 October 2026. Before, it deleted the cuts and tidied the joins: doubled spaces, a space before a stop, the capital of a sentence whose first words went. Ghosting changes no letter, so such a sentence now keeps its small letter. |
 | 24 | Arrow keys while hovering | → and ↓ go forward, ← and ↑ go back. The clips show both directions and wrap-around, not which key is which. |
 | 25 | Panel details | Clicking a tab retargets at that scope; ↑ / ↓ do not wrap; a group cannot be deleted down to nothing. |
-| 26 | Lab popover while a proposal is pending | The pending level is highlighted; choosing "Original" dismisses it, like "Done". |
+| 26 | Lab popover while a proposal is pending | The pending level is highlighted; choosing "Original" dismisses it, like "Cancel". |
 | 27 | Source view details | "As saved" reflects the document as it would be saved now. "Copy" copies the tab that is showing and reads "Copied" for a second and a half. Esc, Ctrl+U again, the M↓ icon or a click off the card closes it, and so does going into Read mode. While it is open the keys scroll it and none reach the page; afterward the caret is where it was. What shows the first time the view opens on a document is item 53's. |
 | 28 | Read mode details | Feature shortcuts leave Read mode; the mode is remembered between launches. |
 | 29 | Ghost with no selection | Applies to the word at the caret, like the alternatives commands. |
@@ -1214,6 +1215,7 @@ go another way.
 | 58 | Asking again, and reading what the model meant | Found with the real models on 16 October 2026. In 18 typo passes over a 500-word draft with five slips, 8 gave nothing to mark. The passages came back with the paragraph number in front, as bare numbers, as the model's own notes, or not at all. Later runs also gave wrong paragraph numbers, and one "fix" would have taken nine words out of a sentence. So the Lab takes a number off a passage, uses the one paragraph that has the passage, and discards a fix that changes more than four words. It asks once more when it cannot read an answer, when an answer quotes nothing in the text, or when the typo pass gets an empty answer. "Nothing to mark" from a marking pass is an answer, and the Lab takes it at once. Afterward, in 12 typo passes, 9 found all five slips and 1 gave nothing to mark: 4 of 6 found all five with `muse-spark-open`, and 5 of 6 with `glm-5.3`. |
 | 59 | Alternatives from a model that thinks first | Found with `muse-spark-open` on 16 October 2026, the day it became the default. A request for five words had room for the answer only, 120 tokens. The model thought before it answered, and in three tries each way it gave five words once; it ran out of room before a word in four, and after four words in one. The app threw those four away. Now a request for alternatives has room to think as well (§7.1). When all the suggestions asked for are in, the app stops listening, since some models go on writing to the end of their room. An answer that breaks off still gives the lines that came whole. |
 | 60 | The model list on LunaRoute, spoken to Anthropic's way | Found on 16 October 2026. Asked Anthropic's way (with `anthropic-version`), LunaRoute gives its list in Anthropic's shape: `"capabilities": { "messages": { "supported": true }, … }`, with no word of a schema. Settings read only the shape LunaRoute gives OpenAI's way (`"anthropic_messages": true, "json_schema": true`), and its list came up empty. Settings now reads both shapes. In Anthropic's shape, a model that speaks Anthropic's way is listed: 13 of LunaRoute's models, where OpenAI's way lists 14. |
+| 61 | "Cancel" on the trim card | The clip's trim card says "Done". The replica's says "Cancel", at the owner's request on 18 October 2026: after a walk through the cuts, "Done" read as "finished", and it put every decision away. The button does what it did: it puts the trim away and makes no cut, and while the card reads it calls the request off. A card with nothing to cancel (a failure, marks, typos) still says "Done". |
 
 ## 10. Verification
 

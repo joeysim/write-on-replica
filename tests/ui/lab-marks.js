@@ -205,7 +205,7 @@ await openMenu();
 await t.click(...t.center([...menu.querySelectorAll('.level')][1]));
 t.equal(marked().length, 0, 'and a trim puts marks away');
 await t.until(() => editor.root.querySelectorAll('[data-trim]').length > 0, 4000, 'the trim proposal');
-await act('Done');
+await act('Cancel');
 
 // --- the typo pass --------------------------------------------------------------------------------
 

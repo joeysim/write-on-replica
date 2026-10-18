@@ -219,7 +219,7 @@ t.assert(shown(card), 'and puts a card at the foot of the page');
 {
   t.equal(title(), 'Slight trim Reading…', 'the card names the trim and says it is reading');
   t.equal(card.querySelector('.hint').textContent, 'Faded words would go. Click one to keep it.', 'with what the fading will mean');
-  t.equal(actions(), ['Make the cuts', 'Done'], 'and two buttons');
+  t.equal(actions(), ['Make the cuts', 'Cancel'], 'and two buttons');
   const box = card.getBoundingClientRect();
   t.equal([box.width, box.height], [500, 88], 'a 500 by 88 card');
   t.near(box.left + box.width / 2, innerWidth / 2, 0.3, 'in the middle');
@@ -276,7 +276,7 @@ t.assert(!shown(scan), 'the line is gone');
   const span = spanOf('in my view');
   t.equal(getComputedStyle(span).opacity, '0.22', 'faded words are drawn at 22%, twice as strong as ghosted ones');
   t.equal(title(), summary('Slight trim'), 'the card counts the words before and after: a tenth, as near as can be');
-  t.equal(actions(), ['Make the cuts', 'Walk through', 'Done'], 'and offers to walk through the cuts');
+  t.equal(actions(), ['Make the cuts', 'Walk through', 'Cancel'], 'and offers to walk through the cuts');
   const box = card.getBoundingClientRect();
   t.near(box.width, 601.5, 0.01, 'the card is 601.5px wide now, as in the clip');
   t.near(box.left + box.width / 2, innerWidth / 2, 0.3, 'still in the middle');
@@ -336,8 +336,8 @@ await load();
 await answer(SAID);
 await choose('Slight trim');
 await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
-await act('Done');
-t.equal([faded().length, shown(card)], [0, false], 'Done puts the proposal away');
+await act('Cancel');
+t.equal([faded().length, shown(card)], [0, false], 'Cancel puts the proposal away');
 t.same(html(), before, 'and leaves the text as it was');
 await openMenu();
 t.equal(pending(), 'Original', 'Original is marked again');
@@ -369,9 +369,9 @@ await t.key('Escape');
   await choose('Cut in half');
   t.equal(title(), summary('Cut in half'), 'and the deepest comes as near to half as whole sentences allow');
   t.equal(faded(), [CUTS[0], CUTS[1], CUTS[2], CUTS[3], CUTS[4], ...LEVELS['Cut in half'].also], 'leaving the sentences the piece does not work without');
-  await act('Done');
+  await act('Cancel');
   await choose('Slight trim');
-  t.equal([title(), faded()], [summary('Slight trim'), CUTS], 'the first is there again after Done, as it was');
+  t.equal([title(), faded()], [summary('Slight trim'), CUTS], 'the first is there again after Cancel, as it was');
   t.equal((await asked()).length, asks + 1, 'and for all of it the model was asked once');
   // Original puts it away.
   await choose('Original');
@@ -387,7 +387,7 @@ await t.key('Escape');
   t.equal(title(), 'Tighten more Reading…', 'so the next trim is read again');
   await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the new proposal');
   t.equal((await asked()).length, asks + 2, 'from a second asking');
-  await act('Done');
+  await act('Cancel');
   await t.key('z', { meta: true });
   await load();
 }
@@ -407,13 +407,18 @@ await t.key('Escape');
   t.equal(faded(), CUTS.slice(0, 3), 'what the sentences that are in could lose, and the one that could go');
   t.equal(title(), 'Slight trim Reading…', 'the card still says it is reading');
   t.assert(shown(scan), 'and the line is still going through the text');
-  t.equal(actions(), ['Make the cuts', 'Walk through', 'Done'], 'Walk through is there already');
+  t.equal(actions(), ['Make the cuts', 'Walk through', 'Cancel'], 'Walk through is there already');
+  {
+    const row = [...card.querySelectorAll('.actions button')].filter(shown).map((button) => button.getBoundingClientRect());
+    const edge = card.getBoundingClientRect();
+    t.assert(row.every((box) => Math.abs(box.top - row[0].top) < 1 && box.left >= edge.left && box.right <= edge.right), 'the three buttons fit on one line on the 500px card');
+  }
   const text = html();
   await act('Make the cuts');
   t.same(html(), text, 'though nothing can be cut until the whole answer is in');
   await t.until(() => title() === summary('Slight trim'), 10000, 'the whole answer');
   t.equal(faded(), CUTS, 'which brings the rest of the cuts');
-  await act('Done');
+  await act('Cancel');
 
   // A deeper level shows sentences going as they come, and settles on its amount at the end.
   lab.forget();
@@ -424,21 +429,21 @@ await t.key('Escape');
   t.equal(faded(), [...CUTS, P3[3], P3[4]], 'for a deep trim, the sentences needed least among those that are in');
   await t.until(() => title() === summary('Cut in half'), 10000, 'the whole answer');
   t.equal(faded(), [...CUTS, ...LEVELS['Cut in half'].also], 'and then what comes to half');
-  await act('Done');
+  await act('Cancel');
 }
 
 // --- putting a trim away stops the reading ---------------------------------------------------------
-// Done while the model is still being asked calls the request off, and nothing is kept of an
+// Cancel while the model is still being asked calls the request off, and nothing is kept of an
 // answer that never came: the next trim asks again.
 {
   await answer(SAID, { firstMs: 600 });
   const asks = (await asked()).length;
   await choose('Slight trim');
   t.equal(title(), 'Slight trim Reading…', 'a trim is being read');
-  await act('Done');
+  await act('Cancel');
   await t.wait(900);
   const after = await t.call('test.ai');
-  t.equal(after.requests.length, asks + 1, 'Done while it reads: the model is asked nothing more');
+  t.equal(after.requests.length, asks + 1, 'Cancel while it reads: the model is asked nothing more');
   t.assert(after.canceled.includes(after.requests.at(-1).id), 'and the request is called off');
   t.equal(lab.read(), false, 'with nothing kept of an answer that never came');
   await choose('Tighten more');
@@ -454,7 +459,7 @@ await t.key('Escape');
   await t.until(() => title() === summary('Even sharper'), 4000, 'the answer');
   t.equal(faded(), [...CUTS, ...LEVELS['Even sharper'].also], 'and it is the second that shows');
   t.equal((await asked()).length, again + 1, 'from the one asking');
-  await act('Done');
+  await act('Cancel');
 }
 
 // An edit, an undo or a redo makes a proposal stale, so it goes.
@@ -538,7 +543,7 @@ t.equal(faded(), ['really ', ', then stop'], 'a sentence that came back reworded
 await choose('Cut in half');
 await t.until(() => lab.pass() === 'proposal' && !/Reading/.test(title()), 4000, 'the deeper level');
 t.equal(faded(), [S1, P2], 'to halve a piece, something it needs may have to go');
-await act('Done');
+await act('Cancel');
 // Nothing usable at all.
 await answer([{ s: 1, text: 'Something else entirely.', need: 5 }]);
 await choose('Cut in half');
@@ -562,7 +567,7 @@ await act('Done');
   await t.until(() => lab.pass() === 'proposal', 6000, 'a proposal');
   t.equal([title(), faded()], [summary('Slight trim'), CUTS], 'the fuller answer is the one that counts');
   t.equal((await asked()).length, asks + 2, 'the model having been asked a second time');
-  await act('Done');
+  await act('Cancel');
   // If the second answer is thin too, the Lab joins the two answers, and the card tells how
   // much the AI read. The Lab does not keep the answer, so the next level asks again.
   lab.forget();
@@ -582,7 +587,7 @@ await act('Done');
   t.equal(title(), 'Tighten more Reading…', 'another level asks again');
   await t.until(() => lab.pass() === 'proposal', 4000, 'a proposal');
   t.equal((await asked()).length, again + 4, 'twice, as the answers are as thin as before');
-  await act('Done');
+  await act('Cancel');
   // If the second request fails, the Lab uses the first answer.
   lab.forget();
   await t.call('test.ai', { set: { chunks: [JSON.stringify({ sentences: [SAID[0]] })], firstMs: 0, everyMs: 20, hold: true } });
@@ -594,7 +599,7 @@ await act('Done');
   await t.until(() => lab.pass() === 'proposal' || lab.pass() === 'failed', 4000, 'the trim');
   t.equal([lab.pass(), faded()], ['proposal', ['Much of ', ', in my view,']], 'a second asking that fails leaves what the first said');
   t.equal(card.querySelector('.hint').textContent, 'The AI read only 1 of the 10 sentences. Choose a level to ask again.', 'and the card says how little that is');
-  await act('Done');
+  await act('Cancel');
 }
 // An answer that runs out of room is an answer as far as it went. (Found with muse-spark-open
 // on a 500-word draft.) The Lab uses the sentences that came whole. If they are fewer than
@@ -612,7 +617,7 @@ await act('Done');
   await t.until(() => lab.pass() === 'proposal' || lab.pass() === 'failed', 4000, 'the trim');
   t.equal([lab.pass(), title(), faded()], ['proposal', summary('Slight trim'), CUTS], 'an answer that ran out of room early is asked for again, and the two are joined');
   t.equal((await asked()).length, asks + 2, 'after two requests');
-  await act('Done');
+  await act('Cancel');
   lab.forget();
   await t.call('test.ai', { set: { chunks: [whole.slice(0, whole.indexOf('{"s":9'))], firstMs: 0, everyMs: 20, error: RAN_OUT, cutShort: true } });
   const again = (await asked()).length;
@@ -620,9 +625,9 @@ await act('Done');
   await t.until(() => lab.pass() === 'proposal' || lab.pass() === 'failed', 4000, 'the trim');
   t.equal([lab.pass(), faded(), (await asked()).length], ['proposal', CUTS, again + 1], 'one that ran out of room after most of the piece is used as it is');
   t.equal(lab.read(), true, 'and kept');
-  await act('Done');
+  await act('Cancel');
 }
-// Done while the second asking is out calls that off too, and keeps nothing.
+// Cancel while the second asking is out calls that off too, and keeps nothing.
 {
   await answer([SAID[0]], { firstMs: 200 });
   const asks = (await asked()).length;
@@ -630,9 +635,9 @@ await act('Done');
   await answerQuietly(SAID, { firstMs: 3000 });
   await t.until(async () => (await asked()).length === asks + 2, 4000, 'the second asking');
   t.equal(title(), 'Slight trim Reading…', 'the card is still reading');
-  await act('Done');
+  await act('Cancel');
   const { requests, canceled } = await t.call('test.ai');
-  t.assert(canceled.includes(requests.at(-1).id), 'Done calls the second asking off');
+  t.assert(canceled.includes(requests.at(-1).id), 'Cancel calls the second asking off');
   t.equal([lab.read(), shown(card)], [false, false], 'and nothing is kept of the thin answer that came first');
   await t.wait(300);
   t.equal((await asked()).length, asks + 2, 'nor is anything more asked');
@@ -649,7 +654,7 @@ await act('Done');
   t.equal(faded(), ['really ', 'really ', 'really ', 'really '], 'taken evenly from first to last');
   const word = (span) => span.previousSibling.textContent.trim().split(' ').pop(); // the word a cut follows
   t.equal([...editor.root.querySelectorAll('[data-trim]')].map(word), ['Alpha', 'Gamma', 'Delta', 'Zeta'], 'through the piece, not from its start alone');
-  await act('Done');
+  await act('Cancel');
   await load();
 }
 // An answer that cannot be read is not kept: asking again asks again.
@@ -666,7 +671,7 @@ await act('Done');
   await choose('Slight trim');
   await t.until(() => title() === summary('Slight trim'), 4000, 'a second asking to be answered');
   t.equal((await asked()).length, asks + 2, 'the model having been asked again');
-  await act('Done');
+  await act('Cancel');
 }
 
 // --- walking through ------------------------------------------------------------------------------
@@ -686,15 +691,15 @@ t.equal(title(), 'Slight trim 3 of 5', 'Keep moves on too');
 t.equal(faded(), CUTS.filter((cut) => cut !== ', in my view,'), 'having kept that one');
 await act('Stop');
 t.equal(title(), summary('Slight trim', 11), 'Stop goes back to the summary, which counts what was kept');
-t.equal(actions(), ['Make the cuts', 'Walk through', 'Done'], 'and its buttons');
+t.equal(actions(), ['Make the cuts', 'Walk through', 'Cancel'], 'and its buttons');
 t.equal(editor.root.querySelectorAll('[data-trim].is-current').length, 0, 'nothing is pointed out any more');
 t.same(html(), before, 'the walk itself cuts nothing');
 // Walking to the end comes back to the summary as well.
 await act('Walk through');
 for (let i = 0; i < 5; i++) await act('Cut');
-t.equal(actions(), ['Make the cuts', 'Walk through', 'Done'], 'after the last cut the summary is back');
+t.equal(actions(), ['Make the cuts', 'Walk through', 'Cancel'], 'after the last cut the summary is back');
 t.equal(faded(), CUTS, 'Cut on a passage that was kept lets it go after all');
-await act('Done');
+await act('Cancel');
 
 // Each passage is brought into view as its turn comes.
 {
@@ -713,7 +718,7 @@ await act('Done');
   const box = editor.root.querySelector('[data-trim].is-current').getBoundingClientRect();
   t.assert(box.top >= 96 && box.bottom <= card.getBoundingClientRect().top - 20, `a cut further down is scrolled to, clear of the card: ${Math.round(box.top)}..${Math.round(box.bottom)}`);
   await act('Stop');
-  await act('Done');
+  await act('Cancel');
 
   // --- a paragraph that goes whole -----------------------------------------------------------------
   // Where every sentence of a paragraph goes, the whole paragraph is ghosted. The blank lines stay,
@@ -765,7 +770,7 @@ await load();
   const url = new URL((await t.call('test.opened')).urls.at(-1));
   t.equal(url.searchParams.get('text'), ['The short version', ...TRIMMED].join('\n\n'), 'Post to X takes the piece with the cuts made');
   t.equal(lab.pass(), 'proposal', 'and leaves the trim out');
-  await act('Done');
+  await act('Cancel');
   commands.run('source');
   await t.until(() => ui.get('source'), 1500, 'the source view');
   t.equal([shownSource().includes(S1), size()], [true, sizeOf(shownSource())], 'with the trim put away, the Markdown tab is the piece as it is again');

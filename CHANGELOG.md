@@ -19,6 +19,8 @@ release that brings it.
 - If the AI still reads less than half of the sentences, the card tells you how much it
   read. The next level that you choose asks the AI again.
 - The typo pass also finds slips in headings.
+- On a trim card, "Done" is now "Cancel". It puts the trim away and makes no cut. Before,
+  after a walk through the cuts, "Done" looked like the way to finish.
 - "Make the cuts" ghosts the faded words. It no longer deletes them, so Ghost can bring any
   of them back. It also changes no letters: a sentence whose first words go keeps its
   lowercase start.

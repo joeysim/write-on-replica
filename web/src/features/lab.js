@@ -220,15 +220,16 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     if (mode === 'reading') {
       state.textContent = 'Reading…';
       // "Walk through" joins the others with the first cuts, as in the clip; none of them
-      // does anything until the whole answer is in.
-      if (sort === 'trim') buttons = pass.arriving ? [['Make the cuts', makeCuts], ['Walk through', walk], ['Done', dismiss]] : [['Make the cuts', makeCuts], ['Done', dismiss]];
+      // does anything until the whole answer is in. A trim card says "Cancel" where the clip
+      // says "Done": the button puts the trim away and makes no cut (the owner's choice).
+      if (sort === 'trim') buttons = pass.arriving ? [['Make the cuts', makeCuts], ['Walk through', walk], ['Cancel', dismiss]] : [['Make the cuts', makeCuts], ['Cancel', dismiss]];
     } else if (mode === 'failed') {
       hint.textContent = pass.reason;
     } else if (sort === 'trim') {
       if (pass.partial) hint.textContent = pass.partial;
       const { before, after } = counts(editor.blocks, pass.proposal, pass.kept);
       state.textContent = walking ? `${pass.step + 1} of ${pass.proposal.cuts.length}` : `${before} → ${after} words · ${String(percentChange(before, after)).replace('-', '−')}%`;
-      buttons = walking ? [['Cut', () => decide(false)], ['Keep', () => decide(true)], ['Stop', summarize]] : [['Make the cuts', makeCuts], ['Walk through', walk], ['Done', dismiss]];
+      buttons = walking ? [['Cut', () => decide(false)], ['Keep', () => decide(true)], ['Stop', summarize]] : [['Make the cuts', makeCuts], ['Walk through', walk], ['Cancel', dismiss]];
     } else if (sort === 'typos') {
       state.textContent = walking ? `${pass.order.indexOf(pass.marks[pass.step].id) + 1} of ${pass.order.length}` : `${pass.marks.length} found`;
       if (walking) hint.textContent = fixLine(pass.marks[pass.step]);
