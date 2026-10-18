@@ -412,6 +412,7 @@ scripts/bench.sh typing      # one measurement from tests/perf, out of sight (se
 scripts/dev-server.sh        # serve the page at http://127.0.0.1:4173 for work in a browser
 scripts/screenshots.sh       # take the pictures in docs/images again, out of sight
 scripts/check-secrets.sh     # look for keys in the repository and its history
+scripts/make-signing-identity.sh  # give this Mac an identity to sign builds with (below)
 swift scripts/make-icon.swift  # draw packaging/AppIcon.icns again
 ```
 
@@ -431,6 +432,15 @@ build/
 A version's folder is made by `scripts/package.sh` and is left alone by the next version's.
 Once a release is published, the zip there is the one downloaded from its page. SwiftPM's
 own build folders are in `.build/`, beside it.
+
+**Signing.** A build is signed ad hoc unless the Mac that builds it has a signing identity
+of its own. To make one, run `scripts/make-signing-identity.sh` once in Terminal, at that
+Mac. It asks for your password through `sudo`, and then macOS asks again in a dialog on
+the screen. That trusts its certificate for code signing and for nothing else.
+After that, every build made on that Mac is signed with it. macOS then sees each build as
+the same app, so the Keychain asks only once before a new build reads the key that
+Settings saved. The identity stays in `~/.writeon-signing`, outside the repository.
+Releases built on GitHub are still signed ad hoc.
 
 The app is two parts. `Sources/WriteOn` is a small AppKit shell: windows, the menu bar,
 files, the key, the network. `web/` is the editor, a page of plain ES modules with no build
