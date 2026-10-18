@@ -11,7 +11,7 @@
 
 import { TRIM_LEVELS, labRequest } from '../ai/prompts.js';
 import { parseLabResponse, arrivedSoFar, mergeTrimAnswers } from '../ai/parse.js';
-import { offered, makeProposal, counts, applyProposal, makeMarks, applyFixes, followMarks, positionAfterFix, wordsIn } from '../doc/proposal.js';
+import { offered, makeProposal, counts, ghostProposal, makeMarks, applyFixes, followMarks, positionAfterFix, wordsIn } from '../doc/proposal.js';
 import { percentChange, chooseCuts } from '../doc/trim.js';
 import { normalizeBlocks } from '../doc/blocks.js';
 import { cloneGroups } from '../doc/model.js';
@@ -25,8 +25,8 @@ const IDEAS = [
   { kind: 'tone', label: 'Mark words that don’t fit the tone', about: 'Points at words that are fancier, stiffer or more casual than the writing around them. Nothing is changed.' },
   { kind: 'filler', label: 'Mark hedges and filler', about: 'Points at words that soften or pad without adding meaning. Nothing is changed.' },
 ];
-const TRIMS_ABOUT = 'Fades what could go to make the piece about 10, 20, 30 or 50 percent shorter. Click a faded passage to keep it, then make the cuts or put them away.';
-const GUIDE_NOTE = 'The AI never rewrites. It points at your words or proposes deleting some; fixing typos is the one pass that changes a letter, and it asks first.';
+const TRIMS_ABOUT = 'Fades what could go to make the piece about 10, 20, 30 or 50 percent shorter. Click a faded passage to keep it; making the cuts ghosts the rest, so Ghost can bring any of it back.';
+const GUIDE_NOTE = 'The AI never rewrites. It points at your words or proposes some to ghost; fixing typos is the one pass that changes a letter, and it asks first.';
 
 // The line under a card's title, by kind of pass.
 const HINTS = {
@@ -697,10 +697,11 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     });
   }
 
+  /** Ghosts what is still faded, as one step to undo. Nothing is deleted. */
   function makeCuts() {
     if (pass?.kind !== 'trim' || pass.mode !== 'proposal') return;
     const { proposal, kept } = pass;
-    carryOut('trim', (blocks) => applyProposal(blocks, proposal, kept));
+    carryOut('trim', (blocks) => ghostProposal(blocks, proposal, kept));
   }
 
   function fixAll() {
@@ -865,7 +866,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
    */
   function trimmed() {
     if (pass?.kind !== 'trim' || (pass.mode !== 'proposal' && pass.mode !== 'walking')) return null;
-    const tidy = normalizeBlocks(applyProposal(editor.blocks, pass.proposal, pass.kept), cloneGroups(editor.groups));
+    const tidy = normalizeBlocks(ghostProposal(editor.blocks, pass.proposal, pass.kept), cloneGroups(editor.groups));
     return { html: blocksToHtml(tidy.blocks), groups: tidy.groups, overflow: editor.overflow };
   }
 

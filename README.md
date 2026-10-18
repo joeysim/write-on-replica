@@ -101,7 +101,8 @@ and Stash.
   ones it wrote. ([Picture](docs/images/panel.png).)
 - **The Lab** (bottom center) reads the page and marks what it finds: weak or long
   sentences, filler, typos, or what could go to make the piece 10, 20, 30 or 50 percent
-  shorter. It fades and underlines; it never rewrites. Nothing is cut until you say so.
+  shorter. It fades and underlines; it never rewrites. Nothing is cut until you say so, and
+  then the cuts are ghosted, not deleted, so you can bring any of them back.
   A trim is read once, and all four levels are then there at once: the AI says what each
   sentence could lose and how much the piece needs it, and the app does the counting.
   While the Lab shows a trim, the Markdown tab and Post to X use the trimmed piece.

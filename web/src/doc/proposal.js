@@ -7,8 +7,7 @@
 // offered text; this module ties it back to the blocks.
 
 import { countWords } from './text.js';
-import { rewriteBlock } from './blocks.js';
-import { closeGap } from './overflow.js';
+import { rewriteBlock, setGhost } from './blocks.js';
 import { applyCuts } from './trim.js';
 
 /**
@@ -124,107 +123,16 @@ export function counts(blocks, proposal, kept = new Set()) {
 }
 
 /**
- * One block with characters cut from it, and the joins seen to. Either side of a gap the
- * text is joined as `applyCuts` joins it, but in the block itself, where ghosted words may
- * stand in the gap that the offered text does not have: two spaces become one; a space
- * before a stop or a comma goes; no space is left at an end of the paragraph; and where a
- * cut that began and ended with a space would run two words together, one is given back.
- *
- * Nothing that is not in a cut is lost but a space beside one, and ghosted text is never
- * touched: neither depends on what the proposal holds.
- *
- * @param gone the characters of the block that are cut (offsets into its text)
- * @param capitals offset -> the letter that takes another capital, as it will be
- * @returns what each character of the block becomes: itself, the other capital, or ''
+ * The blocks with the cuts made, apart from those the writer keeps. A cut is ghosted, not
+ * deleted: its words stay where they are, set aside, and Ghost brings them back. Nothing else
+ * changes: no space, no letter, no line. The piece as it reads leaves ghosted words out.
  */
-function cutBlock(block, gone, capitals) {
-  const text = block.runs.map((piece) => piece.text).join('');
-  const ghost = block.runs.flatMap((piece) => new Array(piece.text.length).fill(Boolean(piece.ghost)));
-  const out = Array.from({ length: text.length }, (_, i) => (gone.has(i) ? '' : capitals.get(i) ?? text[i]));
-  const space = (i) => out[i] !== '' && /\s/.test(out[i]);
-  const spare = (i) => space(i) && !ghost[i]; // a space that may go
-  const stands = (from, to) => {
-    for (let i = from; i < to; i++) if (out[i] !== '' && !space(i)) return true;
-    return false;
-  };
-  /** Takes the spare spaces from `i` on, going `by`; returns where it stopped. */
-  const clear = (i, by) => {
-    while (i >= 0 && i < text.length && (out[i] === '' || spare(i))) {
-      out[i] = '';
-      i += by;
-    }
-    return i;
-  };
-
-  for (let from = 0; from < text.length; from++) {
-    if (!gone.has(from)) continue;
-    let to = from;
-    while (to < text.length && gone.has(to)) to += 1;
-    if (!stands(0, from)) {
-      // Nothing before it but space: the paragraph now starts after the gap.
-      for (let i = 0; i < from; i++) if (spare(i)) out[i] = '';
-      clear(to, 1);
-    } else if (!stands(to, text.length)) {
-      for (let i = to; i < text.length; i++) if (spare(i)) out[i] = '';
-      clear(from - 1, -1);
-    } else {
-      let left = from - 1;
-      while (out[left] === '') left -= 1;
-      let right = to;
-      while (out[right] === '') right += 1;
-      if (space(left) && space(right)) {
-        // One space is enough. The one after the gap goes, unless it is ghosted.
-        right = clear(right, 1);
-        if (space(right)) clear(left, -1);
-      } else if (space(left) && /[,.;:!?]/.test(out[right])) {
-        clear(left, -1);
-      } else if (!space(left) && !space(right) && /\s/.test(text[from]) && /\s/.test(text[to - 1]) && !/[,.;:!?]/.test(out[right])) {
-        out[from] = text[from];
-      }
-    }
-    from = to - 1;
-  }
-  return out;
-}
-
-/**
- * The blocks with the cuts made, apart from those the writer keeps. Marks stay on what is
- * left of their text and ghosted text is not touched. The only other changes are the ones
- * a cut calls for: the space it leaves over goes, a sentence that now starts later starts
- * with a capital, and a paragraph left with nothing goes, with a blank line, so that the
- * paragraphs around it stay one blank line apart.
- */
-export function applyProposal(blocks, proposal, kept = new Set()) {
+export function ghostProposal(blocks, proposal, kept = new Set()) {
   let made = blocks;
-  const emptied = [];
-  for (const paragraph of proposal.paragraphs) {
-    const item = proposal.items.get(paragraph.n);
-    if (!item) continue;
-    const runs = accepted(proposal, paragraph.n, kept);
-    if (runs.length === 0) continue;
-
-    // Where the cuts, and the capitals they call for, fall in the block.
-    const gone = new Set();
-    for (const run of runs) for (let i = run.start; i < run.end; i++) gone.add(paragraph.map[i]);
-    const taken = new Set(runs.map((run) => run.index));
-    const capitals = new Map();
-    for (const fix of item.caseFixes) {
-      if (!taken.has(fix.run)) continue;
-      // Only the capital of the first letter is the fix's to give, whatever else it holds.
-      const [was] = paragraph.text.slice(fix.start, fix.end);
-      const [now] = fix.text;
-      if (!was || !now || was === now || was.length !== now.length || was.toLowerCase() !== now.toLowerCase()) continue;
-      for (let k = 0; k < now.length; k++) capitals.set(paragraph.map[fix.start + k], now[k]);
-    }
-    const out = cutBlock(blocks[paragraph.block], gone, capitals);
-    const next = rewriteBlock(made, paragraph.block, (offset) => out[offset]);
-    // A paragraph left blank is taken out below, and until then stands as it was: so the
-    // blank lines around it can be told from the paragraphs that are going.
-    if (next[paragraph.block].kind === 'blank') emptied.push(paragraph.block);
-    else made = next;
+  for (const cut of proposal.cuts) {
+    if (kept.has(cut.id)) continue;
+    for (const range of cut.ranges) made = setGhost(made, { block: cut.block, offset: range.start }, { block: cut.block, offset: range.end }, true);
   }
-  // From the last, so that each is still where it was when its turn comes.
-  for (const index of emptied.reverse()) made = closeGap(made, index).blocks;
   return made;
 }
 

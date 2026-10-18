@@ -519,8 +519,9 @@ pointed at):
    need: 601.5 px for "Slight trim", 608.5 px for "Tighten more". Nothing visible in the
    clip accounts for that width, so the replica takes it as measured, 7 px for each
    further letter in the name.
-4. Clicking a faded passage keeps it. "Make the cuts" deletes what is still faded, as one
-   undo step. "Done" dismisses the proposal and the text returns to normal.
+4. Clicking a faded passage keeps it. "Make the cuts" ghosts what is still faded, as one
+   undo step: nothing is deleted (§9 item 23). "Done" dismisses the proposal and the text
+   returns to normal.
 5. Choosing another level replaces the pending proposal. "Original" is highlighted when
    nothing is pending.
 6. **The cuts arrive with the answer.** The answer is every sentence over again and takes
@@ -540,24 +541,20 @@ A proposal is temporary. It is not saved to the file and is not ghost text: it i
 at twice ghost's strength and lives beside the document, not in it. Text the user has
 already ghosted is treated as already out: it is not offered for cutting and is left out
 of both word counts on the card. Headings are not offered either, though their words are
-counted. A cut inside an alternative group edits that group's active variant; a cut that
-removes all of it removes the group. Any change to the words while a trim is out (an
+counted. A cut inside an alternative group ghosts those words of the variant that is
+showing, and the group stays. Any change to the words while a trim is out (an
 edit, an undo, a redo) puts the trim away, since it was about the text as it was. Another
 alternative shown in the text is a change to the words. A change that keeps each word in
 its place is not an edit, and the trim stays. For example, the alternatives panel makes a
 group of one from the word that it looks at (§9 item 55). While a trim is out, the
 Markdown tab and Post to X use the piece with the trim's cuts made (§6.11).
 
-After "Make the cuts" the app does only mechanical tidying: collapse doubled spaces,
-remove a space left before punctuation, and capitalize a sentence whose first words were
-cut. A paragraph left with nothing goes, and a blank line with it, so that the paragraphs
-around it stay one blank line apart. The tidying is done in the paragraph as it stands
-on the page, ghosted words and all: they are left a space from what remains either side
-of them, and no space is left at the end of the paragraph. It changes no other words,
-and that does not rest on the answer being well formed: nothing outside a faded passage
-is ever removed but a space beside one, and of a word that now starts a sentence only
-the capital of its first letter is taken from the AI, never its spelling or its
-apostrophe.
+"Make the cuts" ghosts the cuts and does nothing else. It deletes no word, changes no
+letter and removes no line, so Ghost brings back any of the words (§6.7). The piece as it
+reads leaves ghosted words out: in the Markdown tab and Post to X the gaps close to one
+space, there is no space before a stop, and a paragraph ghosted whole is left out with its
+blank line. A sentence whose first words are ghosted keeps its small letter. Nothing
+outside a faded passage is ghosted, however the answer is formed.
 
 **How much a trim takes** is counted by the app, not the model. The model says of every
 sentence what words it could lose and, from 1 to 5, how much the piece needs it (the
@@ -1179,7 +1176,7 @@ go another way.
 | 20 | App identity | Display name "Write_On"; bundle id `com.thesimhons.writeon`. |
 | 21 | Ghost text in the saved Markdown | Written as ordinary text; the ghost marking lives only in the metadata. |
 | 22 | Whole-document character count | Characters of every block, spaces included, line breaks and the hidden heading marker excluded. (Only the selection readout could be checked exactly.) |
-| 23 | Trim tidy-up | The mechanical whitespace and capital fixes in §6.10 after "Make the cuts". |
+| 23 | What "Make the cuts" does | It ghosts the cuts, as one step to undo, and deletes nothing. The words stay where they were, set aside, and Ghost brings them back (§6.10). Asked for by the replica's owner on 18 October 2026. Before, it deleted the cuts and tidied the joins: doubled spaces, a space before a stop, the capital of a sentence whose first words went. Ghosting changes no letter, so such a sentence now keeps its small letter. |
 | 24 | Arrow keys while hovering | → and ↓ go forward, ← and ↑ go back. The clips show both directions and wrap-around, not which key is which. |
 | 25 | Panel details | Clicking a tab retargets at that scope; ↑ / ↓ do not wrap; a group cannot be deleted down to nothing. |
 | 26 | Lab popover while a proposal is pending | The pending level is highlighted; choosing "Original" dismisses it, like "Done". |
@@ -1211,7 +1208,7 @@ go another way.
 | 39 | Tabs | A tab reads the spot the panel was opened on at another scope. Inside a real group of a larger scope the answer stays that group, since groups do not nest. |
 | 54 | How a trim is asked for, and how much it takes | Everything under "How much a trim takes" in §6.10: that the model is asked once about every sentence and not once a level for an amount; the scale of 1 to 5 and the four stages; that a level's share is reckoned on the words the card counts, headings included; that a stage is taken part-way evenly through the piece; that a level can fall short and says so; that no sentence goes while one needed less stands, and that a level is never empty where something could go; that a sentence the piece "does not work without" goes only in "Cut in half", last, and never past the amount; that each level holds what the lighter ones take; that a paragraph may go whole, with a blank line; what fades while the answer is arriving; that a thin answer is asked for once more, and what is done with a second thin answer (item 56); and that the numbers are checked against the words. The clip shows only that a trim fades words and whole sentences, that the card counts them, and that a second level is there at once. |
 | 53 | A Markdown tab in the source view | Not in the clip, and not inferred from it: asked for by the replica's owner, who opened the card to copy the piece and found the file's record in the way. The source view has a third tab, "Markdown", ahead of the clip's two and the one it opens on, showing the piece as it reads now (§6.11). The clip's card opens on "As saved". |
-| 55 | A trim and the rest of the app | Not in the clip. While a trim is out, the Markdown tab and Post to X use the piece with the trim's cuts made, except the cuts that the writer keeps. The reason: faded words go when the cuts are made, as ghosted words have gone. The tab says so beside the byte count. "As saved", "Readable" and Save use the file, which has no cuts until the writer makes them. A change that keeps each word in its place does not put a trim away. The alternatives panel makes such changes when it opens on a word and when it closes. Another alternative shown in the text changes the words, and puts the trim away. Found in use: the Markdown tab ignored the faded words, and the panel put the trim away. |
+| 55 | A trim and the rest of the app | Not in the clip. While a trim is out, the Markdown tab and Post to X use the piece with the trim's cuts made, except the cuts that the writer keeps. The reason: making the cuts ghosts the faded words, and the piece as it reads leaves ghosted words out. The tab says so beside the byte count. "As saved", "Readable" and Save use the file, which has no cuts until the writer makes them. A change that keeps each word in its place does not put a trim away. The alternatives panel makes such changes when it opens on a word and when it closes. Another alternative shown in the text changes the words, and puts the trim away. Found in use: the Markdown tab ignored the faded words, and the panel put the trim away. |
 | 56 | A thin trim answer, asked for again | The app joins the two answers. Where both speak of a sentence, the second answer wins. If the second request fails, the app uses the first answer. If the joined answer still speaks of fewer than half the sentences, the app uses it, and the card says how much the AI read: "The AI read only 6 of the 27 sentences. Choose a level to ask again." The app does not keep that answer, so the next level asks again. Found in use: the app used the second thin answer alone, and a trim of a 500-word draft cut 4% at every level. |
 | 57 | Slips in headings | The typo pass reads the headings as well as the paragraphs. The trims and the marking passes read only the paragraphs, as before. A fix in a heading leaves it a heading. |
 | 58 | Asking again, and reading what the model meant | Found with the real models on 16 October 2026. In 18 typo passes over a 500-word draft with five slips, 8 gave nothing to mark. The passages came back with the paragraph number in front, as bare numbers, as the model's own notes, or not at all. Later runs also gave wrong paragraph numbers, and one "fix" would have taken nine words out of a sentence. So the Lab takes a number off a passage, uses the one paragraph that has the passage, and discards a fix that changes more than four words. It asks once more when it cannot read an answer, when an answer quotes nothing in the text, or when the typo pass gets an empty answer. "Nothing to mark" from a marking pass is an answer, and the Lab takes it at once. Afterward, in 12 typo passes, 9 found all five slips and 1 gave nothing to mark: 4 of 6 found all five with `muse-spark-open`, and 5 of 6 with `glm-5.3`. |

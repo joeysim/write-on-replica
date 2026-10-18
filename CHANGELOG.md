@@ -19,6 +19,9 @@ release that brings it.
 - If the AI still reads less than half of the sentences, the card tells you how much it
   read. The next level that you choose asks the AI again.
 - The typo pass also finds slips in headings.
+- "Make the cuts" ghosts the faded words. It no longer deletes them, so Ghost can bring any
+  of them back. It also changes no letters: a sentence whose first words go keeps its
+  lowercase start.
 - The typo pass and the marking passes work more often with the real models. When an
   answer quotes nothing from the text, the Lab asks again. The typo pass also asks
   again when the AI finds no slips. On a draft with five slips, the typo pass found

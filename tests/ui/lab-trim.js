@@ -1,6 +1,7 @@
 // The Lab's trims (design spec 6.10): the model says what could go, by fading it where it
 // stands; nothing is cut until the writer says so.
 const { editor, ui, lab, commands, alternatives } = window.writeOn;
+const { plainText } = await import('./src/doc/format.js');
 ui.set({ read: false });
 await document.fonts.ready;
 
@@ -25,6 +26,19 @@ const act = async (label) => {
   await t.click(...t.center(button));
 };
 const title = () => card.querySelector('.title').textContent.replace(/\s+/g, ' ').trim();
+/** The ghosted stretches of block `i`, one string each. */
+const ghosted = (i) => {
+  const out = [];
+  let open = false;
+  for (const run of editor.blocks[i].runs) {
+    if (run.ghost && open) out[out.length - 1] += run.text;
+    else if (run.ghost) out.push(run.text);
+    open = Boolean(run.ghost);
+  }
+  return out;
+};
+/** The piece as it reads, a paragraph each: no ghosted words, as the Markdown tab has it. */
+const reading = () => plainText(editor.getState(), { withoutGhost: true }).split('\n\n');
 /** The faded passages, one string per cut, with the cuts the writer keeps left out. */
 const faded = () => {
   const cuts = new Map();
@@ -286,30 +300,35 @@ await t.key('Escape');
 }
 
 // --- making the cuts ------------------------------------------------------------------------------
+// "Make the cuts" ghosts the cuts. It deletes nothing and changes no letter, so Ghost brings any
+// of them back. (Asked for by the owner on 18 October 2026: before, the cuts were deleted.)
 
 await t.click(...t.center(spanOf('really')));
 t.equal(faded().length, 4, 'one cut is kept');
 await act('Make the cuts');
-t.equal(textOf(3), 'The trouble comes from wanting every line to stay.', 'the cuts are made, the sentence starts with a capital, and the sentence that could go has gone');
-t.equal(textOf(5), 'Keep this aside what earns its place and really nothing else.', 'the kept words stay, and so does what was ghosted');
+t.equal([textOf(3), textOf(5)], [P1, 'Keep this aside what earns its place and really nothing else, then stop.'], 'every word is still there');
+t.equal(ghosted(3), ['Much of ', ', in my view,', 'It rarely works out that way.'], 'the cuts are ghosted');
+t.equal(ghosted(5), ['this aside ', ', then stop'], 'with what was ghosted before, and not the cut that was kept');
+t.equal(reading().slice(1, 3), ['the trouble comes from wanting every line to stay.', 'Keep what earns its place and really nothing else.'], 'the piece reads trimmed, and no letter is changed');
 t.equal(textOf(7), P3.join(' '), 'a paragraph with nothing proposed is as it was');
 t.equal(editor.root.querySelectorAll('[data-trim]').length, 0, 'nothing is faded any more');
 t.assert(!shown(card), 'and the card is gone');
 t.equal(Object.keys(editor.groups), ['r3ally1'], 'a group that was kept is still a group');
 await t.key('z', { meta: true });
-t.same(html(), before, 'one undo brings every word back');
+t.same(html(), before, 'one undo takes the ghosting back');
 t.assert(!editor.canUndo, 'it was a single step');
 await t.key('z', { meta: true, shift: true });
-t.equal(textOf(3), 'The trouble comes from wanting every line to stay.', 'and redo makes the cuts again');
+t.equal(ghosted(3), ['Much of ', ', in my view,', 'It rarely works out that way.'], 'and redo ghosts the cuts again');
 await load();
 
-// A cut that takes all of a group takes the group.
+// A cut that takes all of a group ghosts its words, and the group stays.
 await answer(SAID);
 await choose('Slight trim');
 await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
 await act('Make the cuts');
-t.equal(textOf(5), 'Keep this aside what earns its place and nothing else.', 'every cut made');
-t.equal(Object.keys(editor.groups), [], 'the group whose only word went is gone');
+t.equal(ghosted(5), ['this aside ', 'really ', ', then stop'], 'every cut ghosted');
+t.equal(reading()[2], 'Keep what earns its place and nothing else.', 'and the piece reads without them');
+t.equal(Object.keys(editor.groups), ['r3ally1'], 'the group whose only word was cut is still there');
 await load();
 
 // --- putting a proposal away ----------------------------------------------------------------------
@@ -697,7 +716,8 @@ await act('Done');
   await act('Done');
 
   // --- a paragraph that goes whole -----------------------------------------------------------------
-  // Where every sentence of a paragraph goes, the paragraph goes, and a blank line with it.
+  // Where every sentence of a paragraph goes, the whole paragraph is ghosted. The blank lines stay,
+  // and the piece reads without the paragraph.
   await answer(said.map((one) => (one.s === 2 ? { ...one, need: 1 } : one)));
   $('#scroll').scrollTop = 0;
   await choose('Slight trim');
@@ -706,10 +726,10 @@ await act('Done');
   t.equal(title(), 'Slight trim 330 → 317 words · −4%', 'and counted: there is no more than that to take');
   const blocks = editor.blocks.length;
   await act('Make the cuts');
-  t.equal([textOf(0), textOf(1), textOf(2)], [line(0, false), '', line(2)], 'the paragraph is gone, and the two around it are one blank line apart');
-  t.equal(editor.blocks.length, blocks - 2, 'a blank line having gone with it');
+  t.equal([editor.blocks.length, ghosted(2)], [blocks, [line(1)]], 'the paragraph is ghosted whole, and every line stays');
+  t.equal(reading().slice(0, 2), [line(0, false), line(2)], 'the piece reads without it, one blank line between the two around it');
   await t.key('z', { meta: true });
-  t.equal([editor.blocks.length, textOf(2)], [blocks, line(1)], 'undo brings both back');
+  t.equal([editor.blocks.length, ghosted(2), textOf(2)], [blocks, [], line(1)], 'undo brings it back');
 }
 
 // --- a trim and the rest of the app ---------------------------------------------------------------
@@ -723,7 +743,7 @@ await load();
   const size = () => source.querySelector('.bytes').textContent;
   const tab = async (view) => t.click(...t.center(source.querySelector(`.tab[data-view="${view}"]`)));
   const sizeOf = (text) => `${new TextEncoder().encode(text).length.toLocaleString('en-US')} bytes`;
-  const TRIMMED = ['The trouble comes from wanting every line to stay.', 'Keep what earns its place and really nothing else.', P3.join(' ')];
+  const TRIMMED = ['the trouble comes from wanting every line to stay.', 'Keep what earns its place and really nothing else.', P3.join(' ')]; // no letter is changed
   await answer(SAID);
   await choose('Slight trim');
   await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');

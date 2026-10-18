@@ -18,6 +18,7 @@
 // then mends one by hand and fixes another on a walk through them. It never sees the key: the
 // shell holds it and says only where it came from.
 const { editor, ui, commands, lab } = window.writeOn;
+const { plainText } = await import('./src/doc/format.js');
 if (!(await t.call('test.options')).aiLive) {
   t.log('skipped: this run does not ask the real service (scripts/ui-test.sh ai-live --ai live does)');
   return;
@@ -229,9 +230,10 @@ const trims = async (what, bounds, most) => {
   t.assert(asked - asks <= 2, `for all four the model was asked once, or twice if its first answer left most of the piece out: ${asked - asks}`);
   t.equal(editor.getState().html, before, 'and until the writer says so, nothing is cut');
   // What the deepest would leave is still writing: every sentence whole, a space between them.
+  // (The cuts are ghosted: the piece as it reads leaves them out.)
   await t.click(...t.center([...card.querySelectorAll('.actions button')].find((button) => button.textContent === 'Make the cuts')));
   await t.settle();
-  const left = editor.blocks.filter((block) => block.runs.length).map((block) => block.runs.map((run) => run.text).join(''));
+  const left = plainText(editor.getState(), { withoutGhost: true, headingMarker: false }).split('\n').filter((line) => line !== '');
   // No space at either end, no two together, none before a comma or a stop, and one after every sentence.
   const untidy = (text) => text !== text.trim() || /\s{2,}|[.!?][A-Za-z]|\s[,.;:]/.test(text);
   t.assert(left.length > 0 && !left.some(untidy), `cut in half it still reads as text: ${JSON.stringify(left.find(untidy) ?? '')}`);
