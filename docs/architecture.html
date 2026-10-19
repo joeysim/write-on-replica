@@ -274,7 +274,7 @@ img { max-width: 100%; }
     <p class="lede">This is an unofficial replica of Write_On, the writing tool Jason Fried shows in <a href="https://x.com/jasonfried/status/2105403067793584590">his post on X</a>, and not his own. The app is a small native Mac program wrapped around a web page. The Swift part owns the windows, the files, the key and the network. The page is the editor. This report walks through both, how they talk, where each behavior lives, and how the whole thing is tested.</p>
     <dl class="facts">
       <div><dt>The shell</dt><dd>4,018 lines of Swift in 13 files</dd></div>
-      <div><dt>The page</dt><dd>7,803 lines of JavaScript in 43 modules, 1,205 of CSS</dd></div>
+      <div><dt>The page</dt><dd>7,830 lines of JavaScript in 43 modules, 1,209 of CSS</dd></div>
       <div><dt>Tests</dt><dd>354 unit tests, 34 scripted scenarios, 5 measurements</dd></div>
       <div><dt>Third-party code</dt><dd>None</dd></div>
     </dl>
@@ -502,17 +502,17 @@ const files        = createFiles({ editor, ui, commands, native, tooltips });</p
             <div class="stack is-page">
               <div class="tier">
                 <div class="bands">
-                  <div class="band"><b>features/</b><span class="meta">15 modules · 2,939 lines</span><span class="bar" style="width:100%"></span><span class="mods"><span>alternatives</span><span>panel</span><span>ai-alternatives</span><span>lab</span><span>overflow</span><span>ghost</span><span>contextmenu</span><span>shortcuts</span><span>cards</span><span>sourceview</span><span>readmode</span><span>tooltips</span><span>share</span><span>files</span><span>reach</span></span></div>
-                  <div class="band"><b>fx/</b><span class="meta">3 modules · 498 lines</span><span class="bar" style="width:16.9%"></span><span class="mods"><span>sound</span><span>explosion</span><span>flee</span></span></div>
-                  <div class="band"><b>editor/</b><span class="meta">5 modules · 1,066 lines</span><span class="bar" style="width:36.3%"></span><span class="mods"><span>editor</span><span>dom</span><span>selection</span><span>decor</span><span>wobble</span></span></div>
+                  <div class="band"><b>features/</b><span class="meta">15 modules · 2,966 lines</span><span class="bar" style="width:100%"></span><span class="mods"><span>alternatives</span><span>panel</span><span>ai-alternatives</span><span>lab</span><span>overflow</span><span>ghost</span><span>contextmenu</span><span>shortcuts</span><span>cards</span><span>sourceview</span><span>readmode</span><span>tooltips</span><span>share</span><span>files</span><span>reach</span></span></div>
+                  <div class="band"><b>fx/</b><span class="meta">3 modules · 498 lines</span><span class="bar" style="width:16.8%"></span><span class="mods"><span>sound</span><span>explosion</span><span>flee</span></span></div>
+                  <div class="band"><b>editor/</b><span class="meta">5 modules · 1,066 lines</span><span class="bar" style="width:35.9%"></span><span class="mods"><span>editor</span><span>dom</span><span>selection</span><span>decor</span><span>wobble</span></span></div>
                 </div>
                 <p class="tier-note">These touch the DOM, the canvas or Web Audio. They are tested inside the app, by the UI scenarios.</p>
               </div>
               <p class="down">↓ imports point down only</p>
               <div class="tier">
                 <div class="bands">
-                  <div class="band"><b>doc/</b><span class="meta">12 modules · 2,332 lines</span><span class="bar" style="width:79.3%"></span><span class="mods"><span>blocks</span><span>format</span><span>model</span><span>ids</span><span>history</span><span>text</span><span>target</span><span>ghost</span><span>overflow</span><span>proposal</span><span>trim</span><span>tone</span></span></div>
-                  <div class="band"><b>ai/</b><span class="meta">3 modules · 658 lines</span><span class="bar" style="width:22.4%"></span><span class="mods"><span>prompts</span><span>parse</span><span>client</span></span></div>
+                  <div class="band"><b>doc/</b><span class="meta">12 modules · 2,332 lines</span><span class="bar" style="width:78.6%"></span><span class="mods"><span>blocks</span><span>format</span><span>model</span><span>ids</span><span>history</span><span>text</span><span>target</span><span>ghost</span><span>overflow</span><span>proposal</span><span>trim</span><span>tone</span></span></div>
+                  <div class="band"><b>ai/</b><span class="meta">3 modules · 658 lines</span><span class="bar" style="width:22.2%"></span><span class="mods"><span>prompts</span><span>parse</span><span>client</span></span></div>
                 </div>
                 <p class="tier-note">No DOM below this line. <code>npm test</code> runs these in Node, with no browser.</p>
               </div>
@@ -984,7 +984,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>alternatives.js</code></td><td class="num">471</td><td>Showing another variant, cycling under the pointer, deleting one.</td></tr>
               <tr><td class="name"><code>panel.js</code></td><td class="num">467</td><td>The alternatives panel.</td></tr>
               <tr><td class="name"><code>ai-alternatives.js</code></td><td class="num">100</td><td><code>??</code> and Ctrl+Shift+G.</td></tr>
-              <tr><td class="name"><code>lab.js</code></td><td class="num">885</td><td>The Lab: trims, marks, typos, the proposal card.</td></tr>
+              <tr><td class="name"><code>lab.js</code></td><td class="num">912</td><td>The Lab: trims, marks, typos, the proposal card.</td></tr>
               <tr><td class="name"><code>overflow.js</code></td><td class="num">153</td><td>The Overflow panel, stashing and using.</td></tr>
               <tr><td class="name"><code>ghost.js</code></td><td class="num">21</td><td>The ghost command.</td></tr>
               <tr><td class="name"><code>contextmenu.js</code></td><td class="num">151</td><td>The right-click menu.</td></tr>
@@ -1001,14 +1001,14 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>sound.js</code></td><td class="num">134</td><td>Tick, boom and thump, synthesized.</td></tr>
               <tr><td class="name"><code>explosion.js</code></td><td class="num">325</td><td>Bursts on a canvas, repeatable and reversible.</td></tr>
               <tr><td class="name"><code>flee.js</code></td><td class="num">39</td><td>Where a fleeing button goes.</td></tr>
-              <tr><td class="name"><code>styles/*.css</code></td><td class="num">1,205</td><td>Six stylesheets. <code>base.css</code> holds the fonts and every value measured from the clips as CSS variables.</td></tr>
+              <tr><td class="name"><code>styles/*.css</code></td><td class="num">1,209</td><td>Six stylesheets. <code>base.css</code> holds the fonts and every value measured from the clips as CSS variables.</td></tr>
 
               <tr class="group"><td colspan="3">Scripts, tests and documents</td></tr>
               <tr><td class="name"><code>scripts/</code></td><td class="num">887</td><td>Fourteen things to run: build the app, give a Mac an identity to sign it with, make the copy a release carries, make a release, write what its page says, run everything, look for keys, run one scenario, run a measurement, check a real launch, serve the page to a browser, take the README's pictures, draw the icon, fetch the fonts.</td></tr>
               <tr><td class="name"><code>.github/workflows/</code></td><td class="num">96</td><td>What GitHub’s own Mac does with a release’s tag: builds and tests the app, packages it, runs it from the zip, and publishes it.</td></tr>
               <tr><td class="name"><code>tests/unit/</code></td><td class="num">3,420</td><td>16 test files for the pure modules.</td></tr>
-              <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,961</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
-              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,288</td><td>The design spec: measurements, behavior, and the 61 decisions the clips did not settle.</td></tr>
+              <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,995</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
+              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,292</td><td>The design spec: measurements, behavior, and the 61 decisions the clips did not settle.</td></tr>
               <tr><td class="name"><code>docs/superpowers/plans/</code></td><td class="num">443</td><td>The 23-task plan the app was built from.</td></tr>
             </tbody>
           </table>

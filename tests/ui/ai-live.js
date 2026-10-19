@@ -231,7 +231,7 @@ const trims = async (what, bounds, most) => {
   t.equal(editor.getState().html, before, 'and until the writer says so, nothing is cut');
   // What the deepest would leave is still writing: every sentence whole, a space between them.
   // (The cuts are ghosted: the piece as it reads leaves them out.)
-  await t.click(...t.center([...card.querySelectorAll('.actions button')].find((button) => button.textContent === 'Make the cuts')));
+  await t.click(...t.center([...card.querySelectorAll('.actions button')].find((button) => button.textContent === 'Ghost all')));
   await t.settle();
   const left = plainText(editor.getState(), { withoutGhost: true, headingMarker: false }).split('\n').filter((line) => line !== '');
   // No space at either end, no two together, none before a comma or a stop, and one after every sentence.

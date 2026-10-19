@@ -218,8 +218,8 @@ t.assert(!ui.get('lab'), 'choosing a level closes the popover');
 t.assert(shown(card), 'and puts a card at the foot of the page');
 {
   t.equal(title(), 'Slight trim Reading…', 'the card names the trim and says it is reading');
-  t.equal(card.querySelector('.hint').textContent, 'Faded words would go. Click one to keep it.', 'with what the fading will mean');
-  t.equal(actions(), ['Make the cuts', 'Cancel'], 'and two buttons');
+  t.equal(card.querySelector('.hint').textContent, 'Faded words would be ghosted. Click one to revive it.', 'with what the fading will mean');
+  t.equal(actions(), ['Ghost all', 'Cancel'], 'and two buttons');
   const box = card.getBoundingClientRect();
   t.equal([box.width, box.height], [500, 88], 'a 500 by 88 card');
   t.near(box.left + box.width / 2, innerWidth / 2, 0.3, 'in the middle');
@@ -276,7 +276,7 @@ t.assert(!shown(scan), 'the line is gone');
   const span = spanOf('in my view');
   t.equal(getComputedStyle(span).opacity, '0.22', 'faded words are drawn at 22%, twice as strong as ghosted ones');
   t.equal(title(), summary('Slight trim'), 'the card counts the words before and after: a tenth, as near as can be');
-  t.equal(actions(), ['Make the cuts', 'Walk through', 'Cancel'], 'and offers to walk through the cuts');
+  t.equal(actions(), ['Ghost all', 'Walk through', 'Cancel'], 'and offers to walk through the cuts');
   const box = card.getBoundingClientRect();
   t.near(box.width, 601.5, 0.01, 'the card is 601.5px wide now, as in the clip');
   t.near(box.left + box.width / 2, innerWidth / 2, 0.3, 'still in the middle');
@@ -300,12 +300,12 @@ await t.key('Escape');
 }
 
 // --- making the cuts ------------------------------------------------------------------------------
-// "Make the cuts" ghosts the cuts. It deletes nothing and changes no letter, so Ghost brings any
+// "Ghost all" ghosts the cuts. It deletes nothing and changes no letter, so Ghost brings any
 // of them back. (Asked for by the owner on 18 October 2026: before, the cuts were deleted.)
 
 await t.click(...t.center(spanOf('really')));
 t.equal(faded().length, 4, 'one cut is kept');
-await act('Make the cuts');
+await act('Ghost all');
 t.equal([textOf(3), textOf(5)], [P1, 'Keep this aside what earns its place and really nothing else, then stop.'], 'every word is still there');
 t.equal(ghosted(3), ['Much of ', ', in my view,', 'It rarely works out that way.'], 'the cuts are ghosted');
 t.equal(ghosted(5), ['this aside ', ', then stop'], 'with what was ghosted before, and not the cut that was kept');
@@ -325,7 +325,7 @@ await load();
 await answer(SAID);
 await choose('Slight trim');
 await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
-await act('Make the cuts');
+await act('Ghost all');
 t.equal(ghosted(5), ['this aside ', 'really ', ', then stop'], 'every cut ghosted');
 t.equal(reading()[2], 'Keep what earns its place and nothing else.', 'and the piece reads without them');
 t.equal(Object.keys(editor.groups), ['r3ally1'], 'the group whose only word was cut is still there');
@@ -407,14 +407,14 @@ await t.key('Escape');
   t.equal(faded(), CUTS.slice(0, 3), 'what the sentences that are in could lose, and the one that could go');
   t.equal(title(), 'Slight trim Reading…', 'the card still says it is reading');
   t.assert(shown(scan), 'and the line is still going through the text');
-  t.equal(actions(), ['Make the cuts', 'Walk through', 'Cancel'], 'Walk through is there already');
+  t.equal(actions(), ['Ghost all', 'Walk through', 'Cancel'], 'Walk through is there already');
   {
     const row = [...card.querySelectorAll('.actions button')].filter(shown).map((button) => button.getBoundingClientRect());
     const edge = card.getBoundingClientRect();
     t.assert(row.every((box) => Math.abs(box.top - row[0].top) < 1 && box.left >= edge.left && box.right <= edge.right), 'the three buttons fit on one line on the 500px card');
   }
   const text = html();
-  await act('Make the cuts');
+  await act('Ghost all');
   t.same(html(), text, 'though nothing can be cut until the whole answer is in');
   await t.until(() => title() === summary('Slight trim'), 10000, 'the whole answer');
   t.equal(faded(), CUTS, 'which brings the rest of the cuts');
@@ -675,31 +675,65 @@ await act('Done');
 }
 
 // --- walking through ------------------------------------------------------------------------------
+// One passage at a time: Ghost, Revive or Next. A choice shows at once, but nothing in the text
+// changes until the walk ends with every passage chosen, or until "Ghost all". Cancel puts the
+// whole set away. (The owner chose the words, and that Cancel undoes the set, on 18 and 19
+// October 2026.)
 
+const pointed = () => editor.root.querySelector('[data-trim].is-current')?.textContent;
+const strength = (text) => getComputedStyle(spanOf(text)).opacity;
 await answer(SAID);
 await choose('Slight trim');
 await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
 await act('Walk through');
 t.equal(title(), 'Slight trim 1 of 5', 'the walk starts at the first cut');
-t.equal(actions(), ['Cut', 'Keep', 'Stop'], 'with three choices');
-t.equal(editor.root.querySelector('[data-trim].is-current')?.textContent, 'Much of ', 'the cut in question is pointed out');
+t.equal(actions(), ['Ghost', 'Revive', 'Next', 'Cancel'], 'with four choices');
+t.equal(pointed(), 'Much of ', 'the cut in question is pointed out');
 t.equal(getComputedStyle(editor.root.querySelector('[data-trim].is-current')).textDecorationColor, 'rgb(200, 16, 66)', 'underlined in the Lab’s crimson');
-await act('Cut');
-t.equal([title(), editor.root.querySelector('[data-trim].is-current')?.textContent], ['Slight trim 2 of 5', ', in my view,'], 'Cut lets it go and moves on');
-await act('Keep');
-t.equal(title(), 'Slight trim 3 of 5', 'Keep moves on too');
-t.equal(faded(), CUTS.filter((cut) => cut !== ', in my view,'), 'having kept that one');
-await act('Stop');
-t.equal(title(), summary('Slight trim', 11), 'Stop goes back to the summary, which counts what was kept');
-t.equal(actions(), ['Make the cuts', 'Walk through', 'Cancel'], 'and its buttons');
+await act('Ghost');
+t.equal([title(), pointed()], ['Slight trim 2 of 5', ', in my view,'], 'Ghost moves on');
+t.equal(strength('Much of'), '0.11', 'and the passage shows as ghosted at once');
+t.same(html(), before, 'though the text does not change yet');
+await act('Revive');
+t.equal([title(), strength('in my view')], ['Slight trim 3 of 5', '1'], 'Revive gives a passage back its strength, and moves on');
+await act('Next');
+t.equal([title(), strength('It rarely works')], ['Slight trim 4 of 5', '0.22'], 'Next leaves a passage faded, and moves on');
+await t.key('Escape');
+t.equal(title(), summary('Slight trim', 11), 'Esc goes back to the summary, which counts what was revived');
+t.equal(actions(), ['Ghost all', 'Walk through', 'Cancel'], 'and its buttons');
 t.equal(editor.root.querySelectorAll('[data-trim].is-current').length, 0, 'nothing is pointed out any more');
-t.same(html(), before, 'the walk itself cuts nothing');
-// Walking to the end comes back to the summary as well.
-await act('Walk through');
-for (let i = 0; i < 5; i++) await act('Cut');
-t.equal(actions(), ['Make the cuts', 'Walk through', 'Cancel'], 'after the last cut the summary is back');
-t.equal(faded(), CUTS, 'Cut on a passage that was kept lets it go after all');
+t.equal(strength('Much of'), '0.11', 'what the walk chose to ghost still shows so');
+await t.click(...t.center(spanOf('Much of')));
+t.equal(strength('Much of'), '1', 'and a click revives it');
+t.same(html(), before, 'the walk itself changes nothing');
 await act('Cancel');
+t.equal([faded().length, shown(card)], [0, false], 'Cancel puts the trim away');
+t.same(html(), before, 'with nothing ghosted, whatever the walk chose');
+
+// A walk that ends with every passage chosen ghosts the set, as one step.
+await choose('Slight trim');
+await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
+await act('Walk through');
+await act('Revive');
+for (let i = 0; i < 4; i++) await act('Ghost');
+t.equal([shown(card), lab.pass()], [false, null], 'a walk that ends with every passage chosen closes the card');
+t.equal([ghosted(3), ghosted(5)], [[', in my view,', 'It rarely works out that way.'], ['this aside ', 'really ', ', then stop']], 'and ghosts the passages chosen, and not the one revived');
+t.equal(textOf(3), P1, 'every word is still there');
+await t.key('z', { meta: true });
+t.same(html(), before, 'one undo takes the whole set back');
+t.assert(!editor.canUndo, 'it was a single step');
+await load();
+
+// A walk that leaves a passage unchosen ends at the summary. Cancel there puts the whole set away.
+await answer(SAID);
+await choose('Slight trim');
+await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');
+await act('Walk through');
+for (const choice of ['Ghost', 'Next', 'Ghost', 'Ghost', 'Ghost']) await act(choice);
+t.equal(actions(), ['Ghost all', 'Walk through', 'Cancel'], 'a walk that leaves a passage unchosen ends at the summary');
+t.equal(strength('in my view'), '0.22', 'with that passage still faded');
+await act('Cancel');
+t.same(html(), before, 'and Cancel there puts away what the walk chose too');
 
 // Each passage is brought into view as its turn comes.
 {
@@ -714,10 +748,10 @@ await act('Cancel');
   await choose('Slight trim');
   await t.until(() => lab.pass() === 'proposal' && faded().length === 2, 4000, 'the proposal');
   await act('Walk through');
-  await act('Cut');
+  await act('Next');
   const box = editor.root.querySelector('[data-trim].is-current').getBoundingClientRect();
   t.assert(box.top >= 96 && box.bottom <= card.getBoundingClientRect().top - 20, `a cut further down is scrolled to, clear of the card: ${Math.round(box.top)}..${Math.round(box.bottom)}`);
-  await act('Stop');
+  await t.key('Escape');
   await act('Cancel');
 
   // --- a paragraph that goes whole -----------------------------------------------------------------
@@ -730,7 +764,7 @@ await act('Cancel');
   t.equal(faded()[1], line(1), 'a paragraph of one sentence the piece is better without is faded whole');
   t.equal(title(), 'Slight trim 330 → 317 words · −4%', 'and counted: there is no more than that to take');
   const blocks = editor.blocks.length;
-  await act('Make the cuts');
+  await act('Ghost all');
   t.equal([editor.blocks.length, ghosted(2)], [blocks, [line(1)]], 'the paragraph is ghosted whole, and every line stays');
   t.equal(reading().slice(0, 2), [line(0, false), line(2)], 'the piece reads without it, one blank line between the two around it');
   await t.key('z', { meta: true });

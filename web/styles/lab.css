@@ -220,6 +220,10 @@
 #editor [data-trim].is-kept {
   opacity: 1;
 }
+/* A passage a walk has chosen to ghost: at ghost's strength, though not ghosted yet. */
+#editor [data-trim].is-ghosted {
+  opacity: 0.11;
+}
 /* What a marking pass points at, the typo pass included: the words as they are, underlined.
    The same underline shows the cut a walk-through is asking about. */
 #editor [data-mark],

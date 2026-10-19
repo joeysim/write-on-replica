@@ -25,12 +25,12 @@ const IDEAS = [
   { kind: 'tone', label: 'Mark words that don’t fit the tone', about: 'Points at words that are fancier, stiffer or more casual than the writing around them. Nothing is changed.' },
   { kind: 'filler', label: 'Mark hedges and filler', about: 'Points at words that soften or pad without adding meaning. Nothing is changed.' },
 ];
-const TRIMS_ABOUT = 'Fades what could go to make the piece about 10, 20, 30 or 50 percent shorter. Click a faded passage to keep it; making the cuts ghosts the rest, so Ghost can bring any of it back.';
+const TRIMS_ABOUT = 'Fades what could go to make the piece about 10, 20, 30 or 50 percent shorter. Click a faded passage to revive it; Ghost all ghosts the rest, and Ghost brings any of it back.';
 const GUIDE_NOTE = 'The AI never rewrites. It points at your words or proposes some to ghost; fixing typos is the one pass that changes a letter, and it asks first.';
 
 // The line under a card's title, by kind of pass.
 const HINTS = {
-  trim: 'Faded words would go. Click one to keep it.',
+  trim: 'Faded words would be ghosted. Click one to revive it.',
   typos: 'Hover a mark to see the fix. Click one to keep the original.',
   marks: 'Hover a mark to see why. Click one to dismiss it.',
 };
@@ -220,16 +220,18 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     if (mode === 'reading') {
       state.textContent = 'Reading…';
       // "Walk through" joins the others with the first cuts, as in the clip; none of them
-      // does anything until the whole answer is in. A trim card says "Cancel" where the clip
-      // says "Done": the button puts the trim away and makes no cut (the owner's choice).
-      if (sort === 'trim') buttons = pass.arriving ? [['Make the cuts', makeCuts], ['Walk through', walk], ['Cancel', dismiss]] : [['Make the cuts', makeCuts], ['Cancel', dismiss]];
+      // does anything until the whole answer is in. A trim card says "Ghost all" and "Cancel"
+      // where the clip says "Make the cuts" and "Done" (the owner's choice, spec section 9).
+      if (sort === 'trim') buttons = pass.arriving ? [['Ghost all', makeCuts], ['Walk through', walk], ['Cancel', dismiss]] : [['Ghost all', makeCuts], ['Cancel', dismiss]];
     } else if (mode === 'failed') {
       hint.textContent = pass.reason;
     } else if (sort === 'trim') {
       if (pass.partial) hint.textContent = pass.partial;
       const { before, after } = counts(editor.blocks, pass.proposal, pass.kept);
       state.textContent = walking ? `${pass.step + 1} of ${pass.proposal.cuts.length}` : `${before} → ${after} words · ${String(percentChange(before, after)).replace('-', '−')}%`;
-      buttons = walking ? [['Cut', () => decide(false)], ['Keep', () => decide(true)], ['Stop', summarize]] : [['Make the cuts', makeCuts], ['Walk through', walk], ['Cancel', dismiss]];
+      buttons = walking
+        ? [['Ghost', () => choose('ghost')], ['Revive', () => choose('revive')], ['Next', () => choose('next')], ['Cancel', dismiss]]
+        : [['Ghost all', makeCuts], ['Walk through', walk], ['Cancel', dismiss]];
     } else if (sort === 'typos') {
       state.textContent = walking ? `${pass.order.indexOf(pass.marks[pass.step].id) + 1} of ${pass.order.length}` : `${pass.marks.length} found`;
       if (walking) hint.textContent = fixLine(pass.marks[pass.step]);
@@ -354,6 +356,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     passages()?.forEach((passage, index) => {
       for (const span of spansOf(passage.id)) {
         span.classList.toggle('is-kept', Boolean(pass.kept?.has(passage.id)));
+        span.classList.toggle('is-ghosted', Boolean(pass.ghosted?.has(passage.id)));
         span.classList.toggle('is-current', pass.mode === 'walking' && index === pass.step);
       }
     });
@@ -372,10 +375,15 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     const faded = event.target.closest?.('[data-trim]');
     const pointed = event.target.closest?.('[data-mark]');
     if (faded) {
-      // A click keeps a passage a trim would cut; another lets it go again.
+      // A click revives a passage a trim would ghost, chosen in a walk or not; another lets it
+      // go again.
       const id = faded.dataset.trim;
-      if (pass.kept.has(id)) pass.kept.delete(id);
-      else pass.kept.add(id);
+      if (pass.kept.has(id)) {
+        pass.kept.delete(id);
+      } else {
+        pass.kept.add(id);
+        pass.ghosted.delete(id);
+      }
       paint();
     } else if (pointed) {
       drop(pass.marks.find((found) => found.id === pointed.dataset.mark));
@@ -634,7 +642,9 @@ export function createLab({ editor, ui, ai, commands, cards }) {
         fail(partial ?? outcome);
         return;
       }
-      pass = { kind: 'trim', name: level.label, mode: 'proposal', level, proposal: outcome.proposal, kept: new Set(), partial };
+      // `kept`: the passages revived. `ghosted`: those a walk chose to ghost. The others are
+      // still undecided.
+      pass = { kind: 'trim', name: level.label, mode: 'proposal', level, proposal: outcome.proposal, kept: new Set(), ghosted: new Set(), partial };
       stopSweep();
       unwrap(); // what was faded as the answer came gives way to what the level comes to
       show(passages(), 'trim');
@@ -698,9 +708,9 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     });
   }
 
-  /** Ghosts what is still faded, as one step to undo. Nothing is deleted. */
+  /** Ghosts every passage not revived, as one step to undo. Nothing is deleted. */
   function makeCuts() {
-    if (pass?.kind !== 'trim' || pass.mode !== 'proposal') return;
+    if (pass?.kind !== 'trim' || (pass.mode !== 'proposal' && pass.mode !== 'walking')) return;
     const { proposal, kept } = pass;
     carryOut('trim', (blocks) => ghostProposal(blocks, proposal, kept));
   }
@@ -761,20 +771,12 @@ export function createLab({ editor, ui, ai, commands, cards }) {
   }
 
   /**
-   * Answers the walk's question about the passage it is on, and goes on to the next. For a
-   * trim both answers only decide. For typos, Fix makes the fix there and then and Keep
-   * leaves the words as they are; either way the mark goes.
+   * Answers a walk through the typos about the fix it is on, and goes on to the next. Fix makes
+   * the fix there and then, and Keep leaves the words as they are; either way the mark goes.
    */
   function decide(keep) {
     if (pass?.mode !== 'walking') return;
     const passage = passages()[pass.step];
-    if (pass.kind === 'trim') {
-      if (keep) pass.kept.add(passage.id);
-      else pass.kept.delete(passage.id);
-      if (pass.step + 1 >= passages().length) summarize();
-      else step(pass.step + 1);
-      return;
-    }
     if (keep || !fix(passage)) {
       drop(passage);
       if (!pass) return; // that was the last of them
@@ -784,6 +786,31 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     paint();
     report();
     if (pass.mode === 'walking') reveal(passages()[pass.step]);
+  }
+
+  /**
+   * Answers a walk through a trim about the passage it is on, and goes on to the next. Ghost
+   * and Revive choose; Next leaves the passage undecided. A choice shows at once, and nothing
+   * in the text changes: Cancel puts the whole set away. At the end, a walk with every passage
+   * chosen ghosts what it chose, as one step to undo. A walk that left one undecided goes back
+   * to the summary.
+   */
+  function choose(choice) {
+    if (pass?.mode !== 'walking' || pass.kind !== 'trim') return;
+    const { id } = passages()[pass.step];
+    if (choice === 'ghost') {
+      pass.ghosted.add(id);
+      pass.kept.delete(id);
+    } else if (choice === 'revive') {
+      pass.kept.add(id);
+      pass.ghosted.delete(id);
+    }
+    if (pass.step + 1 < passages().length) {
+      step(pass.step + 1);
+      return;
+    }
+    if (passages().every((passage) => pass.kept.has(passage.id) || pass.ghosted.has(passage.id))) makeCuts();
+    else summarize();
   }
 
   function summarize() {
