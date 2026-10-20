@@ -6,6 +6,8 @@ release that brings it.
 
 ## Unreleased
 
+## 1.1.0 (2026-10-20)
+
 - The default model is now `glm-5.3`. Before, it was `glm-5.3-flash`.
 - In Settings, you can pick the model from a list. The app gets the list from the AI
   service, with the same key. The list shows only the models that can answer this app.
