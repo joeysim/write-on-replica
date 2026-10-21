@@ -32,8 +32,9 @@ against LunaRoute with `glm-5.3-flash`, and with `glm-5.3`, the default model si
 - Rich Markdown rendering. Only headings are styled; everything else is literal text.
 - Really posting to LinkedIn. The button exists to be impossible to click.
 - Posting to X through the X API. The app opens X's compose window instead (§6.11).
-- Notarization. The app is ad-hoc signed by the Mac that builds it. A built copy is
-  attached to each release, and macOS has to be told to open it.
+- Notarization. The app is signed with the project's own certificate where the Mac that
+  builds it has the certificate, and ad hoc where it does not. A built copy is attached to
+  each release, and macOS has to be told to open it.
 
 ## 2. Evidence and how far "exact" can go
 
@@ -1293,7 +1294,7 @@ go another way.
 | The display it was built on is 1× while the clips are 2× | Geometry is compared in CSS px; glyphs look lighter at 1×. For a pixel-level comparison the page is snapshotted at 2× zoom. |
 | `glm-5.3-flash` at low reasoning may choose poor cuts or miss the target length | Raise reasoning for Lab passes only; the card always reports the real numbers. |
 | A service other than LunaRoute may not take the requests as they are worded, or may not hold an answer to a schema | The two parts known to be refused are asked for again in the service's way (§7.1); the rest is on the hands-on checklist until someone has tried a second service for real. |
-| macOS refuses a copy downloaded from a release, because it is signed ad hoc and not notarized | The README and each release's notes say how to open it. Only a Developer ID certificate and notarization would take the refusal away. Nobody has yet opened a downloaded copy on another Mac: it is on the hands-on checklist. |
+| macOS refuses a copy downloaded from a release, because it is not notarized and its certificate is the project's own, not Apple's | The README and each release's notes say how to open it. Only a Developer ID certificate and notarization would take the refusal away. Nobody has yet opened a downloaded copy on another Mac: it is on the hands-on checklist. |
 | The Intel half has never run on an Intel Mac | Every scenario is run on it under Rosetta, which is not the same thing; an Intel Mac is on the hands-on checklist. |
 | The handwriting face may not be Caveat | Compare glyphs early; substitute and record. |
 | The original may differ wherever §9 guesses | All guesses are in one table and cheap to change. |

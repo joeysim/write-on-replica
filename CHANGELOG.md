@@ -10,6 +10,10 @@ release that brings it.
   with a capital. The page keeps its letters, so revived words read as they did.
 - While the AI says nothing for 5 seconds, the Lab card says which model it waits for, and
   for how long: "Waiting for glm-5.3… 12 s".
+- The app in a release has the project's own certificate now, not an ad hoc signature.
+  macOS sees each release with this certificate as the same app. So the Keychain asks once
+  for permission to read your key, and not again after each update. It asks one more time
+  when you update from 1.1.0 or earlier.
 
 ## 1.1.0 (2026-10-20)
 

@@ -273,9 +273,9 @@ img { max-width: 100%; }
     <h1>How Write_On is <span class="alt">built<svg viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true"><path d="M0 3.2 C 16 1.4, 34 4.6, 52 3 S 84 1.8, 100 3.4" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linecap="round"/></svg><span class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i></span></span></h1>
     <p class="lede">This is an unofficial replica of Write_On, the writing tool Jason Fried shows in <a href="https://x.com/jasonfried/status/2105403067793584590">his post on X</a>, and not his own. The app is a small native Mac program wrapped around a web page. The Swift part owns the windows, the files, the key and the network. The page is the editor. This report walks through both, how they talk, where each behavior lives, and how the whole thing is tested.</p>
     <dl class="facts">
-      <div><dt>The shell</dt><dd>4,018 lines of Swift in 13 files</dd></div>
-      <div><dt>The page</dt><dd>7,830 lines of JavaScript in 43 modules, 1,209 of CSS</dd></div>
-      <div><dt>Tests</dt><dd>354 unit tests, 34 scripted scenarios, 5 measurements</dd></div>
+      <div><dt>The shell</dt><dd>4,036 lines of Swift in 13 files</dd></div>
+      <div><dt>The page</dt><dd>7,884 lines of JavaScript in 43 modules, 1,209 of CSS</dd></div>
+      <div><dt>Tests</dt><dd>355 unit tests, 34 scripted scenarios, 5 measurements</dd></div>
       <div><dt>Third-party code</dt><dd>None</dd></div>
     </dl>
   </header>
@@ -374,7 +374,7 @@ img { max-width: 100%; }
         <p>Three ideas run through the code:</p>
         <ul>
           <li><strong>The document is data, and the screen is a rendering of it.</strong> Blocks and groups in memory are the truth. The paragraphs you see are drawn from them.</li>
-          <li><strong>Whatever decides what the document is lives in pure functions.</strong> They need no browser, so 354 tests run against them in Node.</li>
+          <li><strong>Whatever decides what the document is lives in pure functions.</strong> They need no browser, so 355 tests run against them in Node.</li>
           <li><strong>Nothing from outside is trusted.</strong> The page never holds the key. An answer from the model is checked against your own text before the app will act on it.</li>
         </ul>
       </section>
@@ -503,17 +503,17 @@ const files        = createFiles({ editor, ui, commands, native, tooltips });</p
             <div class="stack is-page">
               <div class="tier">
                 <div class="bands">
-                  <div class="band"><b>features/</b><span class="meta">15 modules · 2,966 lines</span><span class="bar" style="width:100%"></span><span class="mods"><span>alternatives</span><span>panel</span><span>ai-alternatives</span><span>lab</span><span>overflow</span><span>ghost</span><span>contextmenu</span><span>shortcuts</span><span>cards</span><span>sourceview</span><span>readmode</span><span>tooltips</span><span>share</span><span>files</span><span>reach</span></span></div>
-                  <div class="band"><b>fx/</b><span class="meta">3 modules · 498 lines</span><span class="bar" style="width:16.8%"></span><span class="mods"><span>sound</span><span>explosion</span><span>flee</span></span></div>
-                  <div class="band"><b>editor/</b><span class="meta">5 modules · 1,066 lines</span><span class="bar" style="width:35.9%"></span><span class="mods"><span>editor</span><span>dom</span><span>selection</span><span>decor</span><span>wobble</span></span></div>
+                  <div class="band"><b>features/</b><span class="meta">15 modules · 3,007 lines</span><span class="bar" style="width:100%"></span><span class="mods"><span>alternatives</span><span>panel</span><span>ai-alternatives</span><span>lab</span><span>overflow</span><span>ghost</span><span>contextmenu</span><span>shortcuts</span><span>cards</span><span>sourceview</span><span>readmode</span><span>tooltips</span><span>share</span><span>files</span><span>reach</span></span></div>
+                  <div class="band"><b>fx/</b><span class="meta">3 modules · 498 lines</span><span class="bar" style="width:16.6%"></span><span class="mods"><span>sound</span><span>explosion</span><span>flee</span></span></div>
+                  <div class="band"><b>editor/</b><span class="meta">5 modules · 1,066 lines</span><span class="bar" style="width:35.5%"></span><span class="mods"><span>editor</span><span>dom</span><span>selection</span><span>decor</span><span>wobble</span></span></div>
                 </div>
                 <p class="tier-note">These touch the DOM, the canvas or Web Audio. They are tested inside the app, by the UI scenarios.</p>
               </div>
               <p class="down">↓ imports point down only</p>
               <div class="tier">
                 <div class="bands">
-                  <div class="band"><b>doc/</b><span class="meta">12 modules · 2,332 lines</span><span class="bar" style="width:78.6%"></span><span class="mods"><span>blocks</span><span>format</span><span>model</span><span>ids</span><span>history</span><span>text</span><span>target</span><span>ghost</span><span>overflow</span><span>proposal</span><span>trim</span><span>tone</span></span></div>
-                  <div class="band"><b>ai/</b><span class="meta">3 modules · 658 lines</span><span class="bar" style="width:22.2%"></span><span class="mods"><span>prompts</span><span>parse</span><span>client</span></span></div>
+                  <div class="band"><b>doc/</b><span class="meta">12 modules · 2,341 lines</span><span class="bar" style="width:77.9%"></span><span class="mods"><span>blocks</span><span>format</span><span>model</span><span>ids</span><span>history</span><span>text</span><span>target</span><span>ghost</span><span>overflow</span><span>proposal</span><span>trim</span><span>tone</span></span></div>
+                  <div class="band"><b>ai/</b><span class="meta">3 modules · 662 lines</span><span class="bar" style="width:22.0%"></span><span class="mods"><span>prompts</span><span>parse</span><span>client</span></span></div>
                 </div>
                 <p class="tier-note">No DOM below this line. <code>npm test</code> runs these in Node, with no browser.</p>
               </div>
@@ -614,7 +614,7 @@ Spare lines wait here.
 &lt;!-- write_on {"version":1,"html":"&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;# &lt;span data-vid=\"t1tle01\"&gt;Write it more than
 one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","variants":["Write it more than one way",
 "Say it more than one way","Keep every version"],"active":0},…}} --&gt;</pre>
-        <p><code>doc/format.js</code> (564 lines, the largest of the pure modules) converts between this text, the <code>html</code> record and blocks. Reading is forgiving and never throws:</p>
+        <p><code>doc/format.js</code> (573 lines, the largest of the pure modules) converts between this text, the <code>html</code> record and blocks. Reading is forgiving and never throws:</p>
         <ul>
           <li>If the Markdown still matches the recorded <code>html</code>, the record is used as it is.</li>
           <li>If the Markdown was changed in another tool, the Markdown wins. Each group is kept where its showing text can still be found, looking first in the paragraph it was in. A note by the Open icon says how many were kept.</li>
@@ -770,7 +770,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <table>
             <thead><tr><th>Kind</th><th>What it covers</th><th>Size</th><th>Runs in</th><th>Command</th></tr></thead>
             <tbody>
-              <tr><td class="name">Unit tests</td><td>The pure modules: file-format round trips, files edited elsewhere, normalizing, word and sentence boundaries, a and an, the tone rule, history, prompts, hostile answers from the model</td><td class="name">354 tests in 16 files</td><td>Node's own test runner</td><td class="name"><code>npm test</code></td></tr>
+              <tr><td class="name">Unit tests</td><td>The pure modules: file-format round trips, files edited elsewhere, normalizing, word and sentence boundaries, a and an, the tone rule, history, prompts, hostile answers from the model</td><td class="name">355 tests in 16 files</td><td>Node's own test runner</td><td class="name"><code>npm test</code></td></tr>
               <tr><td class="name">UI scenarios</td><td>Everything that needs the page or the shell: typing, marks, the panel, Overflow, the Lab, menus, files, crash recovery, the AI client</td><td class="name">34 scenarios</td><td>The built app's own web view, hidden</td><td class="name"><code>scripts/ui-test.sh &lt;name&gt;</code></td></tr>
               <tr><td class="name">Launch check</td><td>The real app starts as Finder would start it, opens one window, reports no error and quits</td><td class="name">1 script</td><td>The real app, opened hidden</td><td class="name"><code>scripts/launch-check.sh</code></td></tr>
               <tr><td class="name">Hands-on list</td><td>What only a person can confirm: real hover, real sound, real panels, dragging out of Overflow</td><td class="name">16 checks</td><td>You, at the Mac</td><td>In the README</td></tr>
@@ -819,7 +819,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
         <h2>Build and packaging</h2>
         <ul>
           <li><strong>No Xcode project.</strong> <code>Package.swift</code> declares one executable target for macOS 13 and later, with no dependencies. The Command Line Tools are enough to build it.</li>
-          <li><strong><code>scripts/build-app.sh</code></strong> runs <code>swift build</code> twice, then assembles <code>build/Write_On.app</code> by hand: the binary, <code>Info.plist</code>, a copy of <code>web/</code> in Resources, and the icon. It signs the bundle ad hoc.</li>
+          <li><strong><code>scripts/build-app.sh</code></strong> runs <code>swift build</code> twice, then assembles <code>build/Write_On.app</code> by hand: the binary, <code>Info.plist</code>, a copy of <code>web/</code> in Resources, and the icon. It signs the bundle with the project's own certificate where the Mac has it (<code>scripts/make-signing-identity.sh</code>), and ad hoc where it does not.</li>
           <li><strong>The app is universal.</strong> It is built once for Apple silicon and once for Intel, and <code>lipo</code> joins the two executables into one; SwiftPM builds for both at once only with Xcode. Each half has a build folder of its own under <code>.build/universal</code>, because SwiftPM keeps one plan to a folder, and in a shared one a build can be handed the plan made for the other half. The scenarios run on whichever half suits the Mac, or on the one <code>WRITEON_ARCH</code> names. The Intel half has run only under Rosetta: no Intel Mac has run it.</li>
           <li><strong>Nothing of the Mac that built it goes with it.</strong> What a debugger would use to find the source names every file by its full path, home folder and all. A release build has those entries taken out with <code>strip -S</code>.</li>
           <li><strong><code>scripts/package.sh</code></strong> makes the copy a release carries: the app built afresh and zipped. It opens the zip again to see that the signature holds, that both halves are there and that neither this Mac's name nor a home folder's path is in it, and it will not package a working copy with changes that are not committed.</li>
@@ -828,7 +828,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <li><strong>The icon is drawn by code.</strong> <code>scripts/make-icon.swift</code> draws the app's own mark, a W with the pen stroke and three dots, at every size macOS asks for.</li>
           <li><strong>Fonts are bundled:</strong> IBM Plex Mono and Caveat, both under the SIL Open Font License. <code>scripts/fetch-fonts.sh</code> records where they came from and checks them by hash.</li>
           <li><strong>It registers as an editor for Markdown</strong> at the rank Alternate, so it appears under Open With without taking over your <code>.md</code> files.</li>
-          <li><strong>It is not notarized.</strong> It is signed ad hoc, by the Mac that builds it, so macOS refuses a copy downloaded from a release until it is told to open it. Because each build is signed anew, macOS may ask once after a rebuild for permission to read the saved key.</li>
+          <li><strong>It is not notarized.</strong> Its certificate is the project's own, not one from Apple, so macOS refuses a copy downloaded from a release until it is told to open it. Builds signed with that certificate are one app to macOS, so the Keychain asks once for permission to read the saved key, and not again after a rebuild. A build signed ad hoc is a new app each time, and may ask again.</li>
         </ul>
       </section>
 
@@ -877,7 +877,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           </div>
           <div>
             <dt>Undo by whole-document snapshot</dt>
-            <dd><b>Buys</b>One history for text, groups, ghost text and Overflow, in 69 lines.</dd>
+            <dd><b>Buys</b>One history for text, groups, ghost text and Overflow, in 92 lines.</dd>
             <dd><b>Costs</b>Memory for up to 500 steps. Unchanged paragraphs are shared between snapshots, which keeps that small.</dd>
           </div>
           <div>
@@ -893,7 +893,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
           <div>
             <dt>Tests run inside the real app</dt>
             <dd><b>Buys</b>Scenarios exercise the same WebKit, the same bridge and the same shell code you run.</dd>
-            <dd><b>Costs</b>The harness is 1,069 of the shell's 4,018 lines and is compiled into the app. It does nothing unless the app is started with <code>--ui-test</code>.</dd>
+            <dd><b>Costs</b>The harness is 1,069 of the shell's 4,036 lines and is compiled into the app. It does nothing unless the app is started with <code>--ui-test</code>.</dd>
           </div>
           <div>
             <dt>The app counts a trim, not the model</dt>
@@ -906,7 +906,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
       <section id="gaps">
         <h2>Known gaps</h2>
         <h3>Where it had to guess</h3>
-        <p>The original is not released, so the clips and the author's replies are the whole specification. Section 9 of the spec lists 61 decisions the clips do not settle, each in one row so it can be challenged. The README summarizes them.</p>
+        <p>The original is not released, so the clips and the author's replies are the whole specification. Section 9 of the spec lists 62 decisions the clips do not settle, each in one row so it can be challenged. The README summarizes them.</p>
         <h3>Differences from the original</h3>
         <ul>
           <li>Lines are 36 px apart, not 36.4, and Overflow's are 22, not 22.5.</li>
@@ -935,11 +935,11 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr class="group"><td colspan="3"><span class="chip is-shell">shell</span>&nbsp; Sources/WriteOn</td></tr>
               <tr><td class="name"><code>main.swift</code></td><td class="num">11</td><td>Starts the app. A scripted run becomes an accessory app with no Dock icon.</td></tr>
               <tr><td class="name"><code>AppDelegate.swift</code></td><td class="num">311</td><td>Launch, the list of windows, opening files, menu actions, quitting with unsaved work.</td></tr>
-              <tr><td class="name"><code>DocumentWindowController.swift</code></td><td class="num">599</td><td>One window, one document: the web view, the bridge handlers, the file, save and close.</td></tr>
+              <tr><td class="name"><code>DocumentWindowController.swift</code></td><td class="num">604</td><td>One window, one document: the web view, the bridge handlers, the file, save and close.</td></tr>
               <tr><td class="name"><code>Bridge.swift</code></td><td class="num">87</td><td>Messages between page and shell: handlers, <code>emit</code>, <code>ask</code>.</td></tr>
               <tr><td class="name"><code>AssetSchemeHandler.swift</code></td><td class="num">73</td><td>Serves the page at <code>writeon://app/</code>. Nothing outside the web root is readable.</td></tr>
               <tr><td class="name"><code>FileStore.swift</code></td><td class="num">238</td><td>Reading and writing documents, recent documents, drafts, and the panels and alerts.</td></tr>
-              <tr><td class="name"><code>AIClient.swift</code></td><td class="num">518</td><td>Asks the AI service: streaming, cancellation, asking again. Turns every failure into one readable line.</td></tr>
+              <tr><td class="name"><code>AIClient.swift</code></td><td class="num">531</td><td>Asks the AI service: streaming, cancellation, asking again. Turns every failure into one readable line.</td></tr>
               <tr><td class="name"><code>AIWire.swift</code></td><td class="num">345</td><td>The two ways a service is spoken to, OpenAI's and Anthropic's: what is sent, and how the answer is read.</td></tr>
               <tr><td class="name"><code>Credentials.swift</code></td><td class="num">212</td><td>Finds the key: Keychain, environment, login shell.</td></tr>
               <tr><td class="name"><code>AppSettings.swift</code></td><td class="num">92</td><td>What the app remembers, in UserDefaults or, for a scripted run, in memory.</td></tr>
@@ -957,7 +957,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
 
               <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/doc, pure</td></tr>
               <tr><td class="name"><code>blocks.js</code></td><td class="num">463</td><td>Editing the document as data: split, merge, delete, insert, group, show a variant, normalize.</td></tr>
-              <tr><td class="name"><code>format.js</code></td><td class="num">564</td><td>The file format in every direction, and reading files edited elsewhere.</td></tr>
+              <tr><td class="name"><code>format.js</code></td><td class="num">573</td><td>The file format in every direction, and reading files edited elsewhere.</td></tr>
               <tr><td class="name"><code>model.js</code></td><td class="num">92</td><td>A group and its variants: add, remove, set active, validate.</td></tr>
               <tr><td class="name"><code>ids.js</code></td><td class="num">15</td><td>Group ids, and which ids are safe to accept from a file.</td></tr>
               <tr><td class="name"><code>history.js</code></td><td class="num">92</td><td>Undo and redo over snapshots, with typing coalesced into bursts.</td></tr>
@@ -972,7 +972,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/ai</td></tr>
               <tr><td class="name"><code>prompts.js</code></td><td class="num">248</td><td>What the model is asked: messages, limits, the JSON shapes for the Lab.</td></tr>
               <tr><td class="name"><code>parse.js</code></td><td class="num">364</td><td>Reading and checking what comes back.</td></tr>
-              <tr><td class="name"><code>client.js</code></td><td class="num">46</td><td>Starts a request over the bridge and receives the answer as events.</td></tr>
+              <tr><td class="name"><code>client.js</code></td><td class="num">50</td><td>Starts a request over the bridge and receives the answer as events.</td></tr>
 
               <tr class="group"><td colspan="3"><span class="chip is-page">page</span>&nbsp; web/src/editor</td></tr>
               <tr><td class="name"><code>editor.js</code></td><td class="num">461</td><td>The editing surface: the two kinds of edit, history, clipboard, drag and drop.</td></tr>
@@ -985,7 +985,7 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>alternatives.js</code></td><td class="num">471</td><td>Showing another variant, cycling under the pointer, deleting one.</td></tr>
               <tr><td class="name"><code>panel.js</code></td><td class="num">467</td><td>The alternatives panel.</td></tr>
               <tr><td class="name"><code>ai-alternatives.js</code></td><td class="num">100</td><td><code>??</code> and Ctrl+Shift+G.</td></tr>
-              <tr><td class="name"><code>lab.js</code></td><td class="num">912</td><td>The Lab: trims, marks, typos, the proposal card.</td></tr>
+              <tr><td class="name"><code>lab.js</code></td><td class="num">953</td><td>The Lab: trims, marks, typos, the proposal card.</td></tr>
               <tr><td class="name"><code>overflow.js</code></td><td class="num">153</td><td>The Overflow panel, stashing and using.</td></tr>
               <tr><td class="name"><code>ghost.js</code></td><td class="num">21</td><td>The ghost command.</td></tr>
               <tr><td class="name"><code>contextmenu.js</code></td><td class="num">151</td><td>The right-click menu.</td></tr>
@@ -1005,11 +1005,11 @@ one way&lt;/span&gt;&lt;/p&gt;…","groups":{"t1tle01":{"scope":"sentence","vari
               <tr><td class="name"><code>styles/*.css</code></td><td class="num">1,209</td><td>Six stylesheets. <code>base.css</code> holds the fonts and every value measured from the clips as CSS variables.</td></tr>
 
               <tr class="group"><td colspan="3">Scripts, tests and documents</td></tr>
-              <tr><td class="name"><code>scripts/</code></td><td class="num">887</td><td>Fourteen things to run: build the app, give a Mac an identity to sign it with, make the copy a release carries, make a release, write what its page says, run everything, look for keys, run one scenario, run a measurement, check a real launch, serve the page to a browser, take the README's pictures, draw the icon, fetch the fonts.</td></tr>
-              <tr><td class="name"><code>.github/workflows/</code></td><td class="num">96</td><td>What GitHub’s own Mac does with a release’s tag: builds and tests the app, packages it, runs it from the zip, and publishes it.</td></tr>
-              <tr><td class="name"><code>tests/unit/</code></td><td class="num">3,420</td><td>16 test files for the pure modules.</td></tr>
-              <tr><td class="name"><code>tests/ui/</code></td><td class="num">7,995</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
-              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,292</td><td>The design spec: measurements, behavior, and the 61 decisions the clips did not settle.</td></tr>
+              <tr><td class="name"><code>scripts/</code></td><td class="num">909</td><td>Fourteen things to run: build the app, give a Mac an identity to sign it with, make the copy a release carries, make a release, write what its page says, run everything, look for keys, run one scenario, run a measurement, check a real launch, serve the page to a browser, take the README's pictures, draw the icon, fetch the fonts.</td></tr>
+              <tr><td class="name"><code>.github/workflows/</code></td><td class="num">113</td><td>What GitHub’s own Mac does with a release’s tag: builds and tests the app, packages it, runs it from the zip, and publishes it.</td></tr>
+              <tr><td class="name"><code>tests/unit/</code></td><td class="num">3,432</td><td>16 test files for the pure modules.</td></tr>
+              <tr><td class="name"><code>tests/ui/</code></td><td class="num">8,014</td><td>34 scenarios, the helper injected ahead of each (<code>_harness.js</code>), and the stand-in AI gateway.</td></tr>
+              <tr><td class="name"><code>docs/superpowers/specs/</code></td><td class="num">1,301</td><td>The design spec: measurements, behavior, and the 62 decisions the clips did not settle.</td></tr>
               <tr><td class="name"><code>docs/superpowers/plans/</code></td><td class="num">443</td><td>The 23-task plan the app was built from.</td></tr>
             </tbody>
           </table>

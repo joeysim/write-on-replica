@@ -2,7 +2,8 @@
 # published again by hand, from the Actions tab, for a tag whose release went wrong. The app
 # is built from the tagged commit on GitHub's own Mac and tested; then it is packaged as
 # scripts/package.sh packages it, run once more as it is in the zip, and published with what
-# CHANGELOG.md says of that version.
+# CHANGELOG.md says of that version. When the repository's secrets hold the project's signing
+# identity, the app is signed with it, as on the Mac that made it; otherwise ad hoc.
 name: Release
 # Each run names its tag. A run by hand starts from main, so without this its title is only
 # "Release", and the list shows main where the tag should be.
@@ -46,6 +47,18 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      - name: Sign with the project's identity
+        env:
+          WRITEON_SIGNING_P12: ${{ secrets.WRITEON_SIGNING_P12 }}
+          WRITEON_SIGNING_P12_PASSWORD: ${{ secrets.WRITEON_SIGNING_P12_PASSWORD }}
+        run: |
+          if [ -z "$WRITEON_SIGNING_P12" ]; then
+            echo "::notice::The repository's secrets hold no signing identity, so the app is signed ad hoc."
+            exit 0
+          fi
+          scripts/make-signing-identity.sh < /dev/null
+          echo "SIGNED=1" >> "$GITHUB_ENV"
+
       - name: Build and package
         run: scripts/package.sh
 
@@ -53,6 +66,10 @@ jobs:
         run: |
           opened="$RUNNER_TEMP/opened"
           ditto -x -k "build/releases/$VERSION/Write_On-$VERSION.zip" "$opened"
+          if [ "${SIGNED:-0}" = 1 ] && ! codesign -dvv "$opened/Write_On.app" 2>&1 | grep -q '^Authority=Write_On Local Signing'; then
+            echo "::error::The app in the zip is not signed with the project's identity."
+            exit 1
+          fi
           export WRITEON_APP="$opened/Write_On.app" WRITEON_WEB_ROOT="$opened/Write_On.app/Contents/Resources/web"
           # Each scenario runs, even after one fails. A failure becomes an annotation, because
           # anyone can read an annotation, but only a signed-in person can read the log.

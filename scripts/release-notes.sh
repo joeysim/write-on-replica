@@ -27,6 +27,16 @@ print('\n'.join(lines))
 EOF
 )"
 [ -n "$CHANGES" ] || { echo "release-notes: CHANGELOG.md says nothing under $VERSION" >&2; exit 1; }
+
+# How the app in the zip is signed, for the caution below.
+OPENED="$(mktemp -d)"
+trap 'rm -rf "$OPENED"' EXIT
+ditto -x -k "$ZIP" "$OPENED"
+if codesign -dvv "$OPENED/Write_On.app" 2>&1 | grep -q '^Authority=Write_On Local Signing'; then
+  SIGNATURE="The project signs it with its own certificate, not one from Apple, and Apple did not notarize it."
+else
+  SIGNATURE="It has an ad hoc signature, and Apple did not notarize it."
+fi
 SIZE="$(stat -f %z "$ZIP" | awk '{ printf "%.1f MB", $1 / 1000000 }')"
 SUM="$(shasum -a 256 "$ZIP" | cut -d' ' -f1)"
 
@@ -43,7 +53,7 @@ $CHANGES
 
 The [release workflow]($REPO/blob/main/.github/workflows/release.yml) built the app on a Mac at GitHub. Before it published the zip, it ran the unit tests. Then it ran the app from the zip.
 
-**Caution: macOS refuses to open the app the first time, and can say that the app is damaged.** The app is not damaged. It has an ad hoc signature, and Apple did not notarize it. To open the app:
+**Caution: macOS refuses to open the app the first time, and can say that the app is damaged.** The app is not damaged. $SIGNATURE To open the app:
 
 1. Unzip the zip.
 2. Drag Write_On to Applications.

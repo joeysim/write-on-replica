@@ -57,9 +57,10 @@ Mac; after that only what changed is built again.
 **A built copy** is attached to each
 [release](https://github.com/joeysim/write-on-replica/releases) as
 `Write_On-<version>.zip`: unzip it and drag Write_On to Applications. macOS will refuse to
-open it the first time, and may call it damaged. It is not: it is signed ad hoc, by the
-Mac that built it, and not notarized, as Apple asks of anything passed from one Mac to
-another. Take off the mark the download put on it, and it opens:
+open it the first time, and may call it damaged. It is not: its certificate is the
+project's own, not one from Apple (1.1.0 and earlier are signed ad hoc), and Apple did not
+notarize it, as Apple asks of anything passed from one Mac to another. Take off the mark
+the download put on it, and it opens:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Write_On.app
@@ -435,13 +436,12 @@ Once a release is published, the zip there is the one downloaded from its page. 
 own build folders are in `.build/`, beside it.
 
 **Signing.** A build is signed ad hoc unless the Mac that builds it has a signing identity
-of its own. To make one, run `scripts/make-signing-identity.sh` once in Terminal, at that
-Mac. It asks for your password through `sudo`, and then macOS asks again in a dialog on
-the screen. That trusts its certificate for code signing and for nothing else.
-After that, every build made on that Mac is signed with it. macOS then sees each build as
-the same app, so the Keychain asks only once before a new build reads the key that
-Settings saved. The identity stays in `~/.writeon-signing`, outside the repository.
-Releases built on GitHub are still signed ad hoc.
+of its own. To make one, run `scripts/make-signing-identity.sh` once. After that, every
+build made on that Mac is signed with it. macOS then sees each build as the same app, so
+the Keychain asks only once before a new build reads the key that Settings saved. The
+identity stays in `~/.writeon-signing`, outside the repository. Releases built on GitHub
+are signed with the same identity, from the repository's secrets `WRITEON_SIGNING_P12` (the
+identity's `identity.p12`, in base64) and `WRITEON_SIGNING_P12_PASSWORD`.
 
 The app is two parts. `Sources/WriteOn` is a small AppKit shell: windows, the menu bar,
 files, the key, the network. `web/` is the editor, a page of plain ES modules with no build

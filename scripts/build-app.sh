@@ -43,15 +43,15 @@ cp -R "$ROOT/web" "$APP/Contents/Resources/web"
 [ -f "$ROOT/packaging/AppIcon.icns" ] || swift "$ROOT/scripts/make-icon.swift" >/dev/null
 cp "$ROOT/packaging/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
 # The signature. A Mac with a signing identity of its own (scripts/make-signing-identity.sh) signs
-# with it, so that macOS sees each build as the same app. Elsewhere, and until that identity is
-# trusted, the signature is ad hoc.
+# with it, so that macOS sees each build as the same app. Elsewhere the signature is ad hoc.
+# codesign needs no trust in the certificate to sign with it.
 SIGNING="${WRITEON_SIGNING_DIR:-$HOME/.writeon-signing}"
 KEYCHAIN="$SIGNING/signing.keychain-db"
 IDENTITY=""
 if [ -f "$KEYCHAIN" ] && [ -f "$SIGNING/signing.keychain.password" ]; then
   security unlock-keychain -p "$(cat "$SIGNING/signing.keychain.password")" "$KEYCHAIN"
-  IDENTITY="$(security find-identity -v -p codesigning "$KEYCHAIN" | awk '/"Write_On Local Signing"/ { print $2; exit }')"
-  [ -n "$IDENTITY" ] || echo "build-app: the signing identity is not trusted yet (scripts/make-signing-identity.sh): signing ad hoc" >&2
+  IDENTITY="$(security find-identity -p codesigning "$KEYCHAIN" | awk '/"Write_On Local Signing"/ { print $2; exit }')"
+  [ -n "$IDENTITY" ] || echo "build-app: there is no Write_On Local Signing in $KEYCHAIN: signing ad hoc" >&2
 fi
 if [ -n "$IDENTITY" ]; then
   # codesign finds an identity only in a keychain on the search list. The signing keychain is
