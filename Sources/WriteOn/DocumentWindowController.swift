@@ -349,6 +349,11 @@ final class DocumentWindowController: NSObject, NSWindowDelegate, WKNavigationDe
             if let self, let id = params["id"] as? String { self.ai.cancel(id, for: self.id) }
             return nil
         })
+        // The name of the model in force, for the page to say what it is waiting for.
+        bridge.on("ai.model") { [weak self] _, reply in
+            guard let self else { return reply(.success(nil)) }
+            self.ai.model { name in reply(.success(["model": name])) }
+        }
         bridge.on("log", sync: { [weak self] params in
             let level = params["level"] as? String ?? "log"
             let message = params["message"] as? String ?? ""

@@ -514,7 +514,9 @@ pointed at):
    (§9 item 61).
 2. While it reads, a crimson line the width of the text column sweeps down each block of
    text in turn, the heading included, 300 ms to a block whatever its height, at a steady
-   speed from its top to its bottom.
+   speed from its top to its bottom. While the model says nothing for 5 s, the card's
+   second line reads "Waiting for glm-5.3… 12 s": the model in force, and the time since
+   the pass began. It goes back when part of the answer arrives (§9 item 62).
 3. When the answer arrives the proposed cuts drop, in one frame, to 22% where they stand:
    twice the strength of ghosted text (the clip measures 0.226 against ghost's 0.112).
    The card's first line becomes "**Slight trim** 535 → 480 words · −10%" and a "Walk
@@ -558,8 +560,9 @@ every passage chosen (§9 item 3). It deletes no word, changes no
 letter and removes no line, so Ghost brings back any of the words (§6.7). The piece as it
 reads leaves ghosted words out: in the Markdown tab and Post to X the gaps close to one
 space, there is no space before a stop, and a paragraph ghosted whole is left out with its
-blank line. A sentence whose first words are ghosted keeps its small letter. Nothing
-outside a faded passage is ghosted, however the answer is formed.
+blank line. A sentence whose first words are ghosted starts there with a capital. The
+page keeps its letter, so that revived words read as they did. Nothing outside a faded
+passage is ghosted, however the answer is formed.
 
 **How much a trim takes** is counted by the app, not the model. The model says of every
 sentence what words it could lose and, from 1 to 5, how much the piece needs it (the
@@ -756,7 +759,8 @@ hairline edge, 7 px corners and a soft shadow that falls mostly below it.
 - **"Markdown" is the replica's own** (§9 item 53): the piece as it reads now, for taking
   elsewhere. It is the document's lines with the version of each group that is showing,
   heading marks kept, and without what is not the piece: ghosted text (the gap it leaves
-  closed up to one space, and a line with nothing else in it left out), Overflow, the
+  closed up to one space, a sentence that ghosted words opened given a capital, and a line
+  with nothing else in it left out), Overflow, the
   `write_on` comment, and the blank lines at either end. No line has space at its ends
   and there is never more than one blank line together. It is the text Post to X sends, with the
   heading marks. Nothing in it is dimmed. With this tab showing the byte count is the
@@ -898,19 +902,22 @@ compose window, asked for by name and checked by the shell (§6.11).
 
 **Bridge.** Page to shell: `doc.start` (what this window opens with), `doc.state`
 (unsaved or not, the name, what the menu bar needs), `file.save`, `file.open`,
-`draft.write`, `ai.start`, `ai.cancel`, `clipboard.write`, `browser.open`, `settings.get`,
+`draft.write`, `ai.start`, `ai.cancel`, `ai.model`, `clipboard.write`, `browser.open`, `settings.get`,
 `settings.set`. Shell to page: `menu.command`, `file.opened`, `ai.delta`, `ai.done`,
 `ai.error`. The shell also asks the page one thing and waits for the answer: `save`, on
 the way out of a window with unsaved changes.
 
 An AI request is `ai.start { id, messages, maxTokens, effort, schema? }`. The answer comes
 back as `ai.delta { id, text }` events while it streams, then `ai.done { id }`, or
-`ai.error { id, message }` with one line a person can read. `ai.cancel { id }` calls it
-off.
+`ai.error { id, message, cutShort }` with one line a person can read; `cutShort` is true
+when the answer ran out of room after it began. `ai.cancel { id }` calls it off.
+`ai.model` answers `{ model }`, the name of the model in force, so that the Lab can say
+what it waits for. It never gives the key.
 
 **Build.** The Command Line Tools are enough, without Xcode: the app is a Swift
-package built with `swift build`, and a script assembles and ad-hoc signs
-`Write_On.app` (Info.plist, resources, fonts, icon). The app is universal. The script
+package built with `swift build`, and a script assembles and signs `Write_On.app`
+(Info.plist, resources, fonts, icon). It signs with the project's own certificate where the
+Mac has it (`scripts/make-signing-identity.sh`), and ad hoc where it does not. The app is universal. The script
 builds it twice, for Apple silicon and for Intel, and joins the two executables with
 `lipo`; building for both at once is something SwiftPM does only with Xcode. Each half
 has a build folder of its own (`.build/universal/arm64` and `x86_64`), because SwiftPM
@@ -1181,7 +1188,7 @@ go another way.
 | 20 | App identity | Display name "Write_On"; bundle id `com.thesimhons.writeon`. |
 | 21 | Ghost text in the saved Markdown | Written as ordinary text; the ghost marking lives only in the metadata. |
 | 22 | Whole-document character count | Characters of every block, spaces included, line breaks and the hidden heading marker excluded. (Only the selection readout could be checked exactly.) |
-| 23 | What "Ghost all" does | It ghosts every passage not revived, as one step to undo, and deletes nothing. The words stay where they were, set aside, and Ghost brings them back (§6.10). Asked for by the replica's owner on 18 October 2026. Before, it deleted the cuts and tidied the joins: doubled spaces, a space before a stop, the capital of a sentence whose first words went. Ghosting changes no letter, so such a sentence now keeps its small letter. |
+| 23 | What "Ghost all" does | It ghosts every passage not revived, as one step to undo, and deletes nothing. The words stay where they were, set aside, and Ghost brings them back (§6.10). Asked for by the replica's owner on 18 October 2026. Before, it deleted the cuts and tidied the joins: doubled spaces, a space before a stop, the capital of a sentence whose first words went. Ghosting changes no letter. Where ghosted words open a sentence, the piece as it reads (the Markdown tab, Post to X) starts it with a capital; the page keeps its letter, so that revived words read as they did. A word with a capital in it ("iPhone") is left as it is. |
 | 24 | Arrow keys while hovering | → and ↓ go forward, ← and ↑ go back. The clips show both directions and wrap-around, not which key is which. |
 | 25 | Panel details | Clicking a tab retargets at that scope; ↑ / ↓ do not wrap; a group cannot be deleted down to nothing. |
 | 26 | Lab popover while a proposal is pending | The pending level is highlighted; choosing "Original" dismisses it, like "Cancel". |
@@ -1220,6 +1227,7 @@ go another way.
 | 59 | Alternatives from a model that thinks first | Found with `muse-spark-open` on 16 October 2026, the day it became the default. A request for five words had room for the answer only, 120 tokens. The model thought before it answered, and in three tries each way it gave five words once; it ran out of room before a word in four, and after four words in one. The app threw those four away. Now a request for alternatives has room to think as well (§7.1). When all the suggestions asked for are in, the app stops listening, since some models go on writing to the end of their room. An answer that breaks off still gives the lines that came whole. |
 | 60 | The model list on LunaRoute, spoken to Anthropic's way | Found on 16 October 2026. Asked Anthropic's way (with `anthropic-version`), LunaRoute gives its list in Anthropic's shape: `"capabilities": { "messages": { "supported": true }, … }`, with no word of a schema. Settings read only the shape LunaRoute gives OpenAI's way (`"anthropic_messages": true, "json_schema": true`), and its list came up empty. Settings now reads both shapes. In Anthropic's shape, a model that speaks Anthropic's way is listed: 13 of LunaRoute's models, where OpenAI's way lists 14. |
 | 61 | The trim card's words | The clip's trim card says "Make the cuts" and "Done", over "Faded words would go. Click one to keep it." The replica's card says "Ghost all" and "Cancel", over "Faded words would be ghosted. Click one to revive it." The owner asked for this on 18 and 19 October 2026, so that the card speaks the app's own words: making the cuts ghosts them, and after a walk through the cuts "Done" read as "finished" though it put every choice away. Cancel puts the trim away and ghosts nothing; while the card reads, it calls the request off. A card with nothing to cancel (a failure, marks, typos) still says "Done". |
+| 62 | Waiting for the model | Not in the clip. The owner asked for it on 21 October 2026, after a slow spell at LunaRoute in which a pass showed only the moving line for a minute. While the model says nothing for 5 s, the Lab card's second line reads "Waiting for glm-5.3… 12 s": the model in force, from the shell, and the time since the pass began, counting on through a second request. It goes back to the card's usual line when part of the answer arrives. |
 
 ## 10. Verification
 

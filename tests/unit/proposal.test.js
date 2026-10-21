@@ -130,7 +130,8 @@ test('making the cuts ghosts what was proposed, and deletes nothing', () => {
   const made = ghostProposal(blocks, proposal);
   assert.equal(textOf(made[2]), P1, 'every word is still there');
   assert.equal(H([made[2]]), '<p><span data-ghost>Much of </span>the trouble<span data-ghost>, in my view,</span> comes from wanting it all.<span data-ghost> It rarely works.</span></p>');
-  assert.equal(reads(made).split('\n')[2], 'the trouble comes from wanting it all.', 'it reads trimmed, and no letter is changed');
+  assert.equal(reads(made).split('\n')[2], 'The trouble comes from wanting it all.', 'it reads trimmed, the sentence with a capital');
+  assert.equal(textOf(made[2]).slice(8, 11), 'the', 'though the page keeps its letter');
 });
 
 test('a cut that is kept is not ghosted', () => {

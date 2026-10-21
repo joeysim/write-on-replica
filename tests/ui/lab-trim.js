@@ -309,7 +309,8 @@ await act('Ghost all');
 t.equal([textOf(3), textOf(5)], [P1, 'Keep this aside what earns its place and really nothing else, then stop.'], 'every word is still there');
 t.equal(ghosted(3), ['Much of ', ', in my view,', 'It rarely works out that way.'], 'the cuts are ghosted');
 t.equal(ghosted(5), ['this aside ', ', then stop'], 'with what was ghosted before, and not the cut that was kept');
-t.equal(reading().slice(1, 3), ['the trouble comes from wanting every line to stay.', 'Keep what earns its place and really nothing else.'], 'the piece reads trimmed, and no letter is changed');
+t.equal(reading().slice(1, 3), ['The trouble comes from wanting every line to stay.', 'Keep what earns its place and really nothing else.'], 'the piece reads trimmed, a sentence the cuts opened with a capital');
+t.equal(textOf(3).slice(8, 11), 'the', 'though the page keeps its letter, for the words to come back as they were');
 t.equal(textOf(7), P3.join(' '), 'a paragraph with nothing proposed is as it was');
 t.equal(editor.root.querySelectorAll('[data-trim]').length, 0, 'nothing is faded any more');
 t.assert(!shown(card), 'and the card is gone');
@@ -514,6 +515,20 @@ await load();
   t.equal((await asked()).length, asks, 'and the model is not asked');
   await act('Done');
   await load();
+}
+
+// A model that says nothing for five seconds: the card says what it waits for, and how long.
+{
+  lab.forget();
+  await t.call('test.ai', { set: { chunks: [JSON.stringify({ sentences: SAID })], firstMs: 0, everyMs: 20, hold: true } });
+  await choose('Slight trim');
+  await t.wait(5600);
+  t.assert(/^Waiting for glm-5\.3… [56] s$/.test(card.querySelector('.hint').textContent), `the card says what it waits for: ${card.querySelector('.hint').textContent}`);
+  t.equal(title(), 'Slight trim Reading…', 'while it still reads');
+  await t.call('test.ai', { release: true });
+  await t.until(() => lab.pass() === 'proposal', 4000, 'the proposal');
+  t.equal(card.querySelector('.hint').textContent, 'Faded words would be ghosted. Click one to revive it.', 'and once the answer has come, the line is as it was');
+  await act('Cancel');
 }
 
 // --- when the model misbehaves --------------------------------------------------------------------
@@ -782,7 +797,7 @@ await load();
   const size = () => source.querySelector('.bytes').textContent;
   const tab = async (view) => t.click(...t.center(source.querySelector(`.tab[data-view="${view}"]`)));
   const sizeOf = (text) => `${new TextEncoder().encode(text).length.toLocaleString('en-US')} bytes`;
-  const TRIMMED = ['the trouble comes from wanting every line to stay.', 'Keep what earns its place and really nothing else.', P3.join(' ')]; // no letter is changed
+  const TRIMMED = ['The trouble comes from wanting every line to stay.', 'Keep what earns its place and really nothing else.', P3.join(' ')];
   await answer(SAID);
   await choose('Slight trim');
   await t.until(() => lab.pass() === 'proposal' && faded().length > 0, 4000, 'the proposal');

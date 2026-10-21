@@ -92,8 +92,12 @@ t.assert(getComputedStyle(scan).visibility === 'visible' && scan.getAnimations()
   t.assert(!said.includes('this aside') && !said.includes('A page with slips'), 'without ghosted text or the heading');
   t.assert(/hedges and filler/.test(said), 'with what to look for');
 }
+// After five seconds with nothing from the model, the card says what it waits for, and how long.
+await t.wait(5600);
+t.assert(/^Waiting for glm-5\.3… [56] s$/.test(hint()), `the card says what it waits for: ${hint()}`);
 await release();
 await t.until(() => marked().length > 0, 4000, 'the marks to arrive');
+t.equal(hint(), WHY, 'and once the answer has come, the line is as it was');
 t.equal(marked(), ['really quite', 'plain'], 'what the model quoted is marked; a quote that is not in the text is dropped');
 t.same(html(), before, 'the text itself is untouched');
 t.assert(!editor.canUndo, 'and there is nothing to undo');

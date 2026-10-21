@@ -44,6 +44,7 @@ const NOTHING = {
   unmatched: 'The AI quoted words that are not in the text. Try again.',
 };
 const SWEEP_MS = 300; // the line takes this long over each block
+const WAIT_NOTE_MS = 5000; // while the model says nothing for this long, the card says what it waits for
 const CLOSE_MS = 150;
 const EDGE = 110; // how far inside the window a passage must be to be clear of the fading edge
 // The card of a trim proposal is wider than its words need: 601.5px in the clip for a name
@@ -219,6 +220,8 @@ export function createLab({ editor, ui, ai, commands, cards }) {
 
     if (mode === 'reading') {
       state.textContent = 'Reading…';
+      const note = waitingNote();
+      if (note) hint.textContent = note;
       // "Walk through" joins the others with the first cuts, as in the clip; none of them
       // does anything until the whole answer is in. A trim card says "Ghost all" and "Cancel"
       // where the clip says "Make the cuts" and "Done" (the owner's choice, spec section 9).
@@ -248,6 +251,39 @@ export function createLab({ editor, ui, ai, commands, cards }) {
       }),
     );
   }
+  // --- a slow answer ---------------------------------------------------------------------------
+
+  // A model can be slow to say anything: LunaRoute's took a minute now and then. While it says
+  // nothing for five seconds, the card says what it waits for, and for how long.
+  let ticker = 0;
+
+  /** Starts timing the pass that is reading, and asks the shell which model it waits for. */
+  function timeReading() {
+    const mine = pass;
+    mine.began = performance.now();
+    mine.heardAt = mine.began;
+    ai.model?.().then((model) => {
+      mine.model = model;
+    });
+    clearInterval(ticker);
+    ticker = setInterval(() => {
+      if (pass?.mode !== 'reading') {
+        clearInterval(ticker);
+        ticker = 0;
+        return;
+      }
+      hint.textContent = waitingNote() ?? HINTS[family(pass.kind)];
+    }, 1000);
+  }
+
+  /** What the card says while the model has said nothing for a while, or null. */
+  function waitingNote() {
+    if (pass?.mode !== 'reading' || pass.began === undefined) return null;
+    const now = performance.now();
+    if (now - pass.heardAt < WAIT_NOTE_MS) return null;
+    return `Waiting for ${pass.model ?? 'the AI'}… ${Math.round((now - pass.began) / 1000)} s`;
+  }
+
   card.addEventListener('mousedown', (event) => event.preventDefault());
   card.addEventListener('mouseover', (event) => {
     for (const made of actions.children) made.classList.toggle('is-hovered', made === event.target);
@@ -457,6 +493,8 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     const { blocks } = editor; // what the answer will be about
     const paragraphs = offered(blocks, { headings: kind === 'typos' });
     pass = { kind, name, mode: 'reading', ...options };
+    const mine = pass;
+    timeReading();
     report();
     if (paragraphs.length === 0) {
       fail(NOTHING.empty);
@@ -470,6 +508,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
       let answer = '';
       const request = ai.start(labRequest(kind, offer), (text) => {
         answer += text;
+        mine.heardAt = performance.now();
       });
       pass.request = request;
       request.done.then(
@@ -654,6 +693,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
       settle(trims.reading.outcome); // read already: it is there at once
       return;
     }
+    timeReading();
     report();
     startSweep();
     const reading = readTrims(paragraphs);
@@ -667,6 +707,7 @@ export function createLab({ editor, ui, ai, commands, cards }) {
     let arrived = 0;
     const hear = () => {
       if (pass !== mine) return;
+      mine.heardAt = performance.now();
       const whole = arrivedSoFar(entry.answer);
       if (whole.length === arrived) return; // (fewer than before: the answer is being asked for again)
       arrived = whole.length;

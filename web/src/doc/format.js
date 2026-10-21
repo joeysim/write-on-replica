@@ -204,6 +204,12 @@ export function blocksToHtml(blocks) {
 
 // --- markdown <-> blocks ----------------------------------------------------------------
 
+// Where ghosted words opened a sentence: the start of the block, or after a stop.
+const OPENS = /(^|[.!?…]["'”’)\]]*)$/;
+/** `text` with its first word given a capital, if it is a word of small letters only. */
+const capitalized = (text) =>
+  text.replace(/^(\s*["'“‘(\[]*)(\p{Ll})(\p{L}*)/u, (all, lead, first, rest) => (/\p{Lu}/u.test(rest) ? all : lead + first.toUpperCase() + rest));
+
 function blockText(block, { withoutGhost = false } = {}) {
   if (!withoutGhost) return block.runs.map((r) => r.text).join('');
   let text = '';
@@ -217,6 +223,9 @@ function blockText(block, { withoutGhost = false } = {}) {
     }
     let next = run.text;
     if (dropped) {
+      // A sentence that ghosted words opened reads with a capital. The page keeps its letter,
+      // so revived words read as they did.
+      if (OPENS.test(text.trimEnd())) next = capitalized(next);
       // Close the gap the ghosted run leaves behind: one space where there were two, none
       // before a stop or a comma, and one where the only space went with the ghosted words.
       if (/\s$/.test(text) && /^\s/.test(next)) next = next.trimStart();

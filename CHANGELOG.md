@@ -6,6 +6,11 @@ release that brings it.
 
 ## Unreleased
 
+- In the Markdown tab and in Post to X, a sentence whose first words are ghosted now starts
+  with a capital. The page keeps its letters, so revived words read as they did.
+- While the AI says nothing for 5 seconds, the Lab card says which model it waits for, and
+  for how long: "Waiting for glm-5.3… 12 s".
+
 ## 1.1.0 (2026-10-20)
 
 - The default model is now `glm-5.3`. Before, it was `glm-5.3-flash`.

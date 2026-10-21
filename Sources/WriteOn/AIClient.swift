@@ -12,6 +12,7 @@ import Foundation
 ///                      ai.error  { id, message, cutShort }   one line a person can read;
 ///                                  cutShort if the answer ran out of room after it began
 ///     page  -> shell   ai.cancel { id }
+///     page  -> shell   ai.model  {} -> { model }   the name of the model in force
 final class AIClient {
     static let defaultAddress = "https://gw.lunaroute.com/v1"
     static let defaultModel = "glm-5.3"
@@ -115,6 +116,18 @@ final class AIClient {
             } catch {
                 report(Self.reason(for: error))
             }
+        }
+    }
+
+    /// The name of the model a request goes to now: as Settings says, else as the environment
+    /// says, else the usual one. Only the name: never the key. Reports on the main thread.
+    func model(then report: @escaping (String) -> Void) {
+        let chosen = chosen()
+        let credentials = credentials
+        Task.detached(priority: .userInitiated) {
+            // The environment may mean asking the login shell, which takes a moment the first time.
+            let name = chosen.model ?? credentials.model() ?? AIClient.defaultModel
+            await MainActor.run { report(name) }
         }
     }
 

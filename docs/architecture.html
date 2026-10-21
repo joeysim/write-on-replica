@@ -456,6 +456,7 @@ native.on('menu.command', ({ name }) =&gt; shortcuts.perform(name));</pre>
               <tr><td class="name"><code>file.open</code></td><td></td><td>Show the Open panel.</td></tr>
               <tr><td class="name"><code>draft.write</code></td><td><code>{ text }</code></td><td>A copy of unsaved work, kept against a crash.</td></tr>
               <tr><td class="name"><code>ai.start</code>, <code>ai.cancel</code></td><td><code>{ id, messages, maxTokens, effort, schema? }</code></td><td>Start a request to the model, or call one off.</td></tr>
+              <tr><td class="name"><code>ai.model</code></td><td>→ <code>{ model }</code></td><td>The name of the model in force, for the Lab to say what it waits for. Never the key.</td></tr>
               <tr><td class="name"><code>settings.get</code>, <code>settings.set</code></td><td><code>{ read, alternates, sound }</code></td><td>The three switches the app remembers between launches.</td></tr>
               <tr><td class="name"><code>clipboard.write</code></td><td><code>{ text }</code></td><td>Copy.</td></tr>
               <tr><td class="name"><code>browser.open</code></td><td><code>{ url }</code></td><td>Open X's compose window. Any other address is refused.</td></tr>

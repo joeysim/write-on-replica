@@ -7,6 +7,7 @@
 //                    ai.error  { id, message, cutShort }   one line a person can read;
 //                              cutShort if the answer ran out of room after it began
 //   page  -> shell   ai.cancel { id }
+//   page  -> shell   ai.model  {} -> { model }   the name of the model in force
 
 export function createAIClient(native) {
   const live = new Map(); // id -> { onText, resolve, reject }
@@ -23,6 +24,9 @@ export function createAIClient(native) {
   native.on('ai.error', ({ id, message, cutShort }) => settle(id, (request) => request.reject(Object.assign(new Error(message), { cutShort: Boolean(cutShort) }))));
 
   return {
+    /** The name of the model a request goes to now, or null if the shell cannot say. */
+    model: () => native.call('ai.model').then((reply) => reply?.model ?? null, () => null),
+
     /**
      * Starts a request. `onText` is called with each piece of the answer as it comes.
      * @returns {{ done: Promise<void>, cancel: () => void }} `done` rejects with a reason

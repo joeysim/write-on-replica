@@ -374,6 +374,17 @@ test('plainText keeps the words either side of ghosted text a space apart, where
   assert.equal(plainText(state, { withoutGhost: true, headingMarker: false }), 'Keep this. And this.\n\nHalf ideas, unable ones.');
 });
 
+// A sentence that ghosted words opened reads with a capital, in the piece as it reads. The page
+// keeps its letters, so the words come back as they were if they are revived.
+test('plainText starts a sentence with a capital where ghosted words opened it', () => {
+  const read = (html) => plainText({ html, groups: {}, overflow: '' }, { withoutGhost: true });
+  assert.equal(read('<p><span data-ghost>Much of </span>the trouble comes. <span data-ghost>So, </span>it stays.</p>'), 'The trouble comes. It stays.');
+  assert.equal(read('<p>It is <span data-ghost>really </span>good.</p>'), 'It is good.', 'not in the middle of a sentence');
+  assert.equal(read('<p><span data-ghost>Honestly, </span>iPhone sales rose.</p>'), 'iPhone sales rose.', 'nor a word with a capital in it');
+  assert.equal(read('<p><span data-ghost>So </span>“the end” came.</p>'), '“The end” came.', 'past an opening quote');
+  assert.equal(plainText({ html: '<p><span data-ghost>Much of </span>the trouble.</p>', groups: {}, overflow: '' }), 'Much of the trouble.', 'and with the ghosted words in, nothing changes');
+});
+
 test('plainText leaves out a heading with nothing left in it, mark and all', () => {
   const state = {
     html: '<p># <span data-ghost>A title set aside</span></p><p><br></p><p>The piece.</p><p><br></p><p>## <span data-ghost>Dropped.</span> Kept</p><p><br></p><p># </p>',
