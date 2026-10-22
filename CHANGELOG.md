@@ -6,6 +6,8 @@ release that brings it.
 
 ## Unreleased
 
+## 1.1.1 (2026-10-22)
+
 - In the Markdown tab and in Post to X, a sentence whose first words are ghosted now starts
   with a capital. The page keeps its letters, so revived words read as they did.
 - While the AI says nothing for 5 seconds, the Lab card says which model it waits for, and
