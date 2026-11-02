@@ -17,6 +17,14 @@ t.assert(/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(info.version), `the a
   if (source === `v${info.version}`) t.equal(about, `Version ${info.version} (${commit})`, `About gives a release's version, and the commit it was built from (${source})`);
   else t.equal(about, `Version ${source?.slice(1)} (development)`, 'and About says where any other build came from, and that it is a development build');
 }
+// The name macOS gives the running app, which the app switcher shows, has a space (asked
+// 2 November 2026). The bundle is still Write_On.app, and Finder still shows that name, the
+// one that Terminal commands give. The app's own menu and About still say Write_On.
+{
+  const { name, finderName } = await t.call('test.environment');
+  t.equal(name, 'Write On', 'the app switcher calls the app Write On');
+  t.equal(finderName, 'Write_On', 'and Finder shows the name of the file');
+}
 
 // A scripted run is headless and stays out of the way of whoever is using the Mac: it has
 // no Dock icon and is not the active app, its window is on no display, cannot take the

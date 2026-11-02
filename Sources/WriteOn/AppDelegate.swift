@@ -23,6 +23,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
     private var choosing = false
     /// The windows a scripted run was asked for beyond its one. It opens none of them.
     private(set) var windowsAskedFor: [DocumentStart] = []
+    /// Check for Updates. Made once the app knows whether the run is scripted.
+    private(set) lazy var updates = Updates(scripted: scripted)
+    /// A later version to put in this copy's place on the way out (Install and Relaunch).
+    private var waitingUpdate: Updates.Staged?
 
     /// Checking and correcting are there to be turned on (Edit ▸ Spelling and Grammar,
     /// Substitutions) and are off until they are, so the page shows what was typed. These
@@ -215,6 +219,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         return [.applicationVersion: source.hasPrefix("v") ? String(source.dropFirst()) : source, .version: "development"]
     }
 
+    /// Write_On ▸ Check for Updates… (Updates): the latest release, if it is later, downloaded
+    /// and checked, and offered. Installing it is quitting, with the update going in on the
+    /// way out (`leaving`).
+    @objc func checkForUpdates(_ sender: Any?) {
+        guard !updates.busy, waitingUpdate == nil else { return }
+        if let why = updates.whyNot() {
+            return asking.tell("This copy of Write_On cannot update itself.", detail: why, for: nil)
+        }
+        let cancel: () -> Void = { [weak self] in self?.updates.cancel() }
+        asking.working("Checking for updates…", cancel: cancel)
+        updates.check(note: { [weak self] note in self?.asking.working(note, cancel: cancel) }) { [weak self] outcome in
+            guard let self else { return }
+            self.asking.working(nil, cancel: nil)
+            switch outcome {
+            case .canceled:
+                break
+            case .current(let version):
+                self.asking.inform("Write_On is up to date.", detail: "You have version \(version), the latest.", for: nil)
+            case .failed(let message, let detail):
+                self.asking.tell(message, detail: detail, for: nil)
+            case .ready(let release, let staged):
+                let current = self.updates.copy.version?.description ?? ""
+                self.asking.whetherToUpdate(to: release.version.description, from: current, notes: release.notes) { install in
+                    guard install else { return self.updates.discard(staged) }
+                    self.waitingUpdate = staged
+                    guard self.scripted else { return NSApp.terminate(nil) }
+                    // A scripted run does not quit. It goes as far as quitting would, and the
+                    // update notes what it would have opened again.
+                    self.reviewUnsaved { may in _ = self.leaving(may) }
+                }
+            }
+        }
+    }
+
     @objc func newDocument(_ sender: Any?) {
         openWindow(.blank)
     }
@@ -263,6 +301,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
             return true
         case #selector(openDocument(_:)):
             return !choosing
+        case #selector(checkForUpdates(_:)):
+            return !updates.busy && waitingUpdate == nil
         default:
             return true
         }
@@ -289,9 +329,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
     // MARK: Quitting
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard controllers.contains(where: { $0.dirty }) else { return .terminateNow }
-        reviewUnsaved { sender.reply(toApplicationShouldTerminate: $0) }
+        guard controllers.contains(where: { $0.dirty }) else { return leaving(true) ? .terminateNow : .terminateCancel }
+        reviewUnsaved { [weak self] may in sender.reply(toApplicationShouldTerminate: self?.leaving(may) ?? may) }
         return .terminateLater
+    }
+
+    /// The last step before the app goes, if it may. An update waiting to go in goes in, and
+    /// the app opens again afterward, with the documents open now. If the update cannot go
+    /// in, the app stays, as it was.
+    private func leaving(_ may: Bool) -> Bool {
+        guard let staged = waitingUpdate else { return may }
+        waitingUpdate = nil
+        guard may else {
+            updates.discard(staged)
+            return false
+        }
+        do {
+            try updates.install(staged)
+        } catch {
+            asking.tell("Write_On could not put the new version in its place.", detail: "\(error.localizedDescription) The version you have is as it was.", for: nil)
+            return false
+        }
+        updates.reopen(with: controllers.compactMap(\.fileURL))
+        return true
     }
 
     /// Asks about each document with unsaved changes in turn, and says whether the app may

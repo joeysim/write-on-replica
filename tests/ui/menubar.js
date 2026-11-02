@@ -20,7 +20,7 @@ const text = (block) => editor.blocks[block].runs.map((run) => run.text).join(''
 t.equal(titles(await menu()), ['Write_On', 'File', 'Edit', 'View', 'Tools', 'Window', 'Help'], 'the menus');
 t.equal(
   titles(await menu('Write_On')),
-  ['About Write_On', '-', 'Settings… ⌘,', '-', 'Services', '-', 'Hide Write_On ⌘H', 'Hide Others ⌥⌘H', 'Show All', '-', 'Quit Write_On ⌘Q'],
+  ['About Write_On', 'Check for Updates…', '-', 'Settings… ⌘,', '-', 'Services', '-', 'Hide Write_On ⌘H', 'Hide Others ⌥⌘H', 'Show All', '-', 'Quit Write_On ⌘Q'],
   'the app’s own',
 );
 t.equal(
@@ -226,3 +226,11 @@ await t.wait(900); // a checker would have marked the line by now
   t.equal(marks.matching, 0, 'and nothing is marked as misspelled');
   await t.snap('as-typed');
 }
+
+// --- Check for Updates -----------------------------------------------------------------------------------
+
+// It is for a copy downloaded from a release. A copy built here is not one, and says so before
+// it asks anything of GitHub. (updates.js runs a copy made a release, against a stand-in.)
+await answer();
+t.equal(await pick('Write_On', 'Check for Updates…'), true, 'Write_On ▸ Check for Updates… can be chosen');
+t.equal((await asked()).at(-1), ['tell', 'This copy of Write_On cannot update itself.'], 'and a copy built here says it cannot update itself');

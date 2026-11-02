@@ -34,7 +34,8 @@ So that you can tell a flaw from a decision:
   service's format uses: `Authorization: Bearer` spoken to OpenAI's way, `x-api-key`
   spoken to Anthropic's, and never in both. A key under LunaRoute's own name in the
   environment is sent to LunaRoute and to no other service. The README says exactly
-  [what is sent](README.md#the-ai). There is no telemetry and nothing checks for updates.
+  [what is sent](README.md#the-ai). There is no telemetry. Nothing checks for updates
+  unless you choose to (see below).
 - **Plain `http`** reaches only an address on this Mac or its own network (a `.local`
   name, a bare host name, a private address), for a model served there. The app refuses
   it for anywhere else, and macOS does too (as tried on macOS 26), so a key does not
@@ -46,6 +47,19 @@ So that you can tell a flaw from a decision:
   compose window, and the native side checks that address.
 - **Files.** The app reads and writes the files you open and save, and its own drafts in
   `~/Library/Application Support/Write_On`.
+- **Updates.** The app asks GitHub for the latest release only when you choose Check for
+  Updates, over https, at the address in its Info.plist (`WriteOnUpdates`). It sends no
+  key and nothing of yours, though GitHub sees the request come from your address. If the
+  release is later, the app downloads its zip over https, and it follows a redirect only
+  to another https address. Because the app downloads the zip, not a browser, the new
+  copy has no quarantine mark, and macOS does not check it when it first opens. The app's
+  own check takes the place of that. The app in the zip must meet the designated
+  requirement of the copy that runs: the bundle identifier and the project's certificate.
+  So only the project's key can sign an update that a copy takes. The app must also be
+  the version that the release names, and a later one, and it replaces the whole of the
+  copy at once. A copy signed ad hoc, or built from the source, does not update itself. A
+  scripted run asks only an address on this Mac (`WRITEON_UPDATES_URL`), and never opens
+  the app again.
 
 ## Known, and deliberate
 

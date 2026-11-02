@@ -237,6 +237,7 @@ final class UITestHarness {
         registerFiles()
         registerMenus()
         registerSettings()
+        registerUpdates()
         registerAskShell()
         if options.aiLive { registerLoginShell() }
         // What the run looks like from outside, for the scenario that checks it stays out
@@ -269,6 +270,9 @@ final class UITestHarness {
                 "source": info["WriteOnSource"] as? String ?? NSNull(),
                 "commit": info["WriteOnCommit"] as? String ?? NSNull(),
                 "about": "Version \(shown) (\(build))",
+                // The name macOS gives the app: in the app switcher and the Dock, and in Finder.
+                "name": NSRunningApplication.current.localizedName ?? NSNull(),
+                "finderName": FileManager.default.displayName(atPath: Bundle.main.bundlePath),
             ] as [String: Any]
         })
         bridge.on("test.done", sync: { [weak self] params in
@@ -354,6 +358,35 @@ final class UITestHarness {
             }
             answer()
         }
+    }
+
+    // MARK: Updates
+
+    /// test.updates { feed?, source?, adHoc? } -> { feed, whyNot, busy, reopened, bundle, version, source, signed }:
+    /// what Check for Updates goes by, having first, if they are given, said where it asks
+    /// (only this Mac, in a run) and what it takes this copy to be; whether it is at work;
+    /// what it would have opened again; and the copy on disk now, as its Info.plist says,
+    /// and whether it is signed as this copy was when it started.
+    private func registerUpdates() {
+        controller.bridge.on("test.updates", sync: { [weak self] params in
+            guard let self else { return nil }
+            let updates = self.app.updates
+            if let feed = params["feed"] as? String { updates.feed = URL(string: feed) }
+            if let source = params["source"] as? String { updates.copy.source = source }
+            if let adHoc = params["adHoc"] as? Bool { updates.copy.adHoc = adHoc }
+            let bundle = updates.copy.bundle
+            let info = NSDictionary(contentsOf: bundle.appendingPathComponent("Contents/Info.plist")) as? [String: Any] ?? [:]
+            return [
+                "feed": updates.feed?.absoluteString ?? NSNull(),
+                "whyNot": updates.whyNot() ?? NSNull(),
+                "busy": updates.busy,
+                "reopened": updates.reopened ?? NSNull(),
+                "bundle": bundle.path,
+                "version": info["CFBundleShortVersionString"] ?? NSNull(),
+                "source": info["WriteOnSource"] ?? NSNull(),
+                "signed": updates.copy.requirement.map { Updates.problem(signing: bundle, against: $0) == nil } ?? false,
+            ] as [String: Any]
+        })
     }
 
     // MARK: The login shell
@@ -1065,5 +1098,23 @@ final class ScriptedAsking: Asking {
 
     func tell(_ message: String, detail: String, for window: NSWindow?) {
         asked.append(["kind": "tell", "message": message, "detail": detail])
+    }
+
+    func inform(_ message: String, detail: String, for window: NSWindow?) {
+        asked.append(["kind": "inform", "message": message, "detail": detail])
+    }
+
+    /// { working: "cancel" } calls off what is under way, `after` milliseconds after it says so.
+    func working(_ note: String?, cancel: (() -> Void)?) {
+        guard let note else { return }
+        asked.append(["kind": "working", "message": note])
+        if take("working") as? String == "cancel", let cancel { later(cancel) }
+    }
+
+    /// { update: "install" } installs; any other answer, or none, is Not Now.
+    func whetherToUpdate(to version: String, from current: String, notes: [String], then reply: @escaping (Bool) -> Void) {
+        asked.append(["kind": "update", "version": version, "current": current, "notes": notes])
+        let install = take("update") as? String == "install"
+        later { reply(install) }
     }
 }

@@ -68,7 +68,18 @@ xattr -dr com.apple.quarantine /Applications/Write_On.app
 
 System Settings ▸ Privacy & Security may offer to open it anyway as well. Nobody has yet
 opened a downloaded copy on another Mac (see
-[What a person has to check](#what-a-person-has-to-check)).
+[What a person has to check](#what-a-person-has-to-check)). The app switcher calls the
+app Write On. In Finder and in Terminal it is still `Write_On.app`.
+
+**Updates.** From 1.2.0 on, Write_On ▸ Check for Updates… installs a later release, and
+the command above is not needed again. The app asks GitHub for the latest release only
+when you choose the item. If that release is later than your copy, the app downloads it and
+checks that it is signed with the same certificate as your copy. Then it offers to install
+it. Install and Relaunch quits the app as Quit does: it asks about unsaved changes first.
+Then it puts the new version in place of your copy and opens it again, with your
+documents. macOS opens the new version at once, because the app downloaded it, not the
+browser, so it has no quarantine mark. A copy that you built yourself does not update
+itself: update it with `git pull` and `scripts/build-app.sh`.
 
 The first window shows a short welcome piece. The app opens as a bare editor, text and a
 word count: **click the word count** (top left) to turn the tools on, and again to turn them
@@ -335,6 +346,11 @@ These need someone at the Mac:
     [Build and run](#build-and-run). Then open a `.md` file with File ▸ Open: it should
     not be grayed out. On the first other Mac it was tried on, every one was, until
     that was mended.
+19. **Check for Updates.** With a release in Applications, choose Write_On ▸ Check for
+    Updates… when a later release is out. It should offer the update, install it and open
+    again with the documents that were open, and macOS should ask nothing: no refusal,
+    no command, no password. Nobody has yet, because 1.2.0 is the first release with the
+    item. `tests/ui/updates.js` runs a copy of the app against a stand-in for GitHub.
 
 ## Decisions the clips do not settle
 
@@ -415,6 +431,7 @@ scripts/dev-server.sh        # serve the page at http://127.0.0.1:4173 for work 
 scripts/screenshots.sh       # take the pictures in docs/images again, out of sight
 scripts/check-secrets.sh     # look for keys in the repository and its history
 scripts/make-signing-identity.sh  # give this Mac an identity to sign builds with (below)
+scripts/sign-app.sh <app>    # sign an app as build-app.sh does: with that identity, or ad hoc
 swift scripts/make-icon.swift  # draw packaging/AppIcon.icns again
 ```
 
@@ -441,7 +458,9 @@ build made on that Mac is signed with it. macOS then sees each build as the same
 the Keychain asks only once before a new build reads the key that Settings saved. The
 identity stays in `~/.writeon-signing`, outside the repository. Releases built on GitHub
 are signed with the same identity, from the repository's secrets `WRITEON_SIGNING_P12` (the
-identity's `identity.p12`, in base64) and `WRITEON_SIGNING_P12_PASSWORD`.
+identity's `identity.p12`, in base64) and `WRITEON_SIGNING_P12_PASSWORD`. Check for Updates
+depends on it: a copy installs only a release that is signed with its own certificate.
+(`scripts/build-app.sh` signs with `scripts/sign-app.sh`.)
 
 The app is two parts. `Sources/WriteOn` is a small AppKit shell: windows, the menu bar,
 files, the key, the network. `web/` is the editor, a page of plain ES modules with no build
@@ -457,7 +476,9 @@ talk over a small request-and-reply bridge.
 `build/results/ui/<name>/`. The page is read from `web/` in the working copy, so page-only changes
 need no rebuild. `--zoom 2` makes the page lay out and paint as it does on a 2x display,
 whatever display the Mac has, which is the scale of the source clips. A scenario can ask
-for launch options of its own on its first line (`// launch: --setting read=false`).
+for launch options of its own on its first line (`// launch: --setting read=false`), and
+for a stand-in on its second: for the AI service (`// gateway:`) or for GitHub's releases
+(`// releases:`).
 
 A scenario is the body of an async function with a helper `t` in scope
 (`tests/ui/_harness.js`): assertions, snapshots and input. Clicks, drags, typing and
@@ -479,7 +500,11 @@ takes nothing from you. It also leaves the rest of the Mac as it found it:
   provider; the client itself is tested over HTTP against a stand-in gateway on this Mac
   (`tests/ui/support/fake-gateway.mjs`), which speaks both ways, with a key the stand-in
   knows; and the client of a run that is not a live one refuses every address that is
-  not on this Mac.
+  not on this Mac;
+- Check for Updates asks only a stand-in for GitHub's releases on this Mac
+  (`tests/ui/support/fake-releases.mjs`). The run is a copy of the app, signed with an
+  identity made for the run, and it is not opened again after an update. Afterward the
+  copy, the updates and the identity's keychain are deleted, and macOS forgets the copy.
 
 `tests/ui/smoke.js` checks the first part on every run, and the harness fails any run that
 came to the front, took the keyboard or changed the saved settings. Inside, the harness

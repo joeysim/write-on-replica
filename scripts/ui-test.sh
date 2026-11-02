@@ -12,7 +12,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT" # so that a scenario's launch options can name paths in the project
 NAME="${1:?usage: ui-test.sh <scenario> [options]}"
 shift
-BIN="${WRITEON_APP:-$ROOT/build/Write_On.app}/Contents/MacOS/WriteOn"
+APP="${WRITEON_APP:-$ROOT/build/Write_On.app}"
+BIN="$APP/Contents/MacOS/WriteOn"
 SCENARIO="$ROOT/tests/ui/$NAME.js"
 [ -x "$BIN" ] || { echo "ui-test: build the app first (scripts/build-app.sh)" >&2; exit 2; }
 [ -f "$SCENARIO" ] || { echo "ui-test: no scenario $SCENARIO" >&2; exit 2; }
@@ -49,6 +50,39 @@ if [ -n "$GATEWAY" ]; then
   [ -n "${PORT:-}" ] || { echo "ui-test: the stand-in gateway did not start (see $OUT/gateway.log)" >&2; exit 2; }
   export WRITEON_BASE_URL="http://127.0.0.1:$PORT/v1"
   export WRITEON_API_KEY="fake-key-from-the-environment"
+fi
+
+# In place of a gateway, a scenario can ask for a stand-in for GitHub's releases:
+#   // releases: tests/ui/support/fake-releases.mjs
+# Check for Updates puts a new version in place of the app that runs, so the run is a copy
+# of the app, made here in its own folder. The stand-in signs the copy for the run and makes
+# the updates that it hands out, and the app is given its address. Afterward macOS is told to
+# forget the copy, and the copy and the updates are deleted: a later version left about
+# could stand in for the real app.
+RELEASES="$(sed -n '2s|^// releases: ||p' "$SCENARIO")"
+if [ -n "$RELEASES" ]; then
+  COPY="$OUT/Applications/Write_On.app"
+  mkdir -p "$OUT/Applications"
+  ditto "$APP" "$COPY"
+  BIN="$COPY/Contents/MacOS/WriteOn"
+  node "$ROOT/$RELEASES" "$OUT" "$COPY" >"$OUT/releases.log" 2>&1 &
+  RELEASES_PID=$!
+  disown "$RELEASES_PID" # its end is not news
+  forget() {
+    kill "$RELEASES_PID" 2>/dev/null || true
+    /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$COPY" 2>/dev/null || true
+    rm -rf "$OUT/Applications" "$OUT/updates"
+  }
+  trap forget EXIT
+  # It makes the updates first, which takes some seconds.
+  for _ in $(seq 600); do
+    PORT="$(sed -n 's/^listening //p' "$OUT/releases.log")"
+    [ -n "$PORT" ] && break
+    kill -0 "$RELEASES_PID" 2>/dev/null || break
+    sleep 0.1
+  done
+  [ -n "${PORT:-}" ] || { echo "ui-test: the stand-in for GitHub's releases did not start (see $OUT/releases.log)" >&2; exit 2; }
+  export WRITEON_UPDATES_URL="http://127.0.0.1:$PORT/current/releases/latest"
 fi
 
 # Which half of the app runs is the Mac's choice, unless one is named.

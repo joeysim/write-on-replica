@@ -857,6 +857,7 @@ The menu bar holds every command, the page's under the Control shortcuts they ha
 
 | Menu | Items |
 | --- | --- |
+| Write_On | About Write_On, Check for Updates… (§6.14), Settings…, Services ▸, Hide Write_On, Hide Others, Show All, Quit Write_On |
 | File | New, Open…, Open Recent ▸ (newest first, Clear Menu), Close, Save…, Save As…, Post to X |
 | Edit | Undo and Redo (the document's own history, §5.3), Cut, Copy, Paste, Delete, Select All, and the standard Spelling and Grammar ▸, Substitutions ▸ and Speech ▸ |
 | View | Read Mode, Alternates, Overflow, Source, Enter Full Screen; the first three are ticked while on |
@@ -868,6 +869,37 @@ A command chosen from the menu does what its shortcut does, turning the tools on
 the shortcut would. Checking and correcting (spelling, grammar, autocorrection, smart
 quotes and dashes, text replacement) are all off until turned on in the Edit menu, whatever
 the system's own settings say; what is turned on there is remembered.
+
+### 6.14 Updates
+
+Not in the clips: the original is not released. Write_On ▸ Check for Updates…, under About,
+installs a later release (§9 item 63). It does what a person would do by hand, without the
+Terminal command that a copy downloaded with a browser needs.
+
+- The app asks only when the item is chosen, never at launch. It asks GitHub's API for the
+  latest release, over https, at the address in Info.plist (`WriteOnUpdates`).
+- If nothing is later, the app says "Write_On is up to date." It does not offer a release
+  that is not later than this copy, so an update never takes a copy back.
+- If a release is later, the app downloads its zip, `Write_On-<version>.zip`, into a
+  folder on the same disk as the copy, and unpacks it. The app in the zip must be the
+  version that the release names. It must also meet this copy's designated requirement,
+  which names the bundle identifier and the project's certificate; every half, file and
+  link is checked. If it fails, the app does not offer it, and says why.
+- While the app works, a small window says "Checking for updates…" and then "Downloading
+  Write_On 1.2.1…", with Cancel.
+- The offer says "Write_On 1.2.1 is ready to install.", with the version that the copy is
+  and up to five lines from "What changed" in the release notes. The buttons are Install
+  and Relaunch, and Not Now.
+- Install and Relaunch quits as Quit does: it asks about each unsaved document first, and
+  Cancel there keeps the app open and puts the update away. When the app may go, the new
+  copy replaces the whole of this one at once, in the same place. Once this copy has ended,
+  the app opens again, with the documents that were open.
+- A copy that cannot update itself says why, and asks GitHub nothing: one built from the
+  source (update it with `git pull` and `scripts/build-app.sh`), one signed ad hoc, one
+  that macOS runs from a hidden folder because it was opened where it was downloaded, and
+  one in a folder that it cannot change.
+- The new copy has no quarantine mark, because the app downloaded it, not a browser. So
+  macOS opens it without asking. The app's signature check takes the place of Gatekeeper's.
 
 ## 7. Architecture
 
@@ -882,6 +914,7 @@ Write_On.app
 │   ├── AIWire         the two ways a service is spoken to: OpenAI's chat completions, Anthropic's messages
 │   ├── Credentials    the key, the address, the format and the model: where each is found
 │   ├── Assets         serves the bundled page on a private URL scheme
+│   ├── Updates        Check for Updates: the latest release, checked against the app's own signature
 │   └── UITestHarness  runs a scripted scenario and writes snapshots (only when launched with --ui-test)
 └── Page (plain ES modules, no build step, no dependencies)
     ├── doc/      model, file format, text utilities, history      ← pure, unit-tested
@@ -917,8 +950,9 @@ what it waits for. It never gives the key.
 
 **Build.** The Command Line Tools are enough, without Xcode: the app is a Swift
 package built with `swift build`, and a script assembles and signs `Write_On.app`
-(Info.plist, resources, fonts, icon). It signs with the project's own certificate where the
-Mac has it (`scripts/make-signing-identity.sh`), and ad hoc where it does not. The app is universal. The script
+(Info.plist, resources, fonts, icon). It signs (`scripts/sign-app.sh`) with the project's own
+certificate where the Mac has it (`scripts/make-signing-identity.sh`), and ad hoc where it
+does not. The app is universal. The script
 builds it twice, for Apple silicon and for Intel, and joins the two executables with
 `lipo`; building for both at once is something SwiftPM does only with Xcode. Each half
 has a build folder of its own (`.build/universal/arm64` and `x86_64`), because SwiftPM
@@ -1229,6 +1263,8 @@ go another way.
 | 60 | The model list on LunaRoute, spoken to Anthropic's way | Found on 16 October 2026. Asked Anthropic's way (with `anthropic-version`), LunaRoute gives its list in Anthropic's shape: `"capabilities": { "messages": { "supported": true }, … }`, with no word of a schema. Settings read only the shape LunaRoute gives OpenAI's way (`"anthropic_messages": true, "json_schema": true`), and its list came up empty. Settings now reads both shapes. In Anthropic's shape, a model that speaks Anthropic's way is listed: 13 of LunaRoute's models, where OpenAI's way lists 14. |
 | 61 | The trim card's words | The clip's trim card says "Make the cuts" and "Done", over "Faded words would go. Click one to keep it." The replica's card says "Ghost all" and "Cancel", over "Faded words would be ghosted. Click one to revive it." The owner asked for this on 18 and 19 October 2026, so that the card speaks the app's own words: making the cuts ghosts them, and after a walk through the cuts "Done" read as "finished" though it put every choice away. Cancel puts the trim away and ghosts nothing; while the card reads, it calls the request off. A card with nothing to cancel (a failure, marks, typos) still says "Done". |
 | 62 | Waiting for the model | Not in the clip. The owner asked for it on 21 October 2026, after a slow spell at LunaRoute in which a pass showed only the moving line for a minute. While the model says nothing for 5 s, the Lab card's second line reads "Waiting for glm-5.3… 12 s": the model in force, from the shell, and the time since the pass began, counting on through a second request. It goes back to the card's usual line when part of the answer arrives. |
+| 63 | Check for Updates | Not in the clips. On 2 November 2026 the owner asked for a way to stop allowing each new version to run. The app downloads the release itself, so the new copy has no quarantine mark, and it checks the copy against its own designated requirement in place of Gatekeeper (§6.14). It checks only when asked. A Developer ID and notarization would also take the refusal away, for a yearly fee; the owner chose this way. Tried on macOS 26.5: a copy that LaunchServices started replaced its own bundle, and App Management asked nothing. |
+| 64 | The name in the app switcher | The owner asked on 2 November 2026 for "Write On" in the app switcher, not "Write_On". `CFBundleDisplayName` is "Write On", which is the name macOS gives the running app. The bundle stays `Write_On.app`, so Finder and Terminal give the same name, and the app's own menu and About still say Write_On. |
 
 ## 10. Verification
 
@@ -1273,13 +1309,19 @@ go another way.
    test is run both ways against LunaRoute. A scripted run that is not the live one cannot ask
    anything else: it is given nothing of what the tester's shell says about the AI
    service, and its client refuses every address that is not on this Mac.
-5. **Measurements.** `scripts/bench.sh` runs the scenarios in `tests/perf` the same way,
+5. **Updates.** `tests/ui/updates.js` runs a copy of the app against a stand-in for
+   GitHub's releases on this Mac. The stand-in signs the copy with an identity made for the
+   run and makes it a release. Then it offers a good update, and updates that are signed
+   by a stranger, signed ad hoc, changed after signing, or not the version they say, and
+   answers that go wrong. The good update is installed in place of the copy that runs.
+   Afterward the identities' keychains, the copy and the updates are deleted.
+6. **Measurements.** `scripts/bench.sh` runs the scenarios in `tests/perf` the same way,
    out of sight: how long a keystroke takes to reach the frame that shows it in pieces of
    up to 50,000 words, how long the app's gestures take, what the app costs standing
    still, and whether WebAssembly would help. `tests/perf/native-baseline.swift` measures
    the same typing in AppKit's own text view as a yardstick, and
    `tests/perf/doc.bench.mjs` the document's functions on their own.
-6. **Hands-on pass** with a real mouse and keyboard, following the main clip from start
+7. **Hands-on pass** with a real mouse and keyboard, following the main clip from start
    to finish. The page is driven this way in a browser during development. The built app
    comes with a short checklist for the things only a person at the Mac can confirm:
    real hover in the app window, pointer hiding, drag from Overflow, the LinkedIn chase,
@@ -1295,6 +1337,7 @@ go another way.
 | `glm-5.3-flash` at low reasoning may choose poor cuts or miss the target length | Raise reasoning for Lab passes only; the card always reports the real numbers. |
 | A service other than LunaRoute may not take the requests as they are worded, or may not hold an answer to a schema | The two parts known to be refused are asked for again in the service's way (§7.1); the rest is on the hands-on checklist until someone has tried a second service for real. |
 | macOS refuses a copy downloaded from a release, because it is not notarized and its certificate is the project's own, not Apple's | The README and each release's notes say how to open it. Only a Developer ID certificate and notarization would take the refusal away. Nobody has yet opened a downloaded copy on another Mac: it is on the hands-on checklist. |
+| Check for Updates may meet a rule of macOS that the tests do not | On macOS 26.5, a copy that LaunchServices started replaced itself, and macOS asked nothing. Elsewhere macOS may ask, or refuse. The app then says that it could not put the new version in its place, and it keeps the version it has. Hands-on item 19 tries an update from one release to the next. |
 | The Intel half has never run on an Intel Mac | Every scenario is run on it under Rosetta, which is not the same thing; an Intel Mac is on the hands-on checklist. |
 | The handwriting face may not be Caveat | Compare glyphs early; substitute and record. |
 | The original may differ wherever §9 guesses | All guesses are in one table and cheap to change. |

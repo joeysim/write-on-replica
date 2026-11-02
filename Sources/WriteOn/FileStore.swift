@@ -158,6 +158,12 @@ protocol Asking: AnyObject {
     /// The file `name` is no longer as this window last read or wrote it. Write over it?
     func whetherToReplace(_ name: String, for window: NSWindow?, then reply: @escaping (Bool) -> Void)
     func tell(_ message: String, detail: String, for window: NSWindow?)
+    /// Tells the person something that is not a warning.
+    func inform(_ message: String, detail: String, for window: NSWindow?)
+    /// Says what is under way, with a way to call it off. nil puts the note away.
+    func working(_ note: String?, cancel: (() -> Void)?)
+    /// A later version is downloaded and checked. Install it? Installing it is quitting.
+    func whetherToUpdate(to version: String, from current: String, notes: [String], then reply: @escaping (Bool) -> Void)
 }
 
 /// The standard panels and alerts, as sheets on the window they concern.
@@ -217,8 +223,16 @@ final class Panels: Asking {
     }
 
     func tell(_ message: String, detail: String, for window: NSWindow?) {
+        show(message, detail: detail, style: .warning, for: window)
+    }
+
+    func inform(_ message: String, detail: String, for window: NSWindow?) {
+        show(message, detail: detail, style: .informational, for: window)
+    }
+
+    private func show(_ message: String, detail: String, style: NSAlert.Style, for window: NSWindow?) {
         let alert = NSAlert()
-        alert.alertStyle = .warning
+        alert.alertStyle = style
         alert.messageText = message
         alert.informativeText = detail
         if let window, window.isVisible {
@@ -228,11 +242,78 @@ final class Panels: Asking {
         }
     }
 
+    private var workingPanel: WorkingPanel?
+
+    func working(_ note: String?, cancel: (() -> Void)?) {
+        guard let note else {
+            workingPanel?.close()
+            return
+        }
+        let panel = workingPanel ?? WorkingPanel()
+        workingPanel = panel
+        panel.show(note, cancel: cancel)
+    }
+
+    func whetherToUpdate(to version: String, from current: String, notes: [String], then reply: @escaping (Bool) -> Void) {
+        let alert = NSAlert()
+        alert.messageText = "Write_On \(version) is ready to install."
+        var detail = "You have \(current). To install the update, Write_On quits, as Quit does, and opens again with the documents that are open."
+        if !notes.isEmpty {
+            // As many lines as an alert holds well; the release page has the rest.
+            let shown = notes.prefix(5).map { "• \($0)" }
+            let more = notes.count > 5 ? ["And \(notes.count - 5) more, on the release page."] : []
+            detail += "\n\nWhat changed:\n" + (shown + more).joined(separator: "\n")
+        }
+        alert.informativeText = detail
+        alert.addButton(withTitle: "Install and Relaunch")
+        alert.addButton(withTitle: "Not Now")
+        reply(alert.runModal() == .alertFirstButtonReturn)
+    }
+
     private func present(_ panel: NSSavePanel, on window: NSWindow?, then done: @escaping (NSApplication.ModalResponse) -> Void) {
         if let window, window.isVisible {
             panel.beginSheetModal(for: window, completionHandler: done)
         } else {
             done(panel.runModal())
         }
+    }
+}
+
+/// A small window that says what is under way, with a spinner, and Cancel to call it off.
+private final class WorkingPanel: NSPanel {
+    private let note = NSTextField(labelWithString: "")
+    private var cancel: (() -> Void)?
+
+    init() {
+        let size = NSSize(width: 360, height: 96)
+        super.init(contentRect: NSRect(origin: .zero, size: size), styleMask: [.titled], backing: .buffered, defer: true)
+        title = "Check for Updates"
+        isReleasedWhenClosed = false
+        let spinner = NSProgressIndicator(frame: NSRect(x: 20, y: 58, width: 16, height: 16))
+        spinner.style = .spinning
+        spinner.controlSize = .small
+        spinner.startAnimation(nil)
+        note.frame = NSRect(x: 46, y: 56, width: size.width - 66, height: 20)
+        note.lineBreakMode = .byTruncatingTail
+        let button = NSButton(title: "Cancel", target: self, action: #selector(callOff))
+        button.keyEquivalent = "\u{1b}"
+        button.sizeToFit()
+        button.frame.origin = NSPoint(x: size.width - 14 - button.frame.width, y: 12)
+        let content = NSView(frame: NSRect(origin: .zero, size: size))
+        [spinner, note, button].forEach(content.addSubview)
+        contentView = content
+    }
+
+    func show(_ text: String, cancel: (() -> Void)?) {
+        note.stringValue = text
+        self.cancel = cancel
+        if !isVisible { center() }
+        makeKeyAndOrderFront(nil)
+    }
+
+    @objc private func callOff() {
+        let cancel = self.cancel
+        self.cancel = nil
+        cancel?()
     }
 }
