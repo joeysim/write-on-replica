@@ -66,8 +66,8 @@ the download put on it, and it opens:
 xattr -dr com.apple.quarantine /Applications/Write_On.app
 ```
 
-System Settings ▸ Privacy & Security may offer to open it anyway as well. Nobody has yet
-opened a downloaded copy on another Mac (see
+System Settings ▸ Privacy & Security may offer to open it anyway as well. Downloaded
+copies have opened this way on a second Mac, a MacBook Pro with macOS 26.4.1 (see
 [What a person has to check](#what-a-person-has-to-check)). The app calls itself Write On,
 in Finder too. Its file is still `Write_On.app`, which is the name the command above uses.
 
@@ -349,12 +349,16 @@ These need someone at the Mac:
     macOS should refuse it once, and open it after the command in
     [Build and run](#build-and-run). Then open a `.md` file with File ▸ Open: it should
     not be grayed out. On the first other Mac it was tried on, every one was, until
-    that was mended.
+    that was mended. Releases 1.1.1 to 1.2.2 have opened this way on that Mac, a MacBook
+    Pro with macOS 26.4.1.
 19. **Check for Updates.** With a release in Applications, choose Write On ▸ Check for
     Updates… when a later release is out. It should offer the update, install it and open
     again with the documents that were open, and macOS should ask nothing: no refusal,
-    no command, no password. Nobody has yet, because 1.2.0 is the first release with the
-    item. `tests/ui/updates.js` runs a copy of the app against a stand-in for GitHub.
+    no command, no password. On 2 November 2026 that MacBook Pro updated itself from 1.2.1
+    to 1.2.2 this way, but through Check for updates automatically: the menu item stops
+    1.2.0 and 1.2.1 when there is an update (mended in 1.2.2). The menu item has not yet
+    made a real update, because 1.2.2 is the latest release. `tests/ui/updates.js` runs a
+    copy of the app against a stand-in for GitHub.
 
 ## Decisions the clips do not settle
 

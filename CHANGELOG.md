@@ -6,6 +6,9 @@ release that brings it.
 
 ## Unreleased
 
+- Nothing in the app changed. This release gives Check for Updates in 1.2.2 a later
+  version to install, so that the menu item can be tried on a real update.
+
 ## 1.2.2 (2026-11-02)
 
 - Check for Updates no longer stops the app when it finds a later release. In 1.2.0 and
