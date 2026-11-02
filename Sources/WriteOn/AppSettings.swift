@@ -13,10 +13,15 @@ final class AppSettings {
     private static let addressKey = "ai.address"
     private static let modelKey = "ai.model"
     private static let formatKey = "ai.format"
+    private static let updatesKey = "updates.automatic"
+    private static let checkedKey = "updates.checkedAt"
+    private static let skippedKey = "updates.skipped"
     private let defaults: UserDefaults?
     private var memory: [String: Any]
     private var welcomedInMemory: Bool
     private var texts: [String: String] = [:]
+    private var automaticInMemory = false
+    private var checkedInMemory: Date?
 
     /// - Parameters:
     ///   - defaults: where to keep the settings; `nil` keeps them in memory only.
@@ -61,6 +66,38 @@ final class AppSettings {
     var aiFormat: String? {
         get { text(Self.formatKey) }
         set { setText(newValue, Self.formatKey) }
+    }
+
+    /// Whether the app checks for updates by itself, at most once a day, when it opens. Off
+    /// until it is turned on in Settings.
+    var checksForUpdates: Bool {
+        get { defaults?.bool(forKey: Self.updatesKey) ?? automaticInMemory }
+        set {
+            if let defaults {
+                defaults.set(newValue, forKey: Self.updatesKey)
+            } else {
+                automaticInMemory = newValue
+            }
+        }
+    }
+
+    /// When the app last asked GitHub by itself and had an answer.
+    var updatesCheckedAt: Date? {
+        get { defaults != nil ? defaults?.object(forKey: Self.checkedKey) as? Date : checkedInMemory }
+        set {
+            if let defaults {
+                defaults.set(newValue, forKey: Self.checkedKey)
+            } else {
+                checkedInMemory = newValue
+            }
+        }
+    }
+
+    /// A version that was offered by itself and put off with Not Now. It is not offered by
+    /// itself again; Check for Updates still offers it.
+    var skippedUpdate: String? {
+        get { text(Self.skippedKey) }
+        set { setText(newValue, Self.skippedKey) }
     }
 
     private func text(_ key: String) -> String? {

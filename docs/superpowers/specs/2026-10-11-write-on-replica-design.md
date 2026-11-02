@@ -876,8 +876,9 @@ Not in the clips: the original is not released. Write On ▸ Check for Updates�
 installs a later release (§9 item 63). It does what a person would do by hand, without the
 Terminal command that a copy downloaded with a browser needs.
 
-- The app asks only when the item is chosen, never at launch. It asks GitHub's API for the
-  latest release, over https, at the address in Info.plist (`WriteOnUpdates`).
+- The app asks when the item is chosen, and by itself only if Settings says so (below). It
+  asks GitHub's API for the latest release, over https, at the address in Info.plist
+  (`WriteOnUpdates`).
 - If nothing is later, the app says "Write On is up to date." It does not offer a release
   that is not later than this copy, so an update never takes a copy back.
 - If a release is later, the app downloads its zip, `Write_On-<version>.zip`, into a
@@ -900,6 +901,13 @@ Terminal command that a copy downloaded with a browser needs.
   one in a folder that it cannot change.
 - The new copy has no quarantine mark, because the app downloaded it, not a browser. So
   macOS opens it without asking. The app's signature check takes the place of Gatekeeper's.
+- Settings has "Check for updates automatically", off until it is turned on (§9 item 65).
+  When it is on, the app checks 5 s after it opens, once a day at most, and shows nothing
+  unless there is a later version to offer. Then the offer is the same. Not Now on an offer
+  that came this way puts that version off: a check by itself does not offer it again,
+  and it downloads nothing for it. Check for Updates still offers it. A check that fails
+  is tried again the next time the app opens. A copy that cannot update itself has the
+  checkbox grayed out, with the reason under it.
 
 ## 7. Architecture
 
@@ -1163,7 +1171,7 @@ varied by the hour: a one-word test took from 0.4 s to 27 s. The rest is tested 
 stand-in that answers and refuses as those services are documented to (§10).
 
 **Settings window** (⌘,): API key, address, format, model, a "Test connection" button,
-and the sound toggle. Nothing else. Format is a choice of three: Automatic, which says
+the sound toggle, and "Check for updates automatically" (§6.14). Nothing else. Format is a choice of three: Automatic, which says
 which way it comes to ("Automatic: OpenAI-style"), OpenAI-style and Anthropic-style. A
 key typed in is saved to the Keychain and the field emptied; a line under it says where
 the key in use comes from ("saved here", "from the app's environment", "from your login
@@ -1218,7 +1226,7 @@ go another way.
 | 15 | Heading entry | Typing `# ` converts the line; the marker is hidden. Only the hidden marker is observed. |
 | 16 | Spelling, autocorrect, smart quotes | Off by default. |
 | 17 | Several windows | ⌘N opens another window; each window is one document. The original shows one. |
-| 18 | Settings window | Exists only for the AI service's key, address, format and model, and for sound. |
+| 18 | Settings window | Exists only for the AI service's key, address, format and model, for sound, and for checking for updates by itself. |
 | 19 | Sample document | An original short piece that carries one group of each scope, a ghost run and some overflow, and tells the reader to click the word count. |
 | 20 | App identity | Display name "Write_On"; bundle id `com.thesimhons.writeon`. |
 | 21 | Ghost text in the saved Markdown | Written as ordinary text; the ghost marking lives only in the metadata. |
@@ -1265,6 +1273,7 @@ go another way.
 | 62 | Waiting for the model | Not in the clip. The owner asked for it on 21 October 2026, after a slow spell at LunaRoute in which a pass showed only the moving line for a minute. While the model says nothing for 5 s, the Lab card's second line reads "Waiting for glm-5.3… 12 s": the model in force, from the shell, and the time since the pass began, counting on through a second request. It goes back to the card's usual line when part of the answer arrives. |
 | 63 | Check for Updates | Not in the clips. On 2 November 2026 the owner asked for a way to stop allowing each new version to run. The app downloads the release itself, so the new copy has no quarantine mark, and it checks the copy against its own designated requirement in place of Gatekeeper (§6.14). It checks only when asked. A Developer ID and notarization would also take the refusal away, for a yearly fee; the owner chose this way. Tried on macOS 26.5: a copy that LaunchServices started replaced its own bundle, and App Management asked nothing. |
 | 64 | The name the app shows | On 2 November 2026 the owner asked for "Write On" in the app switcher, not "Write_On", and then for it "across the board". The app calls itself Write On in the app switcher, Finder, the menu bar (About, Hide and Quit Write On), About and its messages. Its file stays `Write_On.app`, so paths, the release zip, Terminal commands, the drafts folder and updates are as before. Info.plist names the file (`CFBundleDisplayName` and `CFBundleName` are "Write_On"), and `en.lproj/InfoPlist.strings` gives "Write On". Finder shows that name only because the two match. The project, its documents and Jason Fried's app keep the name Write_On. |
+| 65 | Checking for updates by itself | The owner asked for the checkbox on 2 November 2026, after Check for Updates (item 63). It is off until it is turned on, so the app asks GitHub nothing by itself unless the person says so. When it is on, the app checks when it opens, once a day at most, and not while the person writes: an offer in the middle of a session would interrupt the writing. Not Now on an offer that came by itself keeps that version quiet; the next version is offered. |
 
 ## 10. Verification
 

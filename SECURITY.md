@@ -48,7 +48,8 @@ So that you can tell a flaw from a decision:
 - **Files.** The app reads and writes the files you open and save, and its own drafts in
   `~/Library/Application Support/Write_On`.
 - **Updates.** The app asks GitHub for the latest release only when you choose Check for
-  Updates, over https, at the address in its Info.plist (`WriteOnUpdates`). It sends no
+  Updates, or, if you turn on Check for updates automatically in Settings, when it opens,
+  once a day at most. It asks over https, at the address in its Info.plist (`WriteOnUpdates`). It sends no
   key and nothing of yours, though GitHub sees the request come from your address. If the
   release is later, the app downloads its zip over https, and it follows a redirect only
   to another https address. Because the app downloads the zip, not a browser, the new

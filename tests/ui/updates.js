@@ -129,6 +129,36 @@ await refused('mismatch', /The release is 99\.0\.0, but the app in its zip is 98
   t.equal([now.version, now.reopened], [start.version, null], 'Not Now leaves the copy as it was');
 }
 
+// --- checking by itself, at most once a day, if Settings says so -------------------------------------------
+
+// Has the app check by itself, as it would when it opens, with the clock `later` hours on, and
+// `answers` for what it asks. Gives what it asked and told.
+const byItself = async (later, name, answers = []) => {
+  await updates({ feed: `${base}/${name}/releases/latest` });
+  await answer(...answers);
+  await updates({ automatic: true, later });
+  await t.until(async () => !(await updates()).busy, 40000, `the check by itself to be done (${name}, ${later} h on)`);
+  await t.wait(50); // the answer to a question comes a moment after it is asked
+  const said = (await dialogs()).slice(heard);
+  heard += said.length;
+  return said;
+};
+{
+  const shown = await t.call('test.settings', {});
+  t.equal([shown.updates, shown.updatesEnabled], [false, true], 'Settings has the choice to check by itself, off until it is turned on');
+  t.equal(await byItself(0, 'good'), [], 'while it is off, the app asks nothing by itself');
+  t.equal((await updates()).checkedAt, null, 'and has not asked GitHub');
+  t.equal((await t.call('test.settings', { updates: true })).updates, true, 'it can be turned on');
+  t.equal(await byItself(0, 'current'), [], 'with nothing later, a check by itself says nothing at all');
+  t.assert((await updates()).checkedAt !== null, 'though the app notes when it asked');
+  t.equal(await byItself(1, 'good'), [], 'it asks again only after a day');
+  t.equal(told(await byItself(25, 'good', [{ update: 'later' }])), [['update', '99.0.0']], 'a day on, a later version is offered, with no note of a check before it');
+  t.equal((await updates()).skipped, '99.0.0', 'Not Now puts that version off');
+  t.equal(await byItself(50, 'good'), [], 'and a check by itself does not offer it again');
+  t.equal(told(await check('good', [{ update: 'later' }])).at(-1), ['update', '99.0.0'], 'Check for Updates still does');
+  t.equal(await byItself(75, 'missing'), [], 'a check by itself that goes wrong says nothing');
+}
+
 // --- installing it asks about unsaved work first, as Quit does --------------------------------------------
 
 editor.focus();

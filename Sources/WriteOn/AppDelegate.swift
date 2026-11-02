@@ -4,13 +4,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
     private var controllers: [DocumentWindowController] = []
     private var harness: UITestHarness?
     private var webRoot: URL?
-    private var settings = AppSettings.standard
+    private(set) var settings = AppSettings.standard
     private(set) var store = FileStore()
     private var asking: Asking = Panels()
     /// The key for the AI service: from Settings (the keychain), the environment or the login shell.
     private(set) var credentials = Credentials(saved: KeychainSecret(service: "com.thesimhons.writeon", account: "LunaRoute API key"))
     private lazy var client = AIClient(credentials: credentials, settings: settings)
-    private(set) lazy var settingsPanel = SettingsWindowController(settings: settings, credentials: credentials, client: client) { [weak self] on in
+    private(set) lazy var settingsPanel = SettingsWindowController(settings: settings, credentials: credentials, client: client, whyNoUpdates: { [weak self] in self?.updates.whyNot() }) { [weak self] on in
         // Every open window hears that the sound was turned on or off.
         self?.controllers.forEach { $0.bridge.emit("settings.changed", ["sound": on]) }
     }
@@ -100,6 +100,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         if controllers.isEmpty { openWindow(untitledStart()) }
         // Not brought to the front by force: the system does that for an app opened from
         // Finder or the Dock, and leaves one alone that was asked to open in the background.
+        // A check by itself waits until the app is open, and says nothing unless it has an update.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in self?.checkAutomatically() }
     }
 
     /// A click on the Dock icon with no window to show: a new one, which is the app's to
@@ -233,23 +235,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
             guard let self else { return }
             self.asking.working(nil, cancel: nil)
             switch outcome {
-            case .canceled:
+            case .canceled, .skipped:
                 break
             case .current(let version):
                 self.asking.inform("Write On is up to date.", detail: "You have version \(version), the latest.", for: nil)
             case .failed(let message, let detail):
                 self.asking.tell(message, detail: detail, for: nil)
             case .ready(let release, let staged):
-                let current = self.updates.copy.version?.description ?? ""
-                self.asking.whetherToUpdate(to: release.version.description, from: current, notes: release.notes) { install in
-                    guard install else { return self.updates.discard(staged) }
-                    self.waitingUpdate = staged
-                    guard self.scripted else { return NSApp.terminate(nil) }
-                    // A scripted run does not quit. It goes as far as quitting would, and the
-                    // update notes what it would have opened again.
-                    self.reviewUnsaved { may in _ = self.leaving(may) }
-                }
+                self.offer(release, staged, byItself: false)
             }
+        }
+    }
+
+    /// How often the app checks by itself, at most.
+    static let updateInterval: TimeInterval = 24 * 60 * 60
+
+    /// The check by itself, if Settings has it on: when the app opens, once a day at most.
+    /// It says nothing unless there is a later version to offer, and it does not offer one
+    /// that was put off with Not Now when it came this way. (`now` is for a scripted run.)
+    func checkAutomatically(now: Date = Date()) {
+        guard settings.checksForUpdates, !updates.busy, waitingUpdate == nil, updates.whyNot() == nil else { return }
+        if let last = settings.updatesCheckedAt, now.timeIntervalSince(last) < Self.updateInterval { return }
+        let skipping = settings.skippedUpdate.flatMap(Updates.Version.init)
+        updates.check(skipping: skipping, note: { _ in }) { [weak self] outcome in
+            guard let self else { return }
+            switch outcome {
+            case .failed, .canceled:
+                // Asked again the next time the app opens.
+                break
+            case .current, .skipped:
+                self.settings.updatesCheckedAt = now
+            case .ready(let release, let staged):
+                self.settings.updatesCheckedAt = now
+                self.offer(release, staged, byItself: true)
+            }
+        }
+    }
+
+    /// Offers a later version, downloaded and checked. Installing it is quitting, with the
+    /// update going in on the way out (`leaving`). Not Now on an offer that came by itself
+    /// puts that version off.
+    private func offer(_ release: Updates.Release, _ staged: Updates.Staged, byItself: Bool) {
+        let current = updates.copy.version?.description ?? ""
+        asking.whetherToUpdate(to: release.version.description, from: current, notes: release.notes) { [weak self] install in
+            guard let self else { return }
+            guard install else {
+                self.updates.discard(staged)
+                if byItself { self.settings.skippedUpdate = release.version.description }
+                return
+            }
+            self.waitingUpdate = staged
+            guard self.scripted else { return NSApp.terminate(nil) }
+            // A scripted run does not quit. It goes as far as quitting would, and the update
+            // notes what it would have opened again.
+            self.reviewUnsaved { may in _ = self.leaving(may) }
         }
     }
 

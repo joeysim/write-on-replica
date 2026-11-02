@@ -288,7 +288,7 @@ final class UITestHarness {
 
     // MARK: Settings
 
-    /// test.settings { key?, forget?, address?, format?, model?, pick?, sound?, test?, environment?, picture? } -> what the
+    /// test.settings { key?, forget?, address?, format?, model?, pick?, sound?, updates?, test?, environment?, picture? } -> what the
     /// Settings window shows afterward. Each change is made the way a person makes it: the
     /// control is given its value and sends its action. The window itself is never put up.
     private func registerSettings() {
@@ -329,6 +329,10 @@ final class UITestHarness {
                 panel.soundBox.state = sound ? .on : .off
                 send(panel.soundBox)
             }
+            if let updates = params["updates"] as? Bool {
+                panel.updatesBox.state = updates ? .on : .off
+                send(panel.updatesBox)
+            }
             if params.isEmpty {
                 panel.refresh()
                 panel.showModels()
@@ -354,6 +358,9 @@ final class UITestHarness {
                     "modelHint": panel.modelField.placeholderString ?? "",
                     "models": panel.modelField.objectValues.compactMap { $0 as? String },
                     "sound": panel.soundBox.state == .on,
+                    "updates": panel.updatesBox.state == .on,
+                    "updatesEnabled": panel.updatesBox.isEnabled,
+                    "updatesNote": panel.updatesNote.stringValue,
                     "testNote": panel.testNote.stringValue,
                     "shown": panel.isShown,
                 ] as [String: Any]))
@@ -364,11 +371,13 @@ final class UITestHarness {
 
     // MARK: Updates
 
-    /// test.updates { feed?, source?, adHoc? } -> { feed, whyNot, busy, reopened, bundle, version, source, signed }:
+    /// test.updates { feed?, source?, adHoc?, automatic?, later? } -> { feed, whyNot, busy, reopened, bundle, version, source, signed, checkedAt, skipped }:
     /// what Check for Updates goes by, having first, if they are given, said where it asks
     /// (only this Mac, in a run) and what it takes this copy to be; whether it is at work;
     /// what it would have opened again; and the copy on disk now, as its Info.plist says,
-    /// and whether it is signed as this copy was when it started.
+    /// and whether it is signed as this copy was when it started. `automatic` has the app
+    /// check by itself, as when it opens, with the clock `later` hours on; `checkedAt` (in
+    /// seconds) and `skipped` are what it keeps of its checks by itself.
     private func registerUpdates() {
         controller.bridge.on("test.updates", sync: { [weak self] params in
             guard let self else { return nil }
@@ -376,6 +385,10 @@ final class UITestHarness {
             if let feed = params["feed"] as? String { updates.feed = URL(string: feed) }
             if let source = params["source"] as? String { updates.copy.source = source }
             if let adHoc = params["adHoc"] as? Bool { updates.copy.adHoc = adHoc }
+            if params["automatic"] as? Bool == true {
+                let hours = (params["later"] as? NSNumber)?.doubleValue ?? 0
+                self.app.checkAutomatically(now: Date().addingTimeInterval(hours * 3600))
+            }
             let bundle = updates.copy.bundle
             let info = NSDictionary(contentsOf: bundle.appendingPathComponent("Contents/Info.plist")) as? [String: Any] ?? [:]
             return [
@@ -387,6 +400,8 @@ final class UITestHarness {
                 "version": info["CFBundleShortVersionString"] ?? NSNull(),
                 "source": info["WriteOnSource"] ?? NSNull(),
                 "signed": updates.copy.requirement.map { Updates.problem(signing: bundle, against: $0) == nil } ?? false,
+                "checkedAt": self.app.settings.updatesCheckedAt.map { $0.timeIntervalSince1970 as Any } ?? NSNull(),
+                "skipped": self.app.settings.skippedUpdate ?? NSNull(),
             ] as [String: Any]
         })
     }

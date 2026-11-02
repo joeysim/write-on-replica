@@ -1,14 +1,17 @@
 import AppKit
 
 /// The Settings window (design spec 7.1): the key for the AI service, its address, the way
-/// it is spoken to and the model to ask, a button that tries them together, and whether the
-/// app makes sounds. Nothing else. What is changed here is used from the next request on.
+/// it is spoken to and the model to ask, a button that tries them together, whether the
+/// app makes sounds, and whether it checks for updates by itself (6.14). Nothing else. What
+/// is changed here is used from the next request on.
 final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSComboBoxDelegate {
     private let settings: AppSettings
     private let credentials: Credentials
     private let client: AIClient
     /// The sound was turned on or off: open windows are to follow.
     private let onSound: (Bool) -> Void
+    /// Why this copy cannot update itself, if it cannot (Updates).
+    private let whyNoUpdates: () -> String?
 
     // The controls. A scripted run works them without the window ever being shown.
     let keyField = NSSecureTextField()
@@ -23,6 +26,8 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSComboBoxD
     let testButton = NSButton(title: "Test connection", target: nil, action: nil)
     let testNote = NSTextField(wrappingLabelWithString: "")
     let soundBox = NSButton(checkboxWithTitle: "Play sounds", target: nil, action: nil)
+    let updatesBox = NSButton(checkboxWithTitle: "Check for updates automatically", target: nil, action: nil)
+    let updatesNote = NSTextField(wrappingLabelWithString: "")
 
     private var window: NSWindow?
     var isShown: Bool { window?.isVisible ?? false }
@@ -33,10 +38,11 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSComboBoxD
     /// The same, for the list of models.
     private var listings = 0
 
-    init(settings: AppSettings, credentials: Credentials, client: AIClient, onSound: @escaping (Bool) -> Void) {
+    init(settings: AppSettings, credentials: Credentials, client: AIClient, whyNoUpdates: @escaping () -> String?, onSound: @escaping (Bool) -> Void) {
         self.settings = settings
         self.credentials = credentials
         self.client = client
+        self.whyNoUpdates = whyNoUpdates
         self.onSound = onSound
         super.init()
         keyField.placeholderString = "Paste a key to save it in your keychain"
@@ -53,13 +59,13 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSComboBoxD
         for (control, action) in [
             (keyField as NSControl, #selector(saveKey(_:))), (forgetButton, #selector(forgetKey(_:))),
             (addressField, #selector(saveAddress(_:))), (formatPopup, #selector(saveFormat(_:))), (modelField, #selector(saveModel(_:))),
-            (testButton, #selector(test(_:))), (soundBox, #selector(saveSound(_:))),
+            (testButton, #selector(test(_:))), (soundBox, #selector(saveSound(_:))), (updatesBox, #selector(saveUpdates(_:))),
         ] {
             control.target = self
             control.action = action
         }
         for field in [keyField, addressField, modelField] { field.delegate = self }
-        for note in [keyNote, testNote] {
+        for note in [keyNote, testNote, updatesNote] {
             note.textColor = .secondaryLabelColor
             note.font = .systemFont(ofSize: NSFont.smallSystemFontSize)
         }
@@ -102,6 +108,7 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSComboBoxD
         let chosen = AIWire(named: settings.aiFormat)
         formatPopup.selectItem(at: chosen.flatMap { formatPopup.indexOfItem(withRepresentedObject: $0.rawValue) } ?? 0)
         soundBox.state = (settings.interface["sound"] as? Bool ?? true) ? .on : .off
+        showUpdates()
         showKey()
     }
 
@@ -202,6 +209,19 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSComboBoxD
         onSound(on)
     }
 
+    @objc func saveUpdates(_ sender: Any?) {
+        settings.checksForUpdates = updatesBox.state == .on
+    }
+
+    /// Whether the app checks by itself, and when; or, for a copy that cannot update itself, why.
+    private func showUpdates() {
+        let why = whyNoUpdates()
+        updatesBox.isEnabled = why == nil
+        updatesBox.state = why == nil && settings.checksForUpdates ? .on : .off
+        updatesNote.stringValue = why.map { "This copy cannot update itself. \($0)" }
+            ?? "Once a day at most, when Write On opens. It asks GitHub, and installs nothing without asking you."
+    }
+
     @objc func test(_ sender: Any?) {
         // Whatever is in the fields is what gets tried, as if Return had been pressed in each.
         saveKey(nil)
@@ -257,6 +277,8 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSComboBoxD
             [NSGridCell.emptyContentView, testRow],
             [NSGridCell.emptyContentView, testNote],
             [NSGridCell.emptyContentView, soundBox],
+            [NSGridCell.emptyContentView, updatesBox],
+            [NSGridCell.emptyContentView, updatesNote],
         ])
         grid.rowSpacing = 10
         grid.columnSpacing = 10
@@ -267,6 +289,7 @@ final class SettingsWindowController: NSObject, NSTextFieldDelegate, NSComboBoxD
         for field in [keyField, addressField, modelField] { field.widthAnchor.constraint(equalToConstant: 340).isActive = true }
         keyNote.preferredMaxLayoutWidth = 340
         testNote.preferredMaxLayoutWidth = 340
+        updatesNote.preferredMaxLayoutWidth = 340
 
         let content = NSView()
         content.addSubview(grid)

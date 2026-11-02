@@ -6,6 +6,10 @@ release that brings it.
 
 ## Unreleased
 
+- Settings has "Check for updates automatically", off until you turn it on. Then the app
+  asks GitHub when it opens, once a day at most, and says nothing unless a later release is
+  ready to install. Not Now on such an offer keeps that version quiet until the next one.
+
 ## 1.2.0 (2026-11-02)
 
 - Write On ▸ Check for Updates… installs a later release. The app downloads the release

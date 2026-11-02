@@ -42,6 +42,8 @@ final class Updates {
     enum Outcome {
         /// Nothing later: GitHub's latest release is this version, or an earlier one.
         case current(Version)
+        /// A later version, the one that was to be skipped. Nothing was downloaded.
+        case skipped(Version)
         case ready(Release, Staged)
         case failed(String, detail: String)
         case canceled
@@ -115,14 +117,15 @@ final class Updates {
 
     // MARK: Checking
 
-    /// Asks for the latest release and, if it is later, downloads and checks it. `note` says
-    /// what is under way as it changes; `done` gets the outcome. Both on the main thread.
-    func check(note: @escaping (String) -> Void, then done: @escaping (Outcome) -> Void) {
+    /// Asks for the latest release and, if it is later, downloads and checks it, unless it is
+    /// the version `skipping` names. `note` says what is under way as it changes; `done` gets
+    /// the outcome. Both on the main thread.
+    func check(skipping: Version? = nil, note: @escaping (String) -> Void, then done: @escaping (Outcome) -> Void) {
         guard !busy else { return }
         busy = true
         running = Task { @MainActor [weak self] in
             guard let self else { return }
-            let outcome = await self.checking(note)
+            let outcome = await self.checking(skipping: skipping, note)
             self.busy = false
             self.running = nil
             done(outcome)
@@ -133,11 +136,12 @@ final class Updates {
         running?.cancel()
     }
 
-    private func checking(_ note: @escaping (String) -> Void) async -> Outcome {
+    private func checking(skipping: Version?, _ note: @escaping (String) -> Void) async -> Outcome {
         do {
             guard let feed else { throw Failure("Write On has no address to ask for updates.") }
             let release = try await latest(from: feed)
             guard let current = copy.version, release.version > current else { return .current(copy.version ?? release.version) }
+            if release.version == skipping { return .skipped(release.version) }
             note("Downloading Write On \(release.version)…")
             return .ready(release, try await fetch(release))
         } catch let failure as Failure {

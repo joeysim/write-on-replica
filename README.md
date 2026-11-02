@@ -73,7 +73,7 @@ in Finder too. Its file is still `Write_On.app`, which is the name the command a
 
 **Updates.** From 1.2.0 on, Write On ▸ Check for Updates… installs a later release, and
 the command above is not needed again. The app asks GitHub for the latest release only
-when you choose the item. If that release is later than your copy, the app downloads it and
+when you choose the item, or by itself if you turn that on in Settings (below). If that release is later than your copy, the app downloads it and
 checks that it is signed with the same certificate as your copy. Then it offers to install
 it. Install and Relaunch quits the app as Quit does: it asks about unsaved changes first.
 Then it puts the new version in place of your copy and opens it again, with your
@@ -172,6 +172,10 @@ LunaRoute (`https://gw.lunaroute.com/v1`) for `glm-5.3`, OpenAI's way.
   The list shows the models that the service has and that can answer this app.
 - **Test connection** tries them together and says how it went: that the model
   answered, how long it took, and which key went with the question.
+- **Check for updates automatically** is off until you turn it on. Then the app asks GitHub
+  when it opens, once a day at most, and says nothing unless a later release is ready to
+  install. Not Now on an offer that came this way keeps that version quiet; Check for
+  Updates still offers it. A copy that you built yourself cannot turn it on.
 
 Left empty, Address and Model show what is in force, and Automatic says which way it
 comes to.

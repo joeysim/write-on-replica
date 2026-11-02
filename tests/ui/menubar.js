@@ -234,3 +234,8 @@ await t.wait(900); // a checker would have marked the line by now
 await answer();
 t.equal(await pick('Write On', 'Check for Updates…'), true, 'Write On ▸ Check for Updates… can be chosen');
 t.equal((await asked()).at(-1), ['tell', 'This copy of Write On cannot update itself.'], 'and a copy built here says it cannot update itself');
+{
+  const shown = await t.call('test.settings', {});
+  t.equal([shown.updates, shown.updatesEnabled], [false, false], 'and Settings cannot turn on the check by itself');
+  t.assert(/cannot update itself/.test(shown.updatesNote ?? ''), `with the reason under it: ${shown.updatesNote}`);
+}
