@@ -6,6 +6,12 @@ release that brings it.
 
 ## Unreleased
 
+- Check for Updates no longer stops the app when it finds a later release. In 1.2.0 and
+  1.2.1 the menu item did, because the app showed "Downloading" from outside the main
+  thread. From 1.2.0, install this version yourself. From 1.2.1 you can also turn on
+  Check for updates automatically in Settings and open the app again: that check does
+  not stop it.
+
 ## 1.2.1 (2026-11-02)
 
 - Settings has "Check for updates automatically", off until you turn it on. Then the app

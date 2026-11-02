@@ -983,6 +983,9 @@ final class UITestHarness {
             let changed = Set((settingsNow.allKeys + savedSettings.allKeys).compactMap { $0 as? String }).filter { !(settingsNow[$0] as AnyObject).isEqual(savedSettings[$0]) }
             intrusions.append("the run changed the app's saved settings (\(changed.sorted().joined(separator: ", "))); a scripted run keeps its settings in memory")
         }
+        if !answers.offMain.isEmpty {
+            intrusions.append("the shell asked or told the person something off the main thread (\(answers.offMain.joined(separator: ", "))); in the real app, AppKit stops it there")
+        }
         if nativeMenus > 0 {
             intrusions.append("the scenario right-clicked where the page leaves the menu to the system; WebKit drops every mouse event after that in a scripted run, so ask the page with a 'contextmenu' event instead")
         }
@@ -1059,7 +1062,13 @@ private struct KeyMap {
 /// next question of its kind; a question with no answer waiting is called off.
 final class ScriptedAsking: Asking {
     private let folder: URL
-    private(set) var asked: [[String: Any]] = []
+    private(set) var asked: [[String: Any]] = [] {
+        // Panels and alerts are AppKit's, which is to be used on the main thread only. A
+        // question asked from anywhere else would bring the real app down.
+        didSet { if !Thread.isMainThread { offMain.append(asked.last?["kind"] as? String ?? "?") } }
+    }
+    /// The kinds of the questions asked off the main thread. The run fails if there are any.
+    private(set) var offMain: [String] = []
     var answers: [[String: Any]] = []
 
     init(folder: URL) {

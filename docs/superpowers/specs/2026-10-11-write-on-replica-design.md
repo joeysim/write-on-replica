@@ -1291,7 +1291,8 @@ go another way.
    display, transparent, click-through and unable to take the keyboard; it leaves the
    clipboard, saved settings, speakers, file panels and default browser alone. The first
    scenario checks this on every run, and the harness fails any run that came to the
-   front or took the keyboard. Inside, WebKit
+   front or took the keyboard, or that asked or told the person anything off the main
+   thread (AppKit's panels stop the app there; 1.2.0 did, as it showed the update's download). Inside, WebKit
    is told to treat the page as visible and focused, so runs behave the same whether the
    Mac is in use, locked or unattended. Pointer moves and turns of the wheel are native
    events too, sent the way WebKit's own test runner sends them, so WebKit itself finds

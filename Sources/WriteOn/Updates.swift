@@ -119,8 +119,9 @@ final class Updates {
 
     /// Asks for the latest release and, if it is later, downloads and checks it, unless it is
     /// the version `skipping` names. `note` says what is under way as it changes; `done` gets
-    /// the outcome. Both on the main thread.
-    func check(skipping: Version? = nil, note: @escaping (String) -> Void, then done: @escaping (Outcome) -> Void) {
+    /// the outcome. Both on the main thread, where a window may be shown: the check itself
+    /// runs on another.
+    func check(skipping: Version? = nil, note: @escaping @MainActor (String) -> Void, then done: @escaping @MainActor (Outcome) -> Void) {
         guard !busy else { return }
         busy = true
         running = Task { @MainActor [weak self] in
@@ -136,13 +137,13 @@ final class Updates {
         running?.cancel()
     }
 
-    private func checking(skipping: Version?, _ note: @escaping (String) -> Void) async -> Outcome {
+    private func checking(skipping: Version?, _ note: @escaping @MainActor (String) -> Void) async -> Outcome {
         do {
             guard let feed else { throw Failure("Write On has no address to ask for updates.") }
             let release = try await latest(from: feed)
             guard let current = copy.version, release.version > current else { return .current(copy.version ?? release.version) }
             if release.version == skipping { return .skipped(release.version) }
-            note("Downloading Write On \(release.version)…")
+            await note("Downloading Write On \(release.version)…")
             return .ready(release, try await fetch(release))
         } catch let failure as Failure {
             return .failed(failure.message, detail: failure.detail)

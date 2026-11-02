@@ -511,7 +511,8 @@ takes nothing from you. It also leaves the rest of the Mac as it found it:
   copy, the updates and the identity's keychain are deleted, and macOS forgets the copy.
 
 `tests/ui/smoke.js` checks the first part on every run, and the harness fails any run that
-came to the front, took the keyboard or changed the saved settings. Inside, the harness
+came to the front, took the keyboard or changed the saved settings, or that asked or told
+the person anything off the main thread, where the real app's panels would stop it. Inside, the harness
 makes WebKit treat the page as visible and focused, so scenarios run the same whether the
 Mac is in use, locked or unattended. They do need a window server session (someone logged
 in at the console, even if locked), because WebKit will not lay out a page without one.
