@@ -857,7 +857,7 @@ The menu bar holds every command, the page's under the Control shortcuts they ha
 
 | Menu | Items |
 | --- | --- |
-| Write_On | About Write_On, Check for Updates… (§6.14), Settings…, Services ▸, Hide Write_On, Hide Others, Show All, Quit Write_On |
+| Write On | About Write On, Check for Updates… (§6.14), Settings…, Services ▸, Hide Write On, Hide Others, Show All, Quit Write On |
 | File | New, Open…, Open Recent ▸ (newest first, Clear Menu), Close, Save…, Save As…, Post to X |
 | Edit | Undo and Redo (the document's own history, §5.3), Cut, Copy, Paste, Delete, Select All, and the standard Spelling and Grammar ▸, Substitutions ▸ and Speech ▸ |
 | View | Read Mode, Alternates, Overflow, Source, Enter Full Screen; the first three are ticked while on |
@@ -872,13 +872,13 @@ the system's own settings say; what is turned on there is remembered.
 
 ### 6.14 Updates
 
-Not in the clips: the original is not released. Write_On ▸ Check for Updates…, under About,
+Not in the clips: the original is not released. Write On ▸ Check for Updates…, under About,
 installs a later release (§9 item 63). It does what a person would do by hand, without the
 Terminal command that a copy downloaded with a browser needs.
 
 - The app asks only when the item is chosen, never at launch. It asks GitHub's API for the
   latest release, over https, at the address in Info.plist (`WriteOnUpdates`).
-- If nothing is later, the app says "Write_On is up to date." It does not offer a release
+- If nothing is later, the app says "Write On is up to date." It does not offer a release
   that is not later than this copy, so an update never takes a copy back.
 - If a release is later, the app downloads its zip, `Write_On-<version>.zip`, into a
   folder on the same disk as the copy, and unpacks it. The app in the zip must be the
@@ -886,8 +886,8 @@ Terminal command that a copy downloaded with a browser needs.
   which names the bundle identifier and the project's certificate; every half, file and
   link is checked. If it fails, the app does not offer it, and says why.
 - While the app works, a small window says "Checking for updates…" and then "Downloading
-  Write_On 1.2.1…", with Cancel.
-- The offer says "Write_On 1.2.1 is ready to install.", with the version that the copy is
+  Write On 1.2.1…", with Cancel.
+- The offer says "Write On 1.2.1 is ready to install.", with the version that the copy is
   and up to five lines from "What changed" in the release notes. The buttons are Install
   and Relaunch, and Not Now.
 - Install and Relaunch quits as Quit does: it asks about each unsaved document first, and
@@ -1264,7 +1264,7 @@ go another way.
 | 61 | The trim card's words | The clip's trim card says "Make the cuts" and "Done", over "Faded words would go. Click one to keep it." The replica's card says "Ghost all" and "Cancel", over "Faded words would be ghosted. Click one to revive it." The owner asked for this on 18 and 19 October 2026, so that the card speaks the app's own words: making the cuts ghosts them, and after a walk through the cuts "Done" read as "finished" though it put every choice away. Cancel puts the trim away and ghosts nothing; while the card reads, it calls the request off. A card with nothing to cancel (a failure, marks, typos) still says "Done". |
 | 62 | Waiting for the model | Not in the clip. The owner asked for it on 21 October 2026, after a slow spell at LunaRoute in which a pass showed only the moving line for a minute. While the model says nothing for 5 s, the Lab card's second line reads "Waiting for glm-5.3… 12 s": the model in force, from the shell, and the time since the pass began, counting on through a second request. It goes back to the card's usual line when part of the answer arrives. |
 | 63 | Check for Updates | Not in the clips. On 2 November 2026 the owner asked for a way to stop allowing each new version to run. The app downloads the release itself, so the new copy has no quarantine mark, and it checks the copy against its own designated requirement in place of Gatekeeper (§6.14). It checks only when asked. A Developer ID and notarization would also take the refusal away, for a yearly fee; the owner chose this way. Tried on macOS 26.5: a copy that LaunchServices started replaced its own bundle, and App Management asked nothing. |
-| 64 | The name in the app switcher | The owner asked on 2 November 2026 for "Write On" in the app switcher, not "Write_On". `CFBundleDisplayName` is "Write On", which is the name macOS gives the running app. The bundle stays `Write_On.app`, so Finder and Terminal give the same name, and the app's own menu and About still say Write_On. |
+| 64 | The name the app shows | On 2 November 2026 the owner asked for "Write On" in the app switcher, not "Write_On", and then for it "across the board". The app calls itself Write On in the app switcher, Finder, the menu bar (About, Hide and Quit Write On), About and its messages. Its file stays `Write_On.app`, so paths, the release zip, Terminal commands, the drafts folder and updates are as before. Info.plist names the file (`CFBundleDisplayName` and `CFBundleName` are "Write_On"), and `en.lproj/InfoPlist.strings` gives "Write On". Finder shows that name only because the two match. The project, its documents and Jason Fried's app keep the name Write_On. |
 
 ## 10. Verification
 

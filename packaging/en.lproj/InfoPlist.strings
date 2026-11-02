@@ -1,0 +1,5 @@
+/* The name that the app shows: in the app switcher, in Finder, in the menu bar and in About.
+   Info.plist gives the name of the file, Write_On, which Finder needs to find there before it
+   shows this name in its place. */
+"CFBundleDisplayName" = "Write On";
+"CFBundleName" = "Write On";

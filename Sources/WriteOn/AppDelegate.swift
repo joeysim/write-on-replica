@@ -48,7 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard let root = AssetSchemeHandler.locateWebRoot() else {
-            FileHandle.standardError.write(Data("Write_On cannot find its page (web/index.html).\n".utf8))
+            FileHandle.standardError.write(Data("Write On cannot find its page (web/index.html).\n".utf8))
             exit(70)
         }
         webRoot = root
@@ -219,13 +219,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         return [.applicationVersion: source.hasPrefix("v") ? String(source.dropFirst()) : source, .version: "development"]
     }
 
-    /// Write_On ▸ Check for Updates… (Updates): the latest release, if it is later, downloaded
+    /// Write On ▸ Check for Updates… (Updates): the latest release, if it is later, downloaded
     /// and checked, and offered. Installing it is quitting, with the update going in on the
     /// way out (`leaving`).
     @objc func checkForUpdates(_ sender: Any?) {
         guard !updates.busy, waitingUpdate == nil else { return }
         if let why = updates.whyNot() {
-            return asking.tell("This copy of Write_On cannot update itself.", detail: why, for: nil)
+            return asking.tell("This copy of Write On cannot update itself.", detail: why, for: nil)
         }
         let cancel: () -> Void = { [weak self] in self?.updates.cancel() }
         asking.working("Checking for updates…", cancel: cancel)
@@ -236,7 +236,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
             case .canceled:
                 break
             case .current(let version):
-                self.asking.inform("Write_On is up to date.", detail: "You have version \(version), the latest.", for: nil)
+                self.asking.inform("Write On is up to date.", detail: "You have version \(version), the latest.", for: nil)
             case .failed(let message, let detail):
                 self.asking.tell(message, detail: detail, for: nil)
             case .ready(let release, let staged):
@@ -347,7 +347,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSMenu
         do {
             try updates.install(staged)
         } catch {
-            asking.tell("Write_On could not put the new version in its place.", detail: "\(error.localizedDescription) The version you have is as it was.", for: nil)
+            asking.tell("Write On could not put the new version in its place.", detail: "\(error.localizedDescription) The version you have is as it was.", for: nil)
             return false
         }
         updates.reopen(with: controllers.compactMap(\.fileURL))

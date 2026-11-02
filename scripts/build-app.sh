@@ -28,6 +28,8 @@ lipo -create -output "$APP/Contents/MacOS/WriteOn" "${HALVES[@]}"
 # taken out. (The signature this breaks is made again below.)
 [ "$CONFIG" != release ] || strip -S -no_code_signature_warning "$APP/Contents/MacOS/WriteOn"
 cp "$ROOT/packaging/Info.plist" "$APP/Contents/Info.plist"
+# The name the app shows, Write On (the file is Write_On.app).
+cp -R "$ROOT/packaging/en.lproj" "$APP/Contents/Resources/en.lproj"
 # Where the build came from, as git names it: v1.0.1 at a release's tag, v1.0.1-1-g0ce718c a
 # commit after it, and -dirty on the end with changes not committed; and the commit itself.
 # About shows the commit for a release and the rest for any other build (README, "Versions").

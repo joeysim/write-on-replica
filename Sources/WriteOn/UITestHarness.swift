@@ -273,6 +273,8 @@ final class UITestHarness {
                 // The name macOS gives the app: in the app switcher and the Dock, and in Finder.
                 "name": NSRunningApplication.current.localizedName ?? NSNull(),
                 "finderName": FileManager.default.displayName(atPath: Bundle.main.bundlePath),
+                // And the short name, which the menu bar and About give.
+                "shortName": Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String ?? NSNull(),
             ] as [String: Any]
         })
         bridge.on("test.done", sync: { [weak self] params in

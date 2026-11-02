@@ -256,8 +256,8 @@ final class Panels: Asking {
 
     func whetherToUpdate(to version: String, from current: String, notes: [String], then reply: @escaping (Bool) -> Void) {
         let alert = NSAlert()
-        alert.messageText = "Write_On \(version) is ready to install."
-        var detail = "You have \(current). To install the update, Write_On quits, as Quit does, and opens again with the documents that are open."
+        alert.messageText = "Write On \(version) is ready to install."
+        var detail = "You have \(current). To install the update, Write On quits, as Quit does, and opens again with the documents that are open."
         if !notes.isEmpty {
             // As many lines as an alert holds well; the release page has the rest.
             let shown = notes.prefix(5).map { "• \($0)" }

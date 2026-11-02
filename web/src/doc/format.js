@@ -514,7 +514,7 @@ export function parse(fileText) {
           keptCount += 1;
         }
       }
-      note = `The text was changed outside Write_On, so it was read as it is now. ${keptCount} of ${total} alternatives were kept.`;
+      note = `The text was changed outside Write On, so it was read as it is now. ${keptCount} of ${total} alternatives were kept.`;
     }
   }
 

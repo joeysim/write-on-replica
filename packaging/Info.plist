@@ -5,7 +5,7 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>Write On</string>
+    <string>Write_On</string>
     <key>CFBundleDocumentTypes</key>
     <array>
         <dict>
@@ -39,6 +39,8 @@
     <string>6</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.productivity</string>
+    <key>LSHasLocalizedDisplayName</key>
+    <true/>
     <key>LSMinimumSystemVersion</key>
     <string>13.0</string>
     <key>NSAppTransportSecurity</key>
@@ -51,7 +53,7 @@
     <key>NSHumanReadableCopyright</key>
     <string>Inspired by Jason Fried’s Write_On. An unofficial replica, not connected with him. © 2026 Joey Simhon. MIT license.</string>
     <key>NSLocalNetworkUsageDescription</key>
-    <string>Write_On reaches your local network only to ask an AI model served there, and only if the address in its Settings names one.</string>
+    <string>Write On reaches your local network only to ask an AI model served there, and only if the address in its Settings names one.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>NSSupportsAutomaticGraphicsSwitching</key>

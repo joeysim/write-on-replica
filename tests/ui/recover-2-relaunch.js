@@ -33,7 +33,7 @@ t.equal([editor.groups.rec0ver?.variants, editor.groups.rec0ver?.active, editor.
   t.equal(s.drafts.length, 1, 'the copy stays until the work is saved or let go');
   t.equal(ui.get('read'), true, 'the app starts in read mode, as it was left');
   await t.until(() => Number(getComputedStyle(tip).opacity) > 0.99, 1500, 'a note to show, read mode or not');
-  t.equal([tip.textContent, tip.classList.contains('is-note')], ['Recovered after Write_On quit unexpectedly. Save it to keep it.', true], 'which says where the work came from');
+  t.equal([tip.textContent, tip.classList.contains('is-note')], ['Recovered after Write On quit unexpectedly. Save it to keep it.', true], 'which says where the work came from');
   await t.snap('recovered');
 }
 ui.set({ read: false });

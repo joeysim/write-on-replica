@@ -10,7 +10,7 @@ import { sampleState, blankState } from '../sample.js';
 // each change.
 const SETTLE_MS = 420;
 const DRAFT_MS = 3000; // how often, at most, unsaved work is copied aside
-const RECOVERED = 'Recovered after Write_On quit unexpectedly. Save it to keep it.';
+const RECOVERED = 'Recovered after Write On quit unexpectedly. Save it to keep it.';
 
 export function createFiles({ editor, ui, commands, native, tooltips }) {
   const saveButton = document.getElementById('save');

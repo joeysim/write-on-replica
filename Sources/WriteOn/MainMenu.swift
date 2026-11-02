@@ -37,8 +37,8 @@ struct MainMenu {
     // MARK: Menus
 
     private func appMenu() -> NSMenu {
-        let menu = NSMenu(title: "Write_On")
-        menu.addItem(item("About Write_On", #selector(AppDelegate.showAbout(_:))))
+        let menu = NSMenu(title: "Write On")
+        menu.addItem(item("About Write On", #selector(AppDelegate.showAbout(_:))))
         menu.addItem(item("Check for Updates…", #selector(AppDelegate.checkForUpdates(_:))))
         menu.addItem(.separator())
         menu.addItem(item("Settings…", #selector(AppDelegate.showSettings(_:)), ","))
@@ -47,11 +47,11 @@ struct MainMenu {
         menu.addItem(submenu(services))
         NSApp.servicesMenu = services
         menu.addItem(.separator())
-        menu.addItem(item("Hide Write_On", #selector(NSApplication.hide(_:)), "h"))
+        menu.addItem(item("Hide Write On", #selector(NSApplication.hide(_:)), "h"))
         menu.addItem(item("Hide Others", #selector(NSApplication.hideOtherApplications(_:)), "h", [.command, .option]))
         menu.addItem(item("Show All", #selector(NSApplication.unhideAllApplications(_:))))
         menu.addItem(.separator())
-        menu.addItem(item("Quit Write_On", #selector(NSApplication.terminate(_:)), "q"))
+        menu.addItem(item("Quit Write On", #selector(NSApplication.terminate(_:)), "q"))
         return menu
     }
 

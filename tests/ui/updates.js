@@ -12,7 +12,7 @@ const updates = (change = {}) => t.call('test.updates', change);
 const dialogs = async () => (await t.call('test.dialogs')).asked;
 const answer = (...answers) => t.call('test.dialogs', { answers });
 const shell = () => t.call('test.shell');
-const ITEM = ['Write_On', 'Check for Updates…'];
+const ITEM = ['Write On', 'Check for Updates…'];
 // What was asked and told, as [kind, what]. Only the update's version is given for it.
 const told = (said) => said.map((d) => [d.kind, d.kind === 'update' ? d.version : (d.message ?? null)]);
 const ended = (said) => said.some((d) => ['tell', 'inform', 'update'].includes(d.kind));
@@ -47,8 +47,8 @@ t.assert(base.startsWith('http://127.0.0.1:'), `the run asks the stand-in, on th
 t.assert(start.bundle.endsWith('/Applications/Write_On.app'), `the run is a copy of its own: ${start.bundle}`);
 t.equal([start.whyNot, start.signed, start.source], [null, true, `v${start.version}`], 'a copy that is a release, signed, may update itself');
 {
-  const items = (await t.call('test.menu', { path: ['Write_On'] })).items.slice(0, 2).map((item) => [item.title, item.enabled]);
-  t.equal(items, [['About Write_On', true], ['Check for Updates…', true]], 'Check for Updates is in the app’s menu, under About');
+  const items = (await t.call('test.menu', { path: ['Write On'] })).items.slice(0, 2).map((item) => [item.title, item.enabled]);
+  t.equal(items, [['About Write On', true], ['Check for Updates…', true]], 'Check for Updates is in the app’s menu, under About');
 }
 
 // --- copies that cannot update themselves ------------------------------------------------------------
@@ -59,7 +59,7 @@ const cannot = async (why, what, change, undo) => {
   await t.call('test.pick', { path: ITEM });
   const said = (await dialogs()).slice(heard);
   heard += said.length;
-  t.equal(told(said), [['tell', 'This copy of Write_On cannot update itself.']], `${what}: it says so, and asks nothing`);
+  t.equal(told(said), [['tell', 'This copy of Write On cannot update itself.']], `${what}: it says so, and asks nothing`);
   t.assert(why.test(said[0]?.detail ?? ''), `${what}, and why: ${said[0]?.detail}`);
   await undo();
 };
@@ -74,10 +74,10 @@ t.equal((await updates()).whyNot, null, 'and each copy could again');
 
 {
   const said = await check('current');
-  t.equal(told(said), [['working', 'Checking for updates…'], ['inform', 'Write_On is up to date.']], 'the latest release is this version: there is nothing to install');
+  t.equal(told(said), [['working', 'Checking for updates…'], ['inform', 'Write On is up to date.']], 'the latest release is this version: there is nothing to install');
   t.equal(said[1]?.detail, `You have version ${start.version}, the latest.`, 'and it says which version that is');
 }
-t.equal(told(await check('older')), [['working', 'Checking for updates…'], ['inform', 'Write_On is up to date.']], 'a release older than this copy is not offered');
+t.equal(told(await check('older')), [['working', 'Checking for updates…'], ['inform', 'Write On is up to date.']], 'a release older than this copy is not offered');
 
 // --- answers that go wrong ---------------------------------------------------------------------------
 
@@ -87,8 +87,8 @@ const failure = async (name, message, detail) => {
   if (detail) t.assert(detail.test(said[1]?.detail ?? ''), `${name}, and why: ${said[1]?.detail}`);
 };
 await failure('missing', 'GitHub did not say which release is the latest.', /It answered 404/);
-await failure('broken', 'Write_On could not read GitHub’s answer.', /does not say what the latest release is/);
-await failure('untagged', 'Write_On could not read GitHub’s answer.', /“nightly”, which is not a version/);
+await failure('broken', 'Write On could not read GitHub’s answer.', /does not say what the latest release is/);
+await failure('untagged', 'Write On could not read GitHub’s answer.', /“nightly”, which is not a version/);
 await failure('bare', 'The latest release, 99.0.0, has no app to download.', /It has no Write_On-99\.0\.0\.zip/);
 await failure('away', 'A scripted run asks only a service on this Mac.');
 
@@ -98,7 +98,7 @@ const refused = async (name, detail) => {
   const said = await check(name);
   t.equal(
     told(said),
-    [['working', 'Checking for updates…'], ['working', 'Downloading Write_On 99.0.0…'], ['tell', 'The update was not installed.']],
+    [['working', 'Checking for updates…'], ['working', 'Downloading Write On 99.0.0…'], ['tell', 'The update was not installed.']],
     `${name}: downloaded and checked, and not installed`,
   );
   t.assert(detail.test(said[2]?.detail ?? ''), `${name}, and why: ${said[2]?.detail}`);
@@ -123,7 +123,7 @@ await refused('mismatch', /The release is 99\.0\.0, but the app in its zip is 98
 
 {
   const said = await check('good', [{ update: 'later' }]);
-  t.equal(told(said), [['working', 'Checking for updates…'], ['working', 'Downloading Write_On 99.0.0…'], ['update', '99.0.0']], 'a good later version is downloaded, checked and offered');
+  t.equal(told(said), [['working', 'Checking for updates…'], ['working', 'Downloading Write On 99.0.0…'], ['update', '99.0.0']], 'a good later version is downloaded, checked and offered');
   t.equal([said[2]?.current, said[2]?.notes], [start.version, ['One change.', 'Another change, on a line of its own.']], 'with the version this copy is, and what the release notes say changed');
   const now = await updates();
   t.equal([now.version, now.reopened], [start.version, null], 'Not Now leaves the copy as it was');

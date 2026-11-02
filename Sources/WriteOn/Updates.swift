@@ -1,7 +1,7 @@
 import AppKit
 import Security
 
-/// Write_On ▸ Check for Updates… (design spec 6.14). Only when the item is chosen, the app
+/// Write On ▸ Check for Updates… (design spec 6.14). Only when the item is chosen, the app
 /// asks GitHub which release is the latest, and if it is later than this copy, downloads its
 /// zip itself. A copy downloaded this way has no quarantine mark, so macOS opens it without
 /// asking. The new copy takes this one's place only if it is signed as this one is: this
@@ -102,12 +102,12 @@ final class Updates {
             return "This copy has an ad hoc signature, so it cannot tell whether an update is signed by the same hand. Download the update from the release page instead."
         }
         if copy.bundle.path.contains("/AppTranslocation/") {
-            return "macOS runs this copy from a hidden folder, because it was opened where it was downloaded. Move Write_On to Applications, open it from there, and choose Check for Updates again."
+            return "macOS runs this copy from a hidden folder, because it was opened where it was downloaded. Move Write On to Applications, open it from there, and choose Check for Updates again."
         }
         let folder = copy.bundle.deletingLastPathComponent()
         let files = FileManager.default
         guard files.isWritableFile(atPath: folder.path), files.isWritableFile(atPath: copy.bundle.path) else {
-            return "Write_On cannot change the folder it is in (\(folder.path)). Move it to a folder you can change, such as Applications, or download the update from the release page."
+            return "Write On cannot change the folder it is in (\(folder.path)). Move it to a folder you can change, such as Applications, or download the update from the release page."
         }
         guard feed != nil else { return "This copy has no address to ask for updates (WriteOnUpdates in its Info.plist)." }
         return nil
@@ -135,16 +135,16 @@ final class Updates {
 
     private func checking(_ note: @escaping (String) -> Void) async -> Outcome {
         do {
-            guard let feed else { throw Failure("Write_On has no address to ask for updates.") }
+            guard let feed else { throw Failure("Write On has no address to ask for updates.") }
             let release = try await latest(from: feed)
             guard let current = copy.version, release.version > current else { return .current(copy.version ?? release.version) }
-            note("Downloading Write_On \(release.version)…")
+            note("Downloading Write On \(release.version)…")
             return .ready(release, try await fetch(release))
         } catch let failure as Failure {
             return .failed(failure.message, detail: failure.detail)
         } catch {
             if error is CancellationError || (error as? URLError)?.code == .cancelled { return .canceled }
-            return .failed("Write_On could not check for updates.", detail: error.localizedDescription)
+            return .failed("Write On could not check for updates.", detail: error.localizedDescription)
         }
     }
 
@@ -168,10 +168,10 @@ final class Updates {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         guard let said = try? decoder.decode(Feed.self, from: data) else {
-            throw Failure("Write_On could not read GitHub’s answer.", detail: "It does not say what the latest release is.")
+            throw Failure("Write On could not read GitHub’s answer.", detail: "It does not say what the latest release is.")
         }
         guard said.tagName.hasPrefix("v"), let version = Version(String(said.tagName.dropFirst())) else {
-            throw Failure("Write_On could not read GitHub’s answer.", detail: "The latest release is tagged “\(said.tagName)”, which is not a version.")
+            throw Failure("Write On could not read GitHub’s answer.", detail: "The latest release is tagged “\(said.tagName)”, which is not a version.")
         }
         let name = "Write_On-\(version).zip"
         guard let zip = said.assets.first(where: { $0.name == name })?.browserDownloadUrl else {
@@ -192,7 +192,7 @@ final class Updates {
             try files.moveItem(at: downloaded, to: zip)
             if let failure = Self.refusal(response, of: "give the update") { throw failure }
             let size = (try? files.attributesOfItem(atPath: zip.path)[.size] as? Int) ?? 0
-            guard size <= Self.largest else { throw Failure("The update was not installed.", detail: "Its zip is \(size / 1_000_000) MB, which is far more than a release of Write_On.") }
+            guard size <= Self.largest else { throw Failure("The update was not installed.", detail: "Its zip is \(size / 1_000_000) MB, which is far more than a release of Write On.") }
             let unpacked = folder.appendingPathComponent("unpacked", isDirectory: true)
             try await Self.unzip(zip, into: unpacked)
             let found = (try? files.contentsOfDirectory(at: unpacked, includingPropertiesForKeys: nil)) ?? []
@@ -218,7 +218,7 @@ final class Updates {
         guard let requirement = copy.requirement else { throw Failure("The update was not installed.", detail: "This copy cannot read its own signature.") }
         // Off the main thread: every file of the app is read.
         if let problem = await Task.detached(operation: { Self.problem(signing: app, against: requirement) }).value {
-            throw Failure("The update was not installed.", detail: "Write_On \(release.version) from GitHub is not signed with the certificate that this copy has, or it was changed after it was signed. (\(problem))")
+            throw Failure("The update was not installed.", detail: "Write On \(release.version) from GitHub is not signed with the certificate that this copy has, or it was changed after it was signed. (\(problem))")
         }
     }
 
@@ -278,7 +278,7 @@ final class Updates {
         do {
             return try await request()
         } catch let error as URLError where error.code != .cancelled {
-            throw Failure("Write_On could not reach GitHub.", detail: error.localizedDescription)
+            throw Failure("Write On could not reach GitHub.", detail: error.localizedDescription)
         }
     }
 
@@ -291,7 +291,7 @@ final class Updates {
     }
 
     private func offLimits(_ url: URL) -> String {
-        scripted ? AIClient.offLimits : "Write_On asks for updates only over https, and \(url.host ?? "this address") is not."
+        scripted ? AIClient.offLimits : "Write On asks for updates only over https, and \(url.host ?? "this address") is not."
     }
 
     /// Where a request may go: in a scripted run only this Mac, otherwise only https.

@@ -6,12 +6,13 @@ release that brings it.
 
 ## Unreleased
 
-- Write_On ▸ Check for Updates… installs a later release. The app downloads the release
+- Write On ▸ Check for Updates… installs a later release. The app downloads the release
   and checks that it is signed with the same certificate as your copy. macOS then opens it
   without asking, and no Terminal command is needed. Install and Relaunch quits as Quit
   does, and opens the app again with your documents. The app asks GitHub only when you
   choose the item. Install this version itself the way you installed the last one.
-- The app switcher calls the app Write On. Its file is still Write_On.app.
+- The app calls itself Write On: in the menu bar, the app switcher, Finder, About and its
+  messages. Its file is still Write_On.app, so Terminal commands and updates work as before.
 
 ## 1.1.1 (2026-10-22)
 

@@ -50,7 +50,7 @@ files.show({
 });
 await t.settle();
 t.equal(Object.keys(editor.groups), ['st4ys01'], 'a group whose word is still there is kept, and one whose word is gone is not');
-t.equal(await note(), ['The text was changed outside Write_On, so it was read as it is now. 1 of 2 alternatives were kept.', true], 'a note says so');
+t.equal(await note(), ['The text was changed outside Write On, so it was read as it is now. 1 of 2 alternatives were kept.', true], 'a note says so');
 await t.click(700, 500);
 await t.until(() => Number(getComputedStyle(tip).opacity) < 0.01, 1500, 'a press to put the note away');
 

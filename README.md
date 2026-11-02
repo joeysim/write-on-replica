@@ -68,10 +68,10 @@ xattr -dr com.apple.quarantine /Applications/Write_On.app
 
 System Settings ▸ Privacy & Security may offer to open it anyway as well. Nobody has yet
 opened a downloaded copy on another Mac (see
-[What a person has to check](#what-a-person-has-to-check)). The app switcher calls the
-app Write On. In Finder and in Terminal it is still `Write_On.app`.
+[What a person has to check](#what-a-person-has-to-check)). The app calls itself Write On,
+in Finder too. Its file is still `Write_On.app`, which is the name the command above uses.
 
-**Updates.** From 1.2.0 on, Write_On ▸ Check for Updates… installs a later release, and
+**Updates.** From 1.2.0 on, Write On ▸ Check for Updates… installs a later release, and
 the command above is not needed again. The app asks GitHub for the latest release only
 when you choose the item. If that release is later than your copy, the app downloads it and
 checks that it is signed with the same certificate as your copy. Then it offers to install
@@ -318,7 +318,7 @@ These need someone at the Mac:
    heading as the name. ⌘O, Open Recent. Close with unsaved changes: Save, Cancel, Don't Save.
    Quit with two unsaved windows: asked about each in turn. Change an open file in another
    editor and then save it here: asked before it is written over.
-9. **From Finder.** Right-click a `.md` file ▸ Open With ▸ Write_On.
+9. **From Finder.** Right-click a `.md` file ▸ Open With ▸ Write On.
 10. **After a crash.** Type something, wait five seconds, `killall -9 WriteOn`, open the app
     again: the work is back, unsaved, with a note by the Save icon.
 11. **Settings.** Paste a key: the line under the field says "Using the key saved here."
@@ -330,7 +330,7 @@ These need someone at the Mac:
 13. **Full screen** (the green button, or fn F): the layout then matches the clips exactly,
     with no title bar above the page.
 14. **Post to X** (the X icon): the browser opens X's compose window with the piece in it.
-15. **About.** Write_On ▸ About Write_On: for a release (from 1.0.3), the version as three
+15. **About.** Write On ▸ About Write On: for a release (from 1.0.3), the version as three
     numbers with the commit it was built from in brackets; for a build of your own, where
     it came from, marked "(development)" (see [Versions](#versions)). Under them, a line
     saying that this is an unofficial replica, inspired by Jason Fried's.
@@ -346,7 +346,7 @@ These need someone at the Mac:
     [Build and run](#build-and-run). Then open a `.md` file with File ▸ Open: it should
     not be grayed out. On the first other Mac it was tried on, every one was, until
     that was mended.
-19. **Check for Updates.** With a release in Applications, choose Write_On ▸ Check for
+19. **Check for Updates.** With a release in Applications, choose Write On ▸ Check for
     Updates… when a later release is out. It should offer the update, install it and open
     again with the documents that were open, and macOS should ask nothing: no refusal,
     no command, no password. Nobody has yet, because 1.2.0 is the first release with the
@@ -585,7 +585,7 @@ the same loop in JavaScript, and three times slower once the text has been hande
 ## Versions
 
 The app's version is three numbers, as [Semantic Versioning](https://semver.org) writes
-them: major, minor, patch. Write_On ▸ About Write_On shows it. What each number promises:
+them: major, minor, patch. Write On ▸ About Write On shows it. What each number promises:
 
 - **Major** goes up when something you rely on stops working as it did: a file an earlier
   version saved no longer opens with all that was in it, a setting or a name read from the
