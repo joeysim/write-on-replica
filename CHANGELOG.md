@@ -6,6 +6,8 @@ release that brings it.
 
 ## Unreleased
 
+## 1.2.0 (2026-11-02)
+
 - Write On ▸ Check for Updates… installs a later release. The app downloads the release
   and checks that it is signed with the same certificate as your copy. macOS then opens it
   without asking, and no Terminal command is needed. Install and Relaunch quits as Quit
