@@ -1,8 +1,8 @@
 #!/bin/bash
 # Sign an app as scripts/build-app.sh signs the one it builds: with this Mac's signing
-# identity where it has one (scripts/make-signing-identity.sh), so that macOS sees each
-# build as the same app, and ad hoc where it does not. codesign needs no trust in the
-# certificate to sign with it.
+# identity where it has one (scripts/make-signing-identity.sh), so that every build has the
+# same designated requirement, which Check for Updates checks an update against; and ad hoc
+# where it does not. codesign needs no trust in the certificate to sign with it.
 #   scripts/sign-app.sh <app>
 # WRITEON_SIGNING_DIR names the identity's folder, if not ~/.writeon-signing. Says how the
 # app is signed: "signed as Write_On Local Signing", or "signed ad hoc".

@@ -6,6 +6,10 @@ release that brings it.
 
 ## Unreleased
 
+- The note for 1.1.1 was wrong about the Keychain. After each update, it asks once for your
+  password before the new version reads your key, even if you chose Always Allow before.
+  The certificate is not from Apple, so the Keychain ties the key to each build.
+
 ## 1.2.3 (2026-11-02)
 
 - Nothing in the app changed. This release gives Check for Updates in 1.2.2 a later

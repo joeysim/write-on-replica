@@ -44,7 +44,7 @@ cp -R "$ROOT/web" "$APP/Contents/Resources/web"
 # The icon is drawn by a script and kept in the repository; it is drawn again only if missing.
 [ -f "$ROOT/packaging/AppIcon.icns" ] || swift "$ROOT/scripts/make-icon.swift" >/dev/null
 cp "$ROOT/packaging/AppIcon.icns" "$APP/Contents/Resources/AppIcon.icns"
-# The signature (scripts/sign-app.sh): this Mac's own identity where it has one, so that
-# macOS sees each build as the same app, and ad hoc elsewhere.
+# The signature (scripts/sign-app.sh): this Mac's own identity where it has one, so that every
+# build has the same designated requirement, and ad hoc elsewhere.
 SIGNED="$("$ROOT/scripts/sign-app.sh" "$APP")"
 if [ "$SIGNED" = "signed ad hoc" ]; then echo "built $APP"; else echo "built $APP, $SIGNED"; fi

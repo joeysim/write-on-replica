@@ -11,6 +11,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 VERSION="$(plutil -extract CFBundleShortVersionString raw -o - "$ROOT/packaging/Info.plist")"
 OUT="$ROOT/build/releases/$VERSION"
+# Check for Updates, from 1.2.0 on, looks for exactly this name (README, Versions).
 ZIP="$OUT/Write_On-$VERSION.zip"
 
 # Where this folder is a repository of its own. (A copy downloaded as an archive has no

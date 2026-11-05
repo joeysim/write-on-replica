@@ -2,9 +2,10 @@
 # Make this Mac's identity for signing Write_On: a certificate for code signing, and its key, in a
 # keychain of its own in ~/.writeon-signing. Nothing of it goes into the repository.
 #   scripts/make-signing-identity.sh
-# macOS sees builds signed with one identity as one app. So when a new build reads the key that
-# Settings saved in the Keychain, "Always Allow" from an earlier build still holds. scripts/
-# build-app.sh signs with the identity when it is here, and ad hoc when it is not.
+# Builds signed with one identity have the same designated requirement, and Check for Updates
+# installs only a release that meets the running copy's. (The Keychain still asks once for each
+# new build: for a certificate that is not Apple's, it ties a saved key to the build's own hash.)
+# scripts/build-app.sh signs with the identity when it is here, and ad hoc when it is not.
 # Given WRITEON_SIGNING_P12 (identity.p12 from another Mac, in base64) and its password in
 # WRITEON_SIGNING_P12_PASSWORD, the script imports that identity in place of making one. GitHub
 # signs a release so, with the identity from the repository's secrets.

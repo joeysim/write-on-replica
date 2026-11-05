@@ -73,13 +73,17 @@ in Finder too. Its file is still `Write_On.app`, which is the name the command a
 
 **Updates.** From 1.2.0 on, Write On ▸ Check for Updates… installs a later release, and
 the command above is not needed again. The app asks GitHub for the latest release only
-when you choose the item, or by itself if you turn that on in Settings (below). If that release is later than your copy, the app downloads it and
-checks that it is signed with the same certificate as your copy. Then it offers to install
-it. Install and Relaunch quits the app as Quit does: it asks about unsaved changes first.
+when you choose the item, or by itself if you turn that on in Settings (below). If that
+release is later than your copy, the app downloads it and checks that it is signed with
+the same certificate as your copy. Then it offers to install it. Install and Relaunch quits the app as Quit does: it asks about unsaved changes first.
 Then it puts the new version in place of your copy and opens it again, with your
 documents. macOS opens the new version at once, because the app downloaded it, not the
 browser, so it has no quarantine mark. A copy that you built yourself does not update
-itself: update it with `git pull` and `scripts/build-app.sh`.
+itself: update it with `git pull` and `scripts/build-app.sh`. In 1.2.0 and 1.2.1 the menu
+item stops the app when there is an update. From 1.2.1, turn on Check for updates
+automatically and open the app again; from 1.2.0, install a later release by hand. After
+each update, the Keychain asks once for your password before the new version reads your
+key (see [Signing](#working-on-it)).
 
 The first window shows a short welcome piece. The app opens as a bare editor, text and a
 word count: **click the word count** (top left) to turn the tools on, and again to turn them
@@ -326,9 +330,9 @@ These need someone at the Mac:
 10. **After a crash.** Type something, wait five seconds, `killall -9 WriteOn`, open the app
     again: the work is back, unsaved, with a note by the Save icon.
 11. **Settings.** Paste a key: the line under the field says "Using the key saved here."
-    Test connection answers in about a second. (After rebuilding the app, macOS may ask
-    once for permission to read the saved key, because a locally built app is signed anew
-    each time.)
+    Test connection answers in about a second. (After each rebuild or update, macOS asks
+    once for your password before the app reads the saved key: see Signing, in
+    [Working on it](#working-on-it).)
 12. **Edit menu.** Check Spelling While Typing puts the red marks under a misspelled word, and
     Smart Quotes curls the quotes; both are off to begin with.
 13. **Full screen** (the green button, or fn F): the layout then matches the clips exactly,
@@ -462,13 +466,23 @@ own build folders are in `.build/`, beside it.
 
 **Signing.** A build is signed ad hoc unless the Mac that builds it has a signing identity
 of its own. To make one, run `scripts/make-signing-identity.sh` once. After that, every
-build made on that Mac is signed with it. macOS then sees each build as the same app, so
-the Keychain asks only once before a new build reads the key that Settings saved. The
-identity stays in `~/.writeon-signing`, outside the repository. Releases built on GitHub
+build made on that Mac is signed with it, so every build has the same designated
+requirement. The identity stays in `~/.writeon-signing`, outside the repository. Releases built on GitHub
 are signed with the same identity, from the repository's secrets `WRITEON_SIGNING_P12` (the
 identity's `identity.p12`, in base64) and `WRITEON_SIGNING_P12_PASSWORD`. Check for Updates
 depends on it: a copy installs only a release that is signed with its own certificate.
 (`scripts/build-app.sh` signs with `scripts/sign-app.sh`.)
+
+The certificate does not keep the Keychain quiet. The login keychain gives a saved key two
+checks. Its access list goes by the designated requirement, which every build meets. Its
+partition list goes by the signature: Apple's own code is `apple:`, code signed with a
+certificate from Apple is `teamid:` and the team, and other signed code, ad hoc included,
+is `cdhash:` and the build's own hash (`partitionIdForProcess` in securityd's
+`clientid.cpp`). So each new build or release asks once for the password before it reads
+the key that Settings saved, and Always Allow does not carry over to the next one. A
+designated requirement of the bundle identifier alone does not change that: it was
+tried, on 3 November 2026. Only a certificate from Apple, a Developer ID or an Apple
+Development one, would put every build in one partition.
 
 The app is two parts. `Sources/WriteOn` is a small AppKit shell: windows, the menu bar,
 files, the key, the network. `web/` is the editor, a page of plain ES modules with no build
@@ -640,6 +654,16 @@ runs the unit tests, packages it with `scripts/package.sh`, opens the zip and ru
 from it through two scenarios, and publishes it with what CHANGELOG.md says of that
 version, its size and its checksum. A release that went wrong can be published again from
 the Actions tab, once what went wrong is mended.
+
+**What Check for Updates needs of a release.** Copies from 1.2.0 on find a release, and
+take it, only if all of this holds; change any of it, and those copies stop updating. The
+release is the latest on `github.com/joeysim/write-on-replica`, the address in
+`WriteOnUpdates` in `packaging/Info.plist`. Its tag is `v` and three numbers. It has an
+asset called `Write_On-<version>.zip`, which holds one app and nothing else. That app is
+the tag's version, has the bundle identifier `com.thesimhons.writeon`, and is signed with
+the project's certificate. The offer shows the lines under "## What changed" in the
+release notes, which `scripts/release-notes.sh` writes. To change the certificate, first
+release a copy that accepts the old certificate and the new one.
 
 ## Contributing
 
