@@ -9,7 +9,8 @@ echo
 # Where this folder is a repository of its own, with a history to look through. (A copy
 # downloaded as an archive has none.)
 if [ "$(git rev-parse --show-toplevel 2>/dev/null)" = "$(pwd -P)" ]; then scripts/check-secrets.sh; fi
-scripts/build-app.sh >/dev/null
+# swift build writes its errors to stdout, so keep that output and show it if the build fails.
+if ! built="$(scripts/build-app.sh)"; then echo "$built"; echo "check: FAILED (build)"; exit 1; fi
 if [ $# -eq 0 ]; then
   set -- $(ls tests/ui/*.js | xargs -n1 basename | sed 's/\.js$//' | grep -v '^_')
 fi
